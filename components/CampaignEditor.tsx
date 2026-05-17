@@ -282,6 +282,79 @@ const LocationCard = ({ data, onChange, onRemove }: any) => (
   </div>
 );
 
+type SessionLog = { id: string; title: string; date: string; body: string };
+
+function makeLogId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function migrateSessionLogs(data: Record<string, any>): { initialState: Record<string, any>; initialOpenId: string | null } {
+  const { logCurrent, ...rest } = data;
+
+  if (Array.isArray(data.sessionLogs)) {
+    const logs = data.sessionLogs as SessionLog[];
+    if (logs.length === 0) return { initialState: rest, initialOpenId: null };
+    const newest = [...logs].sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0];
+    return { initialState: rest, initialOpenId: newest?.id ?? null };
+  }
+
+  const existing = typeof logCurrent === 'string' ? logCurrent.trim() : '';
+  if (!existing) return { initialState: rest, initialOpenId: null };
+  const id = makeLogId();
+  const migrated: SessionLog = { id, title: 'Session 1', date: todayISO(), body: logCurrent };
+  return { initialState: { ...rest, sessionLogs: [migrated] }, initialOpenId: id };
+}
+
+const SessionLogCard = ({ data, open, onToggleOpen, onChange, onRemove }: {
+  data: SessionLog;
+  open: boolean;
+  onToggleOpen: () => void;
+  onChange: (v: SessionLog) => void;
+  onRemove: () => void;
+}) => (
+  <div className="rounded border border-rule bg-parchment shadow-card">
+    <div className="flex items-center gap-1.5 p-2">
+      <button onClick={onToggleOpen} className="text-brass-deep hover:text-crimson flex-shrink-0">
+        {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+      </button>
+      <input
+        type="text"
+        value={data.title || ''}
+        onChange={(e) => onChange({ ...data, title: e.target.value })}
+        placeholder="Session title"
+        className="flex-1 min-w-0 bg-transparent font-display tracking-wide text-sm text-ink placeholder:text-ink-faint placeholder:italic placeholder:font-serif focus:outline-none border-b border-transparent focus:border-crimson pb-0.5"
+      />
+      <input
+        type="date"
+        value={data.date || ''}
+        onChange={(e) => onChange({ ...data, date: e.target.value })}
+        className="bg-parchment-soft border border-rule rounded px-1.5 py-0.5 text-xs text-ink-soft font-serif focus:border-crimson focus:outline-none"
+      />
+      <button onClick={onRemove} className="text-ink-mute hover:text-crimson px-1 flex-shrink-0">
+        <X size={14} />
+      </button>
+    </div>
+    {open && (
+      <div className="px-2.5 pb-2.5 pt-2 border-t border-rule">
+        <textarea
+          value={data.body || ''}
+          onChange={(e) => onChange({ ...data, body: e.target.value })}
+          placeholder="What happened. Open threads."
+          rows={6}
+          className="w-full bg-transparent border-b border-rule text-ink font-serif placeholder:text-ink-faint placeholder:italic focus:border-crimson focus:outline-none resize-y px-1 py-1 text-sm"
+        />
+      </div>
+    )}
+  </div>
+);
+
 const ClockCard = ({ data, onChange, onRemove }: any) => {
   const max = data.max || 6;
   const filled = data.filled || 0;
@@ -328,9 +401,13 @@ const Phase = ({ n, title, sub, methods, children, expanded, onToggle, icon: Ico
 export default function CampaignEditor({ campaign, userEmail }: { campaign: Campaign; userEmail: string }) {
   const router = useRouter();
   const [name, setName] = useState(campaign.name);
-  const [state, setState] = useState<Record<string, any>>(campaign.data || {});
+  const [initialMigration] = useState(() => migrateSessionLogs(campaign.data || {}));
+  const [state, setState] = useState<Record<string, any>>(initialMigration.initialState);
   const [done, setDone] = useState<Record<string, boolean>>(campaign.done || {});
   const [open, setOpen] = useState<Record<string, boolean>>({});
+  const [openLogs, setOpenLogs] = useState<Record<string, boolean>>(
+    initialMigration.initialOpenId ? { [initialMigration.initialOpenId]: true } : {}
+  );
   const [phaseOpen, setPhaseOpen] = useState<Record<string, boolean>>({ p0: true });
   const [tab, setTab] = useState<'prep' | 'ref' | 'track'>('prep');
   const [soloMode, setSoloMode] = useState<boolean>(campaign.data?.__soloMode ?? true);
@@ -367,6 +444,24 @@ export default function CampaignEditor({ campaign, userEmail }: { campaign: Camp
   const togglePhase = (id: string) => setPhaseOpen(p => ({ ...p, [id]: !p[id] }));
 
   const completedCount = Object.values(done).filter(Boolean).length;
+
+  const sessionLogs = (state.sessionLogs as SessionLog[]) || [];
+  const sortedSessionLogs = [...sessionLogs].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  const addSessionLog = () => {
+    const id = makeLogId();
+    const next: SessionLog = { id, title: `Session ${sessionLogs.length + 1}`, date: todayISO(), body: '' };
+    setVal('sessionLogs', [next, ...sessionLogs]);
+    setOpenLogs(o => ({ ...o, [id]: true }));
+  };
+  const updateSessionLog = (id: string, patch: Partial<SessionLog>) => {
+    setVal('sessionLogs', sessionLogs.map(l => l.id === id ? { ...l, ...patch } : l));
+  };
+  const removeSessionLog = (id: string) => {
+    const log = sessionLogs.find(l => l.id === id);
+    if (log && (log.body || '').trim() && !confirm(`Delete "${log.title || 'this session log'}"? This cannot be undone.`)) return;
+    setVal('sessionLogs', sessionLogs.filter(l => l.id !== id));
+    setOpenLogs(o => { const next = { ...o }; delete next[id]; return next; });
+  };
 
   const exportJSON = () => {
     const safe = (name || 'untitled').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
@@ -709,8 +804,27 @@ export default function CampaignEditor({ campaign, userEmail }: { campaign: Camp
         {tab === 'track' && (
           <div className="space-y-3 text-sm">
             <div className="rounded border border-rule bg-parchment p-3 shadow-card">
-              <h3 className="font-display tracking-wide text-ink mb-2">Session Log</h3>
-              <Field value={get('logCurrent', '')} onChange={(v) => setVal('logCurrent', v)} placeholder="What happened. Open threads." rows={6} />
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-display tracking-wide text-ink">Session Logs</h3>
+                <button onClick={addSessionLog} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
+                  <Plus size={12} /> New Session
+                </button>
+              </div>
+              <div className="space-y-2">
+                {sortedSessionLogs.length === 0 && (
+                  <p className="text-sm text-ink-mute italic font-serif">No sessions yet. Click "New Session" to start a log.</p>
+                )}
+                {sortedSessionLogs.map((log) => (
+                  <SessionLogCard
+                    key={log.id}
+                    data={log}
+                    open={!!openLogs[log.id]}
+                    onToggleOpen={() => setOpenLogs(o => ({ ...o, [log.id]: !o[log.id] }))}
+                    onChange={(v) => updateSessionLog(log.id, v)}
+                    onRemove={() => removeSessionLog(log.id)}
+                  />
+                ))}
+              </div>
             </div>
             <div className="rounded border border-rule bg-parchment p-3 shadow-card">
               <h3 className="font-display tracking-wide text-ink mb-2">Revealed Secrets</h3>
