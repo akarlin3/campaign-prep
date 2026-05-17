@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/firebase/auth-context';
-import { BookOpen } from 'lucide-react';
 
 export default function LoginPage() {
   const { user, loading, signInWithGoogle } = useAuth();
@@ -26,22 +25,29 @@ export default function LoginPage() {
     }
   };
 
-  if (loading) return <main className="min-h-screen flex items-center justify-center text-xs text-zinc-500">Loading…</main>;
+  if (loading) {
+    return (
+      <main className="min-h-screen flex items-center justify-center text-sm text-ink-mute italic font-serif">
+        Loading…
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen flex items-center justify-center p-5">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="text-center">
-          <div className="inline-flex items-center gap-2 text-xs text-zinc-500 uppercase tracking-wider">
-            <BookOpen size={12} /> Campaign Prep
+      <div className="w-full max-w-sm bg-parchment-soft border border-rule rounded-lg shadow-page p-8 space-y-6">
+        <div className="text-center space-y-3">
+          <div className="text-xs text-brass-deep font-display uppercase tracking-[0.3em]">
+            Campaign Prep
           </div>
-          <h1 className="text-2xl font-medium mt-2 text-zinc-50">Sign In</h1>
-          <p className="text-sm text-zinc-400 mt-1">Lazy DM · CCD · Proactive Roleplaying</p>
+          <h1 className="font-display text-4xl text-crimson tracking-wide leading-none">Sign In</h1>
+          <div className="flourish"><span>❦</span></div>
+          <p className="text-sm text-ink-soft italic font-serif">Lazy DM · CCD · Proactive Roleplaying</p>
         </div>
         <button
           onClick={handleSignIn}
           disabled={signingIn}
-          className="w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded border border-zinc-800 bg-zinc-900/60 hover:bg-zinc-900 text-zinc-100 disabled:opacity-50 transition-colors"
+          className="w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded border border-crimson/60 bg-parchment text-crimson hover:bg-crimson hover:text-parchment disabled:opacity-50 transition-colors font-display uppercase tracking-wider text-sm"
         >
           <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
             <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
@@ -49,9 +55,9 @@ export default function LoginPage() {
             <path d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
             <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
           </svg>
-          <span className="text-sm font-medium">{signingIn ? 'Signing in…' : 'Continue with Google'}</span>
+          <span>{signingIn ? 'Signing in…' : 'Continue with Google'}</span>
         </button>
-        {error && <p className="text-xs text-red-400 text-center">{error}</p>}
+        {error && <p className="text-xs text-crimson text-center font-serif">{error}</p>}
       </div>
     </main>
   );
