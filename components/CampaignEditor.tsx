@@ -729,7 +729,7 @@ export default function CampaignEditor({ campaign, userEmail, isAdmin = false }:
                   ))}
                   {characters.length === 0 && (
                     <p className="text-sm text-ink-mute italic font-serif">
-                      No characters yet. Add one manually, or {isAdmin ? 'upload a character sheet to parse it' : 'ask an admin to upload a sheet'}.
+                      No characters yet. Click &quot;Add Character&quot; to start.
                     </p>
                   )}
                 </div>
