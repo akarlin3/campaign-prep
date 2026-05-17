@@ -9,6 +9,7 @@ import {
   User, Users, Map, Swords, Gift, Layers, Calendar, Target, Trophy,
   Download, Upload, ScrollText, Trash2, ArrowLeft, Cloud, CloudOff
 } from 'lucide-react';
+import DiceRoller, { type Macro } from './DiceRoller';
 
 const M = {
   shea: { label: 'Lazy DM', color: 'border-moss/40 bg-moss/5 text-moss' },
@@ -409,7 +410,7 @@ export default function CampaignEditor({ campaign, userEmail }: { campaign: Camp
     initialMigration.initialOpenId ? { [initialMigration.initialOpenId]: true } : {}
   );
   const [phaseOpen, setPhaseOpen] = useState<Record<string, boolean>>({ p0: true });
-  const [tab, setTab] = useState<'prep' | 'ref' | 'track'>('prep');
+  const [tab, setTab] = useState<'prep' | 'ref' | 'track' | 'dice'>('prep');
   const [soloMode, setSoloMode] = useState<boolean>(campaign.data?.__soloMode ?? true);
   const [syncState, setSyncState] = useState<'synced' | 'pending' | 'saving' | 'error'>('synced');
   const [syncError, setSyncError] = useState<string>('');
@@ -558,7 +559,7 @@ export default function CampaignEditor({ campaign, userEmail }: { campaign: Camp
             </div>
 
             <div className="flex gap-1 mt-3 items-center">
-              {([['prep', 'Prep Flow'], ['ref', 'Reference'], ['track', 'Tracking']] as const).map(([id, label]) => (
+              {([['prep', 'Prep Flow'], ['ref', 'Reference'], ['track', 'Tracking'], ['dice', 'Dice']] as const).map(([id, label]) => (
                 <button key={id} onClick={() => setTab(id)} className={`text-xs px-3 py-1.5 rounded-sm border font-display uppercase tracking-wider transition-colors ${tab === id ? 'bg-crimson border-crimson text-parchment' : 'border-rule text-ink-soft hover:bg-parchment-deep'}`}>
                   {label}
                 </button>
@@ -865,6 +866,13 @@ export default function CampaignEditor({ campaign, userEmail }: { campaign: Camp
               <ListField items={get('dropped', [])} onChange={(v) => setVal('dropped', v)} placeholder="A thread to follow up" />
             </div>
           </div>
+        )}
+
+        {tab === 'dice' && (
+          <DiceRoller
+            macros={get('macros', []) as Macro[]}
+            onMacrosChange={(v) => setVal('macros', v)}
+          />
         )}
 
         <footer className="pt-3 mt-4 border-t border-rule text-xs text-ink-mute italic font-serif text-center">
