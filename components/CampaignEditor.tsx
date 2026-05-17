@@ -5,15 +5,15 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { updateCampaign, deleteCampaign as deleteCampaignDoc, type Campaign } from '@/lib/firebase/campaigns';
 import {
-  ChevronDown, ChevronRight, Check, Plus, X, BookOpen, Quote,
+  ChevronDown, ChevronRight, Check, Plus, X, Quote,
   User, Users, Map, Swords, Gift, Layers, Calendar, Target, Trophy,
-  Download, Upload, FileText, Trash2, ArrowLeft, Cloud, CloudOff
+  Download, Upload, ScrollText, Trash2, ArrowLeft, Cloud, CloudOff
 } from 'lucide-react';
 
 const M = {
-  shea: { label: 'Lazy DM', color: 'bg-emerald-950/60 text-emerald-300 border-emerald-900/60' },
-  ccd: { label: 'CCD', color: 'bg-sky-950/60 text-sky-300 border-sky-900/60' },
-  pr: { label: 'Proactive', color: 'bg-violet-950/60 text-violet-300 border-violet-900/60' },
+  shea: { label: 'Lazy DM', color: 'border-moss/40 bg-moss/5 text-moss' },
+  ccd: { label: 'CCD', color: 'border-brass/40 bg-brass/5 text-brass-deep' },
+  pr: { label: 'Proactive', color: 'border-wine/40 bg-wine/5 text-wine' },
 };
 
 // Prep item targets — book-grounded with solo adaptations
@@ -51,30 +51,31 @@ function getTarget(key: string, soloMode: boolean): number {
 }
 
 const Tag = ({ m }: { m: keyof typeof M }) => (
-  <span className={`text-[10px] px-1.5 py-0.5 rounded border font-mono ${M[m].color}`}>{M[m].label}</span>
+  <span className={`text-[10px] px-1.5 py-0.5 rounded-sm border font-display uppercase tracking-wider ${M[m].color}`}>{M[m].label}</span>
+);
+
+const Flourish = () => (
+  <div className="flourish my-2"><span>❦</span></div>
 );
 
 const BookQuote = ({ source, children }: { source: string; children: React.ReactNode }) => (
-  <div className="flex gap-2 rounded border border-zinc-800 bg-zinc-900/40 p-2.5 text-xs">
-    <Quote size={12} className="text-zinc-600 flex-shrink-0 mt-0.5" />
-    <div>
-      <div className="text-zinc-300 italic leading-relaxed">{children}</div>
-      <div className="text-zinc-600 mt-1">— {source}</div>
-    </div>
-  </div>
+  <blockquote className="pl-3 border-l-2 border-crimson/70 bg-parchment-soft/60 py-2 pr-3 text-sm rounded-r">
+    <div className="font-serif italic text-ink-soft leading-relaxed">{children}</div>
+    <div className="text-brass-deep mt-1 text-xs uppercase tracking-wider font-display">— {source}</div>
+  </blockquote>
 );
 
 const SoloNote = ({ children }: { children: React.ReactNode }) => (
-  <div className="flex items-start gap-2 rounded border border-pink-900/40 bg-pink-950/20 p-2 text-xs">
-    <User size={12} className="text-pink-400 flex-shrink-0 mt-0.5" />
-    <div className="text-pink-200/90"><span className="font-medium">Solo Adaptation:</span> {children}</div>
+  <div className="flex items-start gap-2 rounded border border-wine/40 bg-wine/5 p-2.5 text-sm">
+    <User size={13} className="text-wine flex-shrink-0 mt-0.5" />
+    <div className="text-ink-soft font-serif"><span className="font-display uppercase tracking-wider text-xs text-wine">Solo Adaptation · </span>{children}</div>
   </div>
 );
 
 const Pitfall = ({ children }: { children: React.ReactNode }) => (
-  <div className="flex items-start gap-2 rounded border border-red-900/40 bg-red-950/20 p-2 text-xs">
-    <X size={12} className="text-red-400 flex-shrink-0 mt-0.5" />
-    <div className="text-red-200/90"><span className="font-medium">Common Pitfall:</span> {children}</div>
+  <div className="flex items-start gap-2 rounded border border-crimson/40 bg-crimson/5 p-2.5 text-sm">
+    <X size={13} className="text-crimson flex-shrink-0 mt-0.5" />
+    <div className="text-ink-soft font-serif"><span className="font-display uppercase tracking-wider text-xs text-crimson">Common Pitfall · </span>{children}</div>
   </div>
 );
 
@@ -84,15 +85,15 @@ const TargetBar = ({ current, target, source }: { current: number; target: numbe
   const complete = current >= target;
   return (
     <div className="space-y-1" title={source}>
-      <div className="flex items-center justify-between text-[10px]">
-        <span className={complete ? 'text-emerald-400' : 'text-zinc-500'}>
+      <div className="flex items-center justify-between text-xs font-serif">
+        <span className={complete ? 'text-brass-deep font-semibold' : 'text-ink-soft'}>
           {current} of {target}
         </span>
-        {source && <span className="text-zinc-700">{source}</span>}
+        {source && <span className="text-ink-mute italic">{source}</span>}
       </div>
-      <div className="h-1 bg-zinc-900 rounded overflow-hidden">
+      <div className="h-1.5 bg-parchment-deep rounded-sm overflow-hidden border border-rule">
         <div
-          className={`h-full transition-all ${complete ? 'bg-emerald-700' : 'bg-zinc-600'}`}
+          className={`h-full transition-all ${complete ? 'bg-brass' : 'bg-brass/50'}`}
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -101,19 +102,19 @@ const TargetBar = ({ current, target, source }: { current: number; target: numbe
 };
 
 const Example = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <div className="rounded border border-zinc-800 bg-zinc-900/40 p-2.5 text-xs">
-    <p className="text-zinc-500 mb-1">Example — {title}</p>
-    <div className="text-zinc-300 leading-relaxed">{children}</div>
+  <div className="rounded border border-rule bg-parchment-deep/40 p-2.5 text-sm">
+    <p className="text-brass-deep mb-1 text-xs font-display uppercase tracking-wider">Example — {title}</p>
+    <div className="text-ink-soft font-serif italic leading-relaxed">{children}</div>
   </div>
 );
 
 const Field = ({ value, onChange, placeholder, rows = 1 }: { value: string; onChange: (v: string) => void; placeholder: string; rows?: number }) => (
   rows > 1 ? (
     <textarea value={value || ''} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} rows={rows}
-      className="w-full bg-zinc-900/60 border border-zinc-800 rounded px-2 py-1.5 text-sm text-zinc-200 placeholder-zinc-600 focus:border-zinc-600 focus:outline-none resize-y" />
+      className="w-full bg-transparent border-b border-rule text-ink font-serif placeholder:text-ink-faint placeholder:italic focus:border-crimson focus:outline-none resize-y px-1 py-1 text-sm" />
   ) : (
     <input type="text" value={value || ''} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
-      className="w-full bg-zinc-900/60 border border-zinc-800 rounded px-2 py-1.5 text-sm text-zinc-200 placeholder-zinc-600 focus:border-zinc-600 focus:outline-none" />
+      className="w-full bg-transparent border-b border-rule text-ink font-serif placeholder:text-ink-faint placeholder:italic focus:border-crimson focus:outline-none px-1 py-1 text-sm" />
   )
 );
 
@@ -136,22 +137,24 @@ const ListField = ({
   const remaining = Math.max(0, target - items.length);
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       {items.map((item, i) => (
-        <div key={i} className="flex gap-1.5">
-          <Field value={item} onChange={(v) => update(i, v)} placeholder={placeholder} rows={rows} />
-          <button onClick={() => remove(i)} className="text-zinc-600 hover:text-red-400 px-1.5"><X size={14} /></button>
+        <div key={i} className="flex gap-2 items-center">
+          <span className="text-brass-deep font-display text-xs w-5 text-right">{i + 1}.</span>
+          <div className="flex-1"><Field value={item} onChange={(v) => update(i, v)} placeholder={placeholder} rows={rows} /></div>
+          <button onClick={() => remove(i)} className="text-ink-mute hover:text-crimson px-1"><X size={14} /></button>
         </div>
       ))}
       {Array.from({ length: remaining }).map((_, i) => (
-        <div key={`ghost-${i}`} className="flex gap-1.5 opacity-30">
-          <div className="w-full bg-zinc-900/30 border border-dashed border-zinc-800 rounded px-2 py-1.5 text-xs text-zinc-700 italic">
-            {placeholder} #{items.length + i + 1}
+        <div key={`ghost-${i}`} className="flex gap-2 items-center opacity-50">
+          <span className="text-ink-faint font-display text-xs w-5 text-right">{items.length + i + 1}.</span>
+          <div className="flex-1 border-b border-dashed border-rule px-1 py-1 text-xs text-ink-faint italic font-serif">
+            {placeholder}…
           </div>
-          <div className="px-1.5 w-7" />
+          <div className="px-1 w-6" />
         </div>
       ))}
-      <button onClick={add} className="text-xs text-zinc-500 hover:text-zinc-300 flex items-center gap-1">
+      <button onClick={add} className="ml-7 text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
         <Plus size={12} /> Add
       </button>
     </div>
@@ -159,116 +162,122 @@ const ListField = ({
 };
 
 const Section = ({ id, title, methods, children, done, onToggle, open, onToggleOpen, icon: Icon }: any) => (
-  <div className={`rounded border ${done ? 'border-emerald-900/50 bg-emerald-950/10' : 'border-zinc-800 bg-zinc-900/30'}`}>
-    <div className="flex items-center gap-2 p-2.5">
-      <button onClick={() => onToggle(id)} className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center ${done ? 'bg-emerald-700 border-emerald-600' : 'border-zinc-600'}`}>
-        {done && <Check size={10} />}
+  <div className={`rounded border ${done ? 'border-brass/60 bg-brass/5' : 'border-rule bg-parchment-soft'} shadow-card`}>
+    <div className="flex items-center gap-2 p-3">
+      <button onClick={() => onToggle(id)} className={`w-4 h-4 rounded-sm border flex-shrink-0 flex items-center justify-center ${done ? 'bg-brass border-brass-deep text-parchment' : 'border-ink-mute bg-parchment'}`}>
+        {done && <Check size={10} strokeWidth={3} />}
       </button>
       <button onClick={() => onToggleOpen(id)} className="flex-1 flex items-center gap-2 text-left">
-        {Icon && <Icon size={13} className="text-zinc-500" />}
-        <span className="text-sm font-medium text-zinc-100">{title}</span>
+        {Icon && <Icon size={14} className="text-brass-deep" />}
+        <span className="font-display text-sm tracking-wide text-ink">{title}</span>
         <span className="flex gap-1">{methods?.map((m: any) => <Tag key={m} m={m} />)}</span>
-        <span className="ml-auto text-zinc-600">{open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</span>
+        <span className="ml-auto text-ink-mute">{open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</span>
       </button>
     </div>
-    {open && <div className="px-3 pb-3 border-t border-zinc-800/60 pt-3 space-y-3">{children}</div>}
+    {open && <div className="px-3 pb-3 border-t border-rule pt-3 space-y-3">{children}</div>}
   </div>
 );
 
+const CardLabel = ({ children }: { children: React.ReactNode }) => (
+  <div className="text-xs text-brass-deep font-display uppercase tracking-wider mb-0.5">{children}</div>
+);
+
 const FactionCard = ({ data, onChange, onRemove }: any) => (
-  <div className="rounded border border-zinc-800 bg-zinc-900/40 p-3 space-y-2">
+  <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
     <div className="flex justify-between items-center gap-2">
       <Field value={data.name} onChange={(v) => onChange({ ...data, name: v })} placeholder="Faction Name" />
-      <button onClick={onRemove} className="text-zinc-600 hover:text-red-400"><X size={14} /></button>
+      <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
     </div>
-    <div><div className="text-xs text-zinc-500 mb-0.5">Archetype</div>
-      <select value={data.archetype || ''} onChange={(e) => onChange({ ...data, archetype: e.target.value })} className="w-full bg-zinc-900/60 border border-zinc-800 rounded px-2 py-1 text-xs text-zinc-200">
+    <div><CardLabel>Archetype</CardLabel>
+      <select value={data.archetype || ''} onChange={(e) => onChange({ ...data, archetype: e.target.value })} className="w-full bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif">
         <option value="">— Choose —</option>
         <option>Government (preserves order/stability)</option>
         <option>Religious</option><option>Criminal / underground</option><option>Mercantile</option>
         <option>Military</option><option>Cult</option><option>Scholarly</option>
         <option>Revolutionary</option><option>Other</option>
       </select></div>
-    <div><div className="text-xs text-zinc-500 mb-0.5">Identity</div>
+    <div><CardLabel>Identity</CardLabel>
       <Field value={data.identity} onChange={(v) => onChange({ ...data, identity: v })} placeholder="One sentence" rows={2} /></div>
-    <div><div className="text-xs text-zinc-500 mb-0.5">Area of Operation</div>
+    <div><CardLabel>Area of Operation</CardLabel>
       <Field value={data.area} onChange={(v) => onChange({ ...data, area: v })} placeholder="Where active" /></div>
-    <div><div className="text-xs text-zinc-500 mb-0.5">Power Level</div>
+    <div><CardLabel>Power Level</CardLabel>
       <Field value={data.power} onChange={(v) => onChange({ ...data, power: v })} placeholder="Resources" /></div>
-    <div><div className="text-xs text-zinc-500 mb-0.5">Ideology</div>
+    <div><CardLabel>Ideology</CardLabel>
       <Field value={data.ideology} onChange={(v) => onChange({ ...data, ideology: v })} placeholder="Why they do it" rows={2} /></div>
-    <div><div className="text-xs text-zinc-500 mb-0.5">Short-Term Goals</div>
+    <div><CardLabel>Short-Term Goals</CardLabel>
       <ListField items={data.shortGoals || []} onChange={(v) => onChange({ ...data, shortGoals: v })} placeholder="A short-term goal" /></div>
-    <div><div className="text-xs text-zinc-500 mb-0.5">Mid-Term Goals</div>
+    <div><CardLabel>Mid-Term Goals</CardLabel>
       <ListField items={data.midGoals || []} onChange={(v) => onChange({ ...data, midGoals: v })} placeholder="A mid-term goal" /></div>
-    <div><div className="text-xs text-zinc-500 mb-0.5">Long-Term Goal</div>
+    <div><CardLabel>Long-Term Goal</CardLabel>
       <Field value={data.longGoal} onChange={(v) => onChange({ ...data, longGoal: v })} placeholder="The one big thing" /></div>
   </div>
 );
 
 const GoalCard = ({ data, onChange, onRemove }: any) => (
-  <div className="rounded border border-zinc-800 bg-zinc-900/40 p-3 space-y-2">
+  <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
     <div className="flex justify-between gap-2">
       <Field value={data.text} onChange={(v) => onChange({ ...data, text: v })} placeholder="Goal Statement" rows={2} />
-      <button onClick={onRemove} className="text-zinc-600 hover:text-red-400"><X size={14} /></button>
+      <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
     </div>
     <div className="grid grid-cols-3 gap-1.5">
       {[['short', 'Short-Term'], ['mid', 'Mid-Term'], ['long', 'Long-Term']].map(([t, label]) => (
-        <button key={t} onClick={() => onChange({ ...data, timeframe: t })} className={`text-xs py-1 rounded border ${data.timeframe === t ? 'bg-violet-950/60 border-violet-700 text-violet-200' : 'border-zinc-800 text-zinc-500'}`}>{label}</button>
+        <button key={t} onClick={() => onChange({ ...data, timeframe: t })} className={`text-xs py-1 rounded border font-display uppercase tracking-wider ${data.timeframe === t ? 'bg-wine/10 border-wine text-wine' : 'border-rule text-ink-mute'}`}>{label}</button>
       ))}
     </div>
-    <div><div className="text-xs text-zinc-500 mb-0.5">Rule 3 — Success State</div>
+    <div><CardLabel>Rule 3 — Success State</CardLabel>
       <Field value={data.success} onChange={(v) => onChange({ ...data, success: v })} placeholder="What signals completion?" /></div>
-    <div><div className="text-xs text-zinc-500 mb-0.5">Rule 4 — Failure Consequence</div>
+    <div><CardLabel>Rule 4 — Failure Consequence</CardLabel>
       <Field value={data.failure} onChange={(v) => onChange({ ...data, failure: v })} placeholder="What changes if it fails?" /></div>
-    <div><div className="text-xs text-zinc-500 mb-0.5">Linked Factions / Conflicts</div>
+    <div><CardLabel>Linked Factions / Conflicts</CardLabel>
       <Field value={data.linked} onChange={(v) => onChange({ ...data, linked: v })} placeholder="..." /></div>
   </div>
 );
 
 const NPCCard = ({ data, onChange, onRemove }: any) => (
-  <div className="rounded border border-zinc-800 bg-zinc-900/40 p-3 space-y-2">
+  <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
     <div className="flex justify-between gap-2">
       <Field value={data.name} onChange={(v) => onChange({ ...data, name: v })} placeholder="NPC Name" />
-      <button onClick={onRemove} className="text-zinc-600 hover:text-red-400"><X size={14} /></button>
+      <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
     </div>
     <div className="grid grid-cols-2 gap-2">
-      <div><div className="text-xs text-zinc-500 mb-0.5">Type</div>
-        <select value={data.type || ''} onChange={(e) => onChange({ ...data, type: e.target.value })} className="w-full bg-zinc-900/60 border border-zinc-800 rounded px-2 py-1 text-xs text-zinc-200">
+      <div><CardLabel>Type</CardLabel>
+        <select value={data.type || ''} onChange={(e) => onChange({ ...data, type: e.target.value })} className="w-full bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif">
           <option value="">— Choose —</option>
           <option>Ally</option><option>Villain</option><option>Patron</option><option>Rival</option><option>Neutral / Colour</option>
         </select></div>
-      <div><div className="text-xs text-zinc-500 mb-0.5">Faction</div>
+      <div><CardLabel>Faction</CardLabel>
         <Field value={data.faction} onChange={(v) => onChange({ ...data, faction: v })} placeholder="..." /></div>
     </div>
-    <div><div className="text-xs text-zinc-500 mb-0.5">Archetype</div>
+    <div><CardLabel>Archetype</CardLabel>
       <Field value={data.archetype} onChange={(v) => onChange({ ...data, archetype: v })} placeholder='e.g. "Han Solo"' /></div>
-    <div><div className="text-xs text-zinc-500 mb-0.5">Active Goal</div>
+    <div><CardLabel>Active Goal</CardLabel>
       <Field value={data.goal} onChange={(v) => onChange({ ...data, goal: v })} placeholder="What are they pursuing?" rows={2} /></div>
-    <div><div className="text-xs text-zinc-500 mb-0.5">Method of Pursuit</div>
+    <div><CardLabel>Method of Pursuit</CardLabel>
       <Field value={data.method} onChange={(v) => onChange({ ...data, method: v })} placeholder="Violence? Charm?" /></div>
   </div>
 );
 
 const LocationCard = ({ data, onChange, onRemove }: any) => (
-  <div className="rounded border border-zinc-800 bg-zinc-900/40 p-3 space-y-2">
+  <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
     <div className="flex justify-between gap-2">
       <Field value={data.name} onChange={(v) => onChange({ ...data, name: v })} placeholder="Evocative Name" />
-      <button onClick={onRemove} className="text-zinc-600 hover:text-red-400"><X size={14} /></button>
+      <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
     </div>
-    <div><div className="text-xs text-zinc-500 mb-0.5">Type</div>
-      <select value={data.type || ''} onChange={(e) => onChange({ ...data, type: e.target.value })} className="w-full bg-zinc-900/60 border border-zinc-800 rounded px-2 py-1 text-xs text-zinc-200">
+    <div><CardLabel>Type</CardLabel>
+      <select value={data.type || ''} onChange={(e) => onChange({ ...data, type: e.target.value })} className="w-full bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif">
         <option value="">— Choose —</option>
         <option>Player Base</option><option>Faction Stronghold</option><option>Wilderness Landmark</option>
         <option>Dungeon Room / Area</option><option>Settlement</option><option>Travel Waypoint</option><option>Other</option>
       </select></div>
-    <div><div className="text-xs text-zinc-500">3 Aspects</div>
-      {[0, 1, 2].map(i => (
-        <Field key={i} value={(data.aspects || [])[i] || ''} onChange={(v) => {
-          const aspects = [...(data.aspects || ['', '', ''])]; aspects[i] = v; onChange({ ...data, aspects });
-        }} placeholder={`Aspect ${i + 1}`} />
-      ))}</div>
-    <div><div className="text-xs text-zinc-500 mb-0.5">Factions Present</div>
+    <div><CardLabel>3 Aspects</CardLabel>
+      <div className="space-y-1">
+        {[0, 1, 2].map(i => (
+          <Field key={i} value={(data.aspects || [])[i] || ''} onChange={(v) => {
+            const aspects = [...(data.aspects || ['', '', ''])]; aspects[i] = v; onChange({ ...data, aspects });
+          }} placeholder={`Aspect ${i + 1}`} />
+        ))}
+      </div></div>
+    <div><CardLabel>Factions Present</CardLabel>
       <Field value={data.factions} onChange={(v) => onChange({ ...data, factions: v })} placeholder="..." /></div>
   </div>
 );
@@ -310,9 +319,9 @@ const SessionLogCard = ({ data, open, onToggleOpen, onChange, onRemove }: {
   onChange: (v: SessionLog) => void;
   onRemove: () => void;
 }) => (
-  <div className="rounded border border-zinc-800 bg-zinc-900/40">
+  <div className="rounded border border-rule bg-parchment shadow-card">
     <div className="flex items-center gap-1.5 p-2">
-      <button onClick={onToggleOpen} className="text-zinc-500 hover:text-zinc-300 flex-shrink-0">
+      <button onClick={onToggleOpen} className="text-brass-deep hover:text-crimson flex-shrink-0">
         {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
       </button>
       <input
@@ -320,26 +329,26 @@ const SessionLogCard = ({ data, open, onToggleOpen, onChange, onRemove }: {
         value={data.title || ''}
         onChange={(e) => onChange({ ...data, title: e.target.value })}
         placeholder="Session title"
-        className="flex-1 min-w-0 bg-transparent text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none border-b border-transparent focus:border-zinc-700 pb-0.5"
+        className="flex-1 min-w-0 bg-transparent font-display tracking-wide text-sm text-ink placeholder:text-ink-faint placeholder:italic placeholder:font-serif focus:outline-none border-b border-transparent focus:border-crimson pb-0.5"
       />
       <input
         type="date"
         value={data.date || ''}
         onChange={(e) => onChange({ ...data, date: e.target.value })}
-        className="bg-zinc-900/60 border border-zinc-800 rounded px-1.5 py-0.5 text-xs text-zinc-400 focus:border-zinc-600 focus:outline-none"
+        className="bg-parchment-soft border border-rule rounded px-1.5 py-0.5 text-xs text-ink-soft font-serif focus:border-crimson focus:outline-none"
       />
-      <button onClick={onRemove} className="text-zinc-600 hover:text-red-400 px-1 flex-shrink-0">
+      <button onClick={onRemove} className="text-ink-mute hover:text-crimson px-1 flex-shrink-0">
         <X size={14} />
       </button>
     </div>
     {open && (
-      <div className="px-2.5 pb-2.5 pt-2 border-t border-zinc-800/60">
+      <div className="px-2.5 pb-2.5 pt-2 border-t border-rule">
         <textarea
           value={data.body || ''}
           onChange={(e) => onChange({ ...data, body: e.target.value })}
           placeholder="What happened. Open threads."
           rows={6}
-          className="w-full bg-zinc-900/60 border border-zinc-800 rounded px-2 py-1.5 text-sm text-zinc-200 placeholder-zinc-600 focus:border-zinc-600 focus:outline-none resize-y"
+          className="w-full bg-transparent border-b border-rule text-ink font-serif placeholder:text-ink-faint placeholder:italic focus:border-crimson focus:outline-none resize-y px-1 py-1 text-sm"
         />
       </div>
     )}
@@ -350,42 +359,42 @@ const ClockCard = ({ data, onChange, onRemove }: any) => {
   const max = data.max || 6;
   const filled = data.filled || 0;
   return (
-    <div className="rounded border border-zinc-800 bg-zinc-900/40 p-3 space-y-2">
+    <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
       <div className="flex justify-between gap-2">
         <Field value={data.text} onChange={(v) => onChange({ ...data, text: v })} placeholder="What is this faction trying to do?" />
-        <button onClick={onRemove} className="text-zinc-600 hover:text-red-400"><X size={14} /></button>
+        <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
       </div>
       <Field value={data.faction} onChange={(v) => onChange({ ...data, faction: v })} placeholder="Faction" />
       <div className="flex items-center gap-2">
-        <select value={max} onChange={(e) => onChange({ ...data, max: Number(e.target.value) })} className="bg-zinc-900/60 border border-zinc-800 rounded px-2 py-1 text-xs text-zinc-200">
+        <select value={max} onChange={(e) => onChange({ ...data, max: Number(e.target.value) })} className="bg-parchment-soft border border-rule rounded px-2 py-1 text-xs text-ink font-serif">
           {[4, 6, 8, 12, 16].map(n => <option key={n} value={n}>{n} segments</option>)}
         </select>
-        <div className="flex gap-1 flex-1">
+        <div className="flex gap-0.5 flex-1 border border-brass-deep rounded-sm p-0.5 bg-parchment-deep">
           {Array.from({ length: max }).map((_, i) => (
-            <button key={i} onClick={() => onChange({ ...data, filled: i + 1 === filled ? i : i + 1 })} className={`flex-1 h-5 rounded ${i < filled ? 'bg-red-700' : 'bg-zinc-800 hover:bg-zinc-700'}`} />
+            <button key={i} onClick={() => onChange({ ...data, filled: i + 1 === filled ? i : i + 1 })} className={`flex-1 h-5 rounded-sm transition-colors ${i < filled ? 'bg-crimson' : 'bg-parchment hover:bg-parchment-deep'}`} />
           ))}
         </div>
-        <span className="text-xs text-zinc-500 font-mono">{filled}/{max}</span>
+        <span className="text-xs text-brass-deep font-display">{filled}/{max}</span>
       </div>
     </div>
   );
 };
 
 const Phase = ({ n, title, sub, methods, children, expanded, onToggle, icon: Icon }: any) => (
-  <div className="border border-zinc-800 rounded-lg overflow-hidden bg-zinc-900/20">
-    <button onClick={onToggle} className="w-full flex items-center gap-3 p-4 hover:bg-zinc-900/40 text-left">
-      <div className="text-2xl font-mono text-zinc-700 w-8">{n}</div>
-      {Icon && <Icon size={18} className="text-zinc-500" />}
+  <div className="border border-rule rounded-lg overflow-hidden bg-parchment-soft shadow-page">
+    <button onClick={onToggle} className="w-full flex items-center gap-4 p-4 hover:bg-parchment-deep/30 text-left transition-colors">
+      <div className="font-display text-4xl text-crimson w-12 leading-none">{n}</div>
+      {Icon && <Icon size={20} className="text-brass-deep" />}
       <div className="flex-1">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-medium text-zinc-100">{title}</span>
+          <span className="font-display text-lg tracking-wide text-ink">{title}</span>
           <span className="flex gap-1">{methods?.map((m: any) => <Tag key={m} m={m} />)}</span>
         </div>
-        <div className="text-xs text-zinc-500 mt-0.5">{sub}</div>
+        <div className="text-sm text-ink-soft italic font-serif mt-0.5">{sub}</div>
       </div>
-      {expanded ? <ChevronDown size={18} className="text-zinc-500" /> : <ChevronRight size={18} className="text-zinc-500" />}
+      {expanded ? <ChevronDown size={18} className="text-brass-deep" /> : <ChevronRight size={18} className="text-brass-deep" />}
     </button>
-    {expanded && <div className="p-3 pt-0 space-y-2 border-t border-zinc-800">{children}</div>}
+    {expanded && <div className="p-3 pt-3 space-y-2 border-t border-rule bg-parchment/40">{children}</div>}
   </div>
 );
 
@@ -493,63 +502,70 @@ export default function CampaignEditor({ campaign, userEmail }: { campaign: Camp
   };
 
   const SyncIndicator = () => {
-    if (syncState === 'saving') return <span className="text-xs text-zinc-500 flex items-center gap-1"><Cloud size={12} className="animate-pulse" /> Saving…</span>;
-    if (syncState === 'pending') return <span className="text-xs text-zinc-500 flex items-center gap-1"><Cloud size={12} /> Pending</span>;
-    if (syncState === 'error') return <span className="text-xs text-red-400 flex items-center gap-1" title={syncError}><CloudOff size={12} /> Save Failed</span>;
-    return <span className="text-xs text-emerald-500 flex items-center gap-1"><Cloud size={12} /> Saved</span>;
+    if (syncState === 'saving') return <span className="text-xs text-ink-soft flex items-center gap-1 font-display uppercase tracking-wider"><Cloud size={12} className="animate-pulse" /> Saving…</span>;
+    if (syncState === 'pending') return <span className="text-xs text-ink-mute flex items-center gap-1 font-display uppercase tracking-wider"><Cloud size={12} /> Pending</span>;
+    if (syncState === 'error') return <span className="text-xs text-crimson flex items-center gap-1 font-display uppercase tracking-wider" title={syncError}><CloudOff size={12} /> Save Failed</span>;
+    return <span className="text-xs text-brass-deep flex items-center gap-1 font-display uppercase tracking-wider"><Cloud size={12} /> Saved</span>;
   };
 
+  const ToolBtn = ({ onClick, children, danger = false }: { onClick: () => void; children: React.ReactNode; danger?: boolean }) => (
+    <button onClick={onClick} className={`text-xs px-3 py-1 rounded border font-display uppercase tracking-wider flex items-center gap-1.5 transition-colors ${
+      danger
+        ? 'border-crimson/50 text-crimson hover:bg-crimson hover:text-parchment'
+        : 'border-brass-deep/50 text-brass-deep hover:bg-brass hover:text-parchment hover:border-brass'
+    }`}>
+      {children}
+    </button>
+  );
+
   return (
-    <main className="min-h-screen p-5">
-      <div className="max-w-3xl mx-auto space-y-3">
-        <header className="pb-3 border-b border-zinc-800">
-          <div className="flex items-center justify-between gap-2 mb-3">
-            <Link href="/campaign" className="text-xs text-zinc-500 hover:text-zinc-300 flex items-center gap-1">
-              <ArrowLeft size={12} /> All Campaigns
-            </Link>
-            <SyncIndicator />
-          </div>
-          <div className="flex items-center gap-2">
-            <FileText size={16} className="text-zinc-500" />
-            <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Campaign Name"
-              className="flex-1 bg-transparent border-b border-zinc-800 text-lg font-medium text-zinc-50 placeholder-zinc-700 focus:border-zinc-600 focus:outline-none pb-0.5" />
-          </div>
-          <p className="text-xs text-zinc-400 mt-1">Lazy DM · Collaborative Campaign Design · Proactive Roleplaying</p>
+    <main className="min-h-screen p-5 md:p-8">
+      <div className="max-w-3xl mx-auto">
+        <div className="bg-parchment-soft border border-rule rounded-lg shadow-page p-5 md:p-8 space-y-4">
+          <header className="pb-4 border-b border-rule">
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <Link href="/campaign" className="text-xs text-brass-deep hover:text-crimson font-display uppercase tracking-wider flex items-center gap-1">
+                <ArrowLeft size={12} /> All Campaigns
+              </Link>
+              <SyncIndicator />
+            </div>
+            <div className="flex items-center gap-2">
+              <ScrollText size={20} className="text-crimson" />
+              <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Campaign Name"
+                className="flex-1 bg-transparent border-b border-rule font-display text-2xl tracking-wide text-ink placeholder:text-ink-faint focus:border-crimson focus:outline-none pb-1" />
+            </div>
+            <p className="text-sm text-ink-soft italic font-serif mt-1.5">Lazy DM · Collaborative Campaign Design · Proactive Roleplaying</p>
 
-          <div className="flex flex-wrap gap-1.5 mt-3 items-center">
-            <button onClick={exportJSON} className="text-xs px-2.5 py-1 rounded border border-zinc-800 text-zinc-300 hover:bg-zinc-900 flex items-center gap-1">
-              <Download size={12} /> Export
-            </button>
-            <button onClick={() => fileInputRef.current?.click()} className="text-xs px-2.5 py-1 rounded border border-zinc-800 text-zinc-300 hover:bg-zinc-900 flex items-center gap-1">
-              <Upload size={12} /> Import
-            </button>
-            <input ref={fileInputRef} type="file" accept=".json,application/json" onChange={importJSON} className="hidden" />
-            <div className="flex-1" />
-            <button
-              onClick={() => setSoloMode(s => !s)}
-              className={`text-xs px-2.5 py-1 rounded border flex items-center gap-1 ${
-                soloMode
-                  ? 'bg-pink-950/30 border-pink-900/50 text-pink-300'
-                  : 'border-zinc-800 text-zinc-400 hover:bg-zinc-900'
-              }`}
-              title={soloMode ? 'Solo targets active — click to switch to group' : 'Group targets active — click to switch to solo'}
-            >
-              <User size={12} /> {soloMode ? 'Solo' : 'Group'}
-            </button>
-            <button onClick={handleDelete} className="text-xs px-2.5 py-1 rounded border border-red-950 text-red-400 hover:bg-red-950/30 flex items-center gap-1">
-              <Trash2 size={12} /> Delete
-            </button>
-          </div>
+            <Flourish />
 
-          <div className="flex gap-1 mt-3">
-            {([['prep', 'Prep Flow'], ['ref', 'Reference'], ['track', 'Tracking']] as const).map(([id, label]) => (
-              <button key={id} onClick={() => setTab(id)} className={`text-xs px-3 py-1.5 rounded border ${tab === id ? 'bg-zinc-800 border-zinc-700 text-zinc-100' : 'border-zinc-800 text-zinc-500 hover:text-zinc-300'}`}>
-                {label}
+            <div className="flex flex-wrap gap-1.5 items-center">
+              <ToolBtn onClick={exportJSON}><Download size={12} /> Export</ToolBtn>
+              <ToolBtn onClick={() => fileInputRef.current?.click()}><Upload size={12} /> Import</ToolBtn>
+              <input ref={fileInputRef} type="file" accept=".json,application/json" onChange={importJSON} className="hidden" />
+              <div className="flex-1" />
+              <button
+                onClick={() => setSoloMode(s => !s)}
+                className={`text-xs px-3 py-1 rounded border font-display uppercase tracking-wider flex items-center gap-1.5 transition-colors ${
+                  soloMode
+                    ? 'bg-wine/10 border-wine text-wine'
+                    : 'border-rule text-ink-soft hover:bg-parchment-deep'
+                }`}
+                title={soloMode ? 'Solo targets active — click to switch to group' : 'Group targets active — click to switch to solo'}
+              >
+                <User size={12} /> {soloMode ? 'Solo' : 'Group'}
               </button>
-            ))}
-            <span className="ml-auto text-xs text-zinc-500 self-center">{completedCount} Steps Done</span>
-          </div>
-        </header>
+              <ToolBtn onClick={handleDelete} danger><Trash2 size={12} /> Delete</ToolBtn>
+            </div>
+
+            <div className="flex gap-1 mt-3 items-center">
+              {([['prep', 'Prep Flow'], ['ref', 'Reference'], ['track', 'Tracking']] as const).map(([id, label]) => (
+                <button key={id} onClick={() => setTab(id)} className={`text-xs px-3 py-1.5 rounded-sm border font-display uppercase tracking-wider transition-colors ${tab === id ? 'bg-crimson border-crimson text-parchment' : 'border-rule text-ink-soft hover:bg-parchment-deep'}`}>
+                  {label}
+                </button>
+              ))}
+              <span className="ml-auto text-xs text-brass-deep font-display uppercase tracking-wider">{completedCount} Steps Done</span>
+            </div>
+          </header>
 
         {tab === 'prep' && (
           <div className="space-y-3">
@@ -564,13 +580,13 @@ export default function CampaignEditor({ campaign, userEmail }: { campaign: Camp
               </Section>
               <Section id="g-mech" title="Mechanics & System" methods={['ccd']} done={done['g-mech']} onToggle={toggleDone} open={open['g-mech']} onToggleOpen={toggleOpen}>
                 <Field value={get('system', '')} onChange={(v) => setVal('system', v)} placeholder="System (e.g. 5e)" />
-                <div className="text-xs text-zinc-500 mt-2 mb-0.5">Tone Keywords</div>
+                <CardLabel>Tone Keywords</CardLabel>
                 <ListField items={get('tone', [])} onChange={(v) => setVal('tone', v)} placeholder="A tone word" />
               </Section>
               <Section id="g-lines" title="Content Lines (Hard Nos)" methods={['ccd']} done={done['g-lines']} onToggle={toggleDone} open={open['g-lines']} onToggleOpen={toggleOpen}>
                 <ListField items={get('lines', [])} onChange={(v) => setVal('lines', v)} placeholder="A topic to avoid" target={getTarget('lines', soloMode)} />
               </Section>
-              <Section id="pitch" title="Quick Pitch" methods={['ccd']} done={done['pitch']} onToggle={toggleDone} open={open['pitch']} onToggleOpen={toggleOpen}>
+              <Section id="pitch" title="Quick Pitch" methods={['ccd']} done={done.pitch} onToggle={toggleDone} open={open.pitch} onToggleOpen={toggleOpen}>
                 <BookQuote source="CCD case study">Pitch the results, not the concept.</BookQuote>
                 <Field value={get('pitch', '')} onChange={(v) => setVal('pitch', v)} placeholder="2-3 sentences" rows={4} />
               </Section>
@@ -596,7 +612,7 @@ export default function CampaignEditor({ campaign, userEmail }: { campaign: Camp
                     const next = [...(get('factions', []) as any[])]; next[i] = v; setVal('factions', next);
                   }} onRemove={() => setVal('factions', (get('factions', []) as any[]).filter((_: any, j: number) => j !== i))} />
                 ))}
-                <button onClick={() => setVal('factions', [...(get('factions', []) as any[]), { name: '', archetype: '', identity: '', area: '', power: '', ideology: '', shortGoals: [], midGoals: [], longGoal: '' }])} className="text-xs text-zinc-500 hover:text-zinc-300 flex items-center gap-1">
+                <button onClick={() => setVal('factions', [...(get('factions', []) as any[]), { name: '', archetype: '', identity: '', area: '', power: '', ideology: '', shortGoals: [], midGoals: [], longGoal: '' }])} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
                   <Plus size={12} /> Add Faction
                 </button>
               </Section>
@@ -611,22 +627,22 @@ export default function CampaignEditor({ campaign, userEmail }: { campaign: Camp
               <Section id="pc" title="Character Review" methods={['shea']} done={done.pc} onToggle={toggleDone} open={open.pc} onToggleOpen={toggleOpen}>
                 <BookQuote source="Lazy DM (Chris Perkins)">Nothing's more important to a campaign than the stories of the player characters.</BookQuote>
                 <div className="grid grid-cols-2 gap-2">
-                  <div><div className="text-xs text-zinc-500 mb-0.5">Name</div><Field value={get('pcName', '')} onChange={(v) => setVal('pcName', v)} placeholder="..." /></div>
-                  <div><div className="text-xs text-zinc-500 mb-0.5">Class / Level</div><Field value={get('pcClass', '')} onChange={(v) => setVal('pcClass', v)} placeholder="..." /></div>
+                  <div><CardLabel>Name</CardLabel><Field value={get('pcName', '')} onChange={(v) => setVal('pcName', v)} placeholder="..." /></div>
+                  <div><CardLabel>Class / Level</CardLabel><Field value={get('pcClass', '')} onChange={(v) => setVal('pcClass', v)} placeholder="..." /></div>
                 </div>
-                <div><div className="text-xs text-zinc-500 mb-0.5">Background / Hometown</div><Field value={get('pcBg', '')} onChange={(v) => setVal('pcBg', v)} placeholder="..." rows={2} /></div>
-                <div><div className="text-xs text-zinc-500 mb-0.5">What They Want</div><Field value={get('pcWant', '')} onChange={(v) => setVal('pcWant', v)} placeholder="..." /></div>
-                <div><div className="text-xs text-zinc-500 mb-0.5">What They Fear</div><Field value={get('pcFear', '')} onChange={(v) => setVal('pcFear', v)} placeholder="..." /></div>
-                <div><div className="text-xs text-zinc-500 mb-0.5">One Person They Love</div><Field value={get('pcLove', '')} onChange={(v) => setVal('pcLove', v)} placeholder="..." /></div>
-                <div><div className="text-xs text-zinc-500 mb-0.5">Faction Ties</div><ListField items={get('pcFactions', [])} onChange={(v) => setVal('pcFactions', v)} placeholder="..." /></div>
+                <div><CardLabel>Background / Hometown</CardLabel><Field value={get('pcBg', '')} onChange={(v) => setVal('pcBg', v)} placeholder="..." rows={2} /></div>
+                <div><CardLabel>What They Want</CardLabel><Field value={get('pcWant', '')} onChange={(v) => setVal('pcWant', v)} placeholder="..." /></div>
+                <div><CardLabel>What They Fear</CardLabel><Field value={get('pcFear', '')} onChange={(v) => setVal('pcFear', v)} placeholder="..." /></div>
+                <div><CardLabel>One Person They Love</CardLabel><Field value={get('pcLove', '')} onChange={(v) => setVal('pcLove', v)} placeholder="..." /></div>
+                <div><CardLabel>Faction Ties</CardLabel><ListField items={get('pcFactions', [])} onChange={(v) => setVal('pcFactions', v)} placeholder="..." /></div>
               </Section>
               <Section id="goals" title="PC Goals (5 Rules of Proactive Fun)" methods={['pr']} done={done.goals} onToggle={toggleDone} open={open.goals} onToggleOpen={toggleOpen} icon={Target}>
-                <div className="rounded border border-violet-900/40 bg-violet-950/20 p-3 text-xs space-y-1.5 text-zinc-300">
-                  <p><span className="text-violet-300 font-medium">1.</span> Multiple Goals (3+ concurrent)</p>
-                  <p><span className="text-violet-300 font-medium">2.</span> Varying Timeframes</p>
-                  <p><span className="text-violet-300 font-medium">3.</span> Achievable (measurable)</p>
-                  <p><span className="text-violet-300 font-medium">4.</span> Consequences for Failure</p>
-                  <p><span className="text-violet-300 font-medium">5.</span> Fun to Pursue</p>
+                <div className="rounded border border-wine/40 bg-wine/5 p-3 text-sm space-y-1.5 text-ink-soft font-serif">
+                  <p><span className="text-wine font-display uppercase tracking-wider text-xs">1 · </span>Multiple Goals (3+ concurrent)</p>
+                  <p><span className="text-wine font-display uppercase tracking-wider text-xs">2 · </span>Varying Timeframes</p>
+                  <p><span className="text-wine font-display uppercase tracking-wider text-xs">3 · </span>Achievable (measurable)</p>
+                  <p><span className="text-wine font-display uppercase tracking-wider text-xs">4 · </span>Consequences for Failure</p>
+                  <p><span className="text-wine font-display uppercase tracking-wider text-xs">5 · </span>Fun to Pursue</p>
                 </div>
                 <Example title="Bad → Good">"Become powerful" → "Win a duel against the captain of the guard"</Example>
                 <Pitfall>Long-term goals locked in Session 0 are usually worse than ones locked after Session 1.</Pitfall>
@@ -636,7 +652,7 @@ export default function CampaignEditor({ campaign, userEmail }: { campaign: Camp
                     const next = [...(get('pcGoals', []) as any[])]; next[i] = v; setVal('pcGoals', next);
                   }} onRemove={() => setVal('pcGoals', (get('pcGoals', []) as any[]).filter((_: any, j: number) => j !== i))} />
                 ))}
-                <button onClick={() => setVal('pcGoals', [...(get('pcGoals', []) as any[]), { text: '', timeframe: 'short', success: '', failure: '', linked: '' }])} className="text-xs text-zinc-500 hover:text-zinc-300 flex items-center gap-1">
+                <button onClick={() => setVal('pcGoals', [...(get('pcGoals', []) as any[]), { text: '', timeframe: 'short', success: '', failure: '', linked: '' }])} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
                   <Plus size={12} /> Add Goal
                 </button>
               </Section>
@@ -668,7 +684,7 @@ export default function CampaignEditor({ campaign, userEmail }: { campaign: Camp
                     const next = [...(get('locations', []) as any[])]; next[i] = v; setVal('locations', next);
                   }} onRemove={() => setVal('locations', (get('locations', []) as any[]).filter((_: any, j: number) => j !== i))} />
                 ))}
-                <button onClick={() => setVal('locations', [...(get('locations', []) as any[]), { name: '', type: '', aspects: ['', '', ''], factions: '' }])} className="text-xs text-zinc-500 hover:text-zinc-300 flex items-center gap-1">
+                <button onClick={() => setVal('locations', [...(get('locations', []) as any[]), { name: '', type: '', aspects: ['', '', ''], factions: '' }])} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
                   <Plus size={12} /> Add Location
                 </button>
               </Section>
@@ -680,7 +696,7 @@ export default function CampaignEditor({ campaign, userEmail }: { campaign: Camp
                     const next = [...(get('npcs', []) as any[])]; next[i] = v; setVal('npcs', next);
                   }} onRemove={() => setVal('npcs', (get('npcs', []) as any[]).filter((_: any, j: number) => j !== i))} />
                 ))}
-                <button onClick={() => setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: '', faction: '', archetype: '', goal: '', method: '' }])} className="text-xs text-zinc-500 hover:text-zinc-300 flex items-center gap-1">
+                <button onClick={() => setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: '', faction: '', archetype: '', goal: '', method: '' }])} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
                   <Plus size={12} /> Add NPC
                 </button>
               </Section>
@@ -697,9 +713,9 @@ export default function CampaignEditor({ campaign, userEmail }: { campaign: Camp
 
             <Phase n="4" title="Between Sessions · Faction Clocks" sub="Update Faction Progress" methods={['ccd']} icon={Target} expanded={phaseOpen.p4} onToggle={() => togglePhase('p4')}>
               <BookQuote source="CCD ch. 6">Glance at faction clocks once per session.</BookQuote>
-              <div className="rounded border border-zinc-800 bg-zinc-900/40 p-2.5 text-xs">
-                <p className="text-zinc-300 font-medium mb-1.5">Clock Sizes</p>
-                <div className="grid grid-cols-2 gap-1 text-zinc-400">
+              <div className="rounded border border-rule bg-parchment-deep/40 p-3 text-sm font-serif">
+                <p className="text-ink font-display uppercase tracking-wider text-xs mb-1.5">Clock Sizes</p>
+                <div className="grid grid-cols-2 gap-1 text-ink-soft">
                   <p>4 — quick task</p><p>6 — short-term goal</p>
                   <p>8 — multi-session</p><p>12 — long project</p>
                   <p>16 — arc-defining</p>
@@ -711,7 +727,7 @@ export default function CampaignEditor({ campaign, userEmail }: { campaign: Camp
                   const next = [...(get('clocks', []) as any[])]; next[i] = v; setVal('clocks', next);
                 }} onRemove={() => setVal('clocks', (get('clocks', []) as any[]).filter((_: any, j: number) => j !== i))} />
               ))}
-              <button onClick={() => setVal('clocks', [...(get('clocks', []) as any[]), { text: '', faction: '', max: 6, filled: 0 }])} className="text-xs text-zinc-500 hover:text-zinc-300 flex items-center gap-1">
+              <button onClick={() => setVal('clocks', [...(get('clocks', []) as any[]), { text: '', faction: '', max: 6, filled: 0 }])} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
                 <Plus size={12} /> Add Clock
               </button>
             </Phase>
@@ -745,41 +761,41 @@ export default function CampaignEditor({ campaign, userEmail }: { campaign: Camp
 
         {tab === 'ref' && (
           <div className="space-y-3 text-sm">
-            <div className="rounded border border-zinc-800 bg-zinc-900/40 p-4">
-              <h2 className="text-zinc-100 font-medium mb-2">The Three Methodologies</h2>
-              <div className="space-y-3 text-xs text-zinc-300">
+            <div className="rounded border border-rule bg-parchment p-4 shadow-card">
+              <h2 className="font-display text-lg tracking-wide text-ink mb-2">The Three Methodologies</h2>
+              <div className="space-y-3 text-sm text-ink-soft font-serif">
                 <div>
-                  <div className="flex items-center gap-2 mb-1"><Tag m="shea" /><span className="text-zinc-100 font-medium">Return of the Lazy Dungeon Master</span> <span className="text-zinc-500">· Shea</span></div>
-                  <p className="text-zinc-400">8-step per-session checklist. Strong start, secrets & clues, fantastic locations.</p>
+                  <div className="flex items-center gap-2 mb-1"><Tag m="shea" /><span className="font-display tracking-wide text-ink">Return of the Lazy Dungeon Master</span> <span className="text-ink-mute italic">· Shea</span></div>
+                  <p>8-step per-session checklist. Strong start, secrets & clues, fantastic locations.</p>
                 </div>
                 <div>
-                  <div className="flex items-center gap-2 mb-1"><Tag m="ccd" /><span className="text-zinc-100 font-medium">Collaborative Campaign Design</span> <span className="text-zinc-500">· Fishel</span></div>
-                  <p className="text-zinc-400">Session −1 worldbuilding before character creation. Faction clocks.</p>
+                  <div className="flex items-center gap-2 mb-1"><Tag m="ccd" /><span className="font-display tracking-wide text-ink">Collaborative Campaign Design</span> <span className="text-ink-mute italic">· Fishel</span></div>
+                  <p>Session −1 worldbuilding before character creation. Faction clocks.</p>
                 </div>
                 <div>
-                  <div className="flex items-center gap-2 mb-1"><Tag m="pr" /><span className="text-zinc-100 font-medium">Proactive Roleplaying</span> <span className="text-zinc-500">· Fishel</span></div>
-                  <p className="text-zinc-400">5 Rules of Proactive Fun. "+1" reward principle.</p>
+                  <div className="flex items-center gap-2 mb-1"><Tag m="pr" /><span className="font-display tracking-wide text-ink">Proactive Roleplaying</span> <span className="text-ink-mute italic">· Fishel</span></div>
+                  <p>5 Rules of Proactive Fun. "+1" reward principle.</p>
                 </div>
               </div>
             </div>
-            <div className="rounded border border-zinc-800 bg-zinc-900/40 p-4">
-              <h2 className="text-zinc-100 font-medium mb-2">Five Rules of Proactive Fun</h2>
-              <ol className="space-y-2 text-xs text-zinc-300 list-decimal list-inside">
-                <li><span className="font-medium">Multiple Goals.</span> 3-4 concurrent.</li>
-                <li><span className="font-medium">Varying Timeframes.</span> Short / Mid / Long.</li>
-                <li><span className="font-medium">Achievable.</span> Measurable success state.</li>
-                <li><span className="font-medium">Consequences for Failure.</span> If retryable, it was a skill check.</li>
-                <li><span className="font-medium">Fun to Pursue.</span> GM can imagine obstacles.</li>
+            <div className="rounded border border-rule bg-parchment p-4 shadow-card">
+              <h2 className="font-display text-lg tracking-wide text-ink mb-2">Five Rules of Proactive Fun</h2>
+              <ol className="space-y-2 text-sm text-ink-soft font-serif list-decimal list-inside">
+                <li><span className="font-semibold text-ink">Multiple Goals.</span> 3-4 concurrent.</li>
+                <li><span className="font-semibold text-ink">Varying Timeframes.</span> Short / Mid / Long.</li>
+                <li><span className="font-semibold text-ink">Achievable.</span> Measurable success state.</li>
+                <li><span className="font-semibold text-ink">Consequences for Failure.</span> If retryable, it was a skill check.</li>
+                <li><span className="font-semibold text-ink">Fun to Pursue.</span> GM can imagine obstacles.</li>
               </ol>
             </div>
-            <div className="rounded border border-pink-900/30 bg-pink-950/10 p-4">
-              <h2 className="text-zinc-100 font-medium mb-2 flex items-center gap-2"><User size={14} className="text-pink-400" /> Solo Play Adaptations</h2>
-              <div className="text-xs text-zinc-300 space-y-2">
-                <p><span className="text-pink-300 font-medium">Session −1:</span> 2-person conversation.</p>
-                <p><span className="text-pink-300 font-medium">Goals:</span> Rule 4 matters more.</p>
-                <p><span className="text-pink-300 font-medium">Combat:</span> Solo level-1 ~8-12 HP. Narrative outs always.</p>
-                <p><span className="text-pink-300 font-medium">Strong Start:</span> Action without losable fight.</p>
-                <p><span className="text-pink-300 font-medium">Pacing:</span> 2-3 scenes/hour instead of 1-2.</p>
+            <div className="rounded border border-wine/40 bg-wine/5 p-4 shadow-card">
+              <h2 className="font-display text-lg tracking-wide text-ink mb-2 flex items-center gap-2"><User size={16} className="text-wine" /> Solo Play Adaptations</h2>
+              <div className="text-sm text-ink-soft font-serif space-y-2">
+                <p><span className="text-wine font-display uppercase tracking-wider text-xs">Session −1 · </span>2-person conversation.</p>
+                <p><span className="text-wine font-display uppercase tracking-wider text-xs">Goals · </span>Rule 4 matters more.</p>
+                <p><span className="text-wine font-display uppercase tracking-wider text-xs">Combat · </span>Solo level-1 ~8-12 HP. Narrative outs always.</p>
+                <p><span className="text-wine font-display uppercase tracking-wider text-xs">Strong Start · </span>Action without losable fight.</p>
+                <p><span className="text-wine font-display uppercase tracking-wider text-xs">Pacing · </span>2-3 scenes/hour instead of 1-2.</p>
               </div>
             </div>
           </div>
@@ -787,16 +803,16 @@ export default function CampaignEditor({ campaign, userEmail }: { campaign: Camp
 
         {tab === 'track' && (
           <div className="space-y-3 text-sm">
-            <div className="rounded border border-zinc-800 bg-zinc-900/30 p-3">
+            <div className="rounded border border-rule bg-parchment p-3 shadow-card">
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-zinc-100 font-medium text-sm">Session Logs</h3>
-                <button onClick={addSessionLog} className="text-xs text-zinc-400 hover:text-zinc-200 flex items-center gap-1">
+                <h3 className="font-display tracking-wide text-ink">Session Logs</h3>
+                <button onClick={addSessionLog} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
                   <Plus size={12} /> New Session
                 </button>
               </div>
               <div className="space-y-2">
                 {sortedSessionLogs.length === 0 && (
-                  <p className="text-xs text-zinc-600 italic">No sessions yet. Click "New Session" to start a log.</p>
+                  <p className="text-sm text-ink-mute italic font-serif">No sessions yet. Click "New Session" to start a log.</p>
                 )}
                 {sortedSessionLogs.map((log) => (
                   <SessionLogCard
@@ -810,50 +826,51 @@ export default function CampaignEditor({ campaign, userEmail }: { campaign: Camp
                 ))}
               </div>
             </div>
-            <div className="rounded border border-zinc-800 bg-zinc-900/30 p-3">
-              <h3 className="text-zinc-100 font-medium text-sm mb-2">Revealed Secrets</h3>
+            <div className="rounded border border-rule bg-parchment p-3 shadow-card">
+              <h3 className="font-display tracking-wide text-ink mb-2">Revealed Secrets</h3>
               <div className="space-y-1">
                 {(get('secrets', []) as string[]).map((s: string, i: number) => (
-                  <label key={i} className="flex items-start gap-2 text-xs cursor-pointer">
+                  <label key={i} className="flex items-start gap-2 text-sm cursor-pointer font-serif">
                     <input type="checkbox" checked={(get('revSec', {}) as Record<number, boolean>)[i] || false} onChange={(e) => {
                       const r = { ...(get('revSec', {}) as Record<number, boolean>) }; r[i] = e.target.checked; setVal('revSec', r);
-                    }} className="mt-0.5" />
-                    <span className={((get('revSec', {}) as Record<number, boolean>)[i]) ? 'text-zinc-600 line-through' : 'text-zinc-300'}>{s}</span>
+                    }} className="mt-1 accent-crimson" />
+                    <span className={((get('revSec', {}) as Record<number, boolean>)[i]) ? 'text-ink-mute line-through' : 'text-ink-soft'}>{s}</span>
                   </label>
                 ))}
-                {(get('secrets', []) as string[]).length === 0 && <p className="text-xs text-zinc-600 italic">Add secrets in Phase 3 step 4.</p>}
+                {(get('secrets', []) as string[]).length === 0 && <p className="text-sm text-ink-mute italic font-serif">Add secrets in Phase 3 step 4.</p>}
               </div>
             </div>
-            <div className="rounded border border-zinc-800 bg-zinc-900/30 p-3">
-              <h3 className="text-zinc-100 font-medium text-sm mb-2">Goal Progress</h3>
+            <div className="rounded border border-rule bg-parchment p-3 shadow-card">
+              <h3 className="font-display tracking-wide text-ink mb-2">Goal Progress</h3>
               <div className="space-y-2">
                 {(get('pcGoals', []) as any[]).map((g: any, i: number) => (
-                  <div key={i} className="rounded border border-zinc-800 bg-zinc-900/40 p-2 text-xs">
-                    <p className="text-zinc-300">{g.text}</p>
+                  <div key={i} className="rounded border border-rule bg-parchment-soft p-2.5 text-sm font-serif">
+                    <p className="text-ink-soft">{g.text}</p>
                     <div className="flex gap-1 mt-1.5">
                       {['Active', 'Progressed', 'Completed', 'Failed'].map(s => (
                         <button key={s} onClick={() => {
                           const next = [...(get('pcGoals', []) as any[])];
                           next[i] = { ...g, status: s };
                           setVal('pcGoals', next);
-                        }} className={`text-[10px] px-2 py-0.5 rounded border ${g.status === s ? 'bg-zinc-800 border-zinc-600 text-zinc-200' : 'border-zinc-800 text-zinc-500'}`}>{s}</button>
+                        }} className={`text-[10px] px-2 py-0.5 rounded-sm border font-display uppercase tracking-wider ${g.status === s ? 'bg-crimson border-crimson text-parchment' : 'border-rule text-ink-mute'}`}>{s}</button>
                       ))}
                     </div>
                   </div>
                 ))}
-                {(get('pcGoals', []) as any[]).length === 0 && <p className="text-xs text-zinc-600 italic">Add goals in Phase 2.</p>}
+                {(get('pcGoals', []) as any[]).length === 0 && <p className="text-sm text-ink-mute italic font-serif">Add goals in Phase 2.</p>}
               </div>
             </div>
-            <div className="rounded border border-zinc-800 bg-zinc-900/30 p-3">
-              <h3 className="text-zinc-100 font-medium text-sm mb-2">Dropped Threads</h3>
+            <div className="rounded border border-rule bg-parchment p-3 shadow-card">
+              <h3 className="font-display tracking-wide text-ink mb-2">Dropped Threads</h3>
               <ListField items={get('dropped', [])} onChange={(v) => setVal('dropped', v)} placeholder="A thread to follow up" />
             </div>
           </div>
         )}
 
-        <footer className="pt-3 mt-4 border-t border-zinc-800 text-xs text-zinc-600 italic">
+        <footer className="pt-3 mt-4 border-t border-rule text-xs text-ink-mute italic font-serif text-center">
           {userEmail} · auto-syncs to Firestore every 1.5s
         </footer>
+        </div>
       </div>
     </main>
   );
