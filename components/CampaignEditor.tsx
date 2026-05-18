@@ -18,6 +18,7 @@ import SpellsTab, { type Spell } from './SpellsTab';
 import DMRefTab from './DMRefTab';
 import CharacterCard from './CharacterCard';
 import NamesTab from './NamesTab';
+import LocationsTab from './LocationsTab';
 import {
   type Character,
   emptyCharacter,
@@ -978,7 +979,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
   );
   const [openChars, setOpenChars] = useState<Record<string, boolean>>({});
   const [phaseOpen, setPhaseOpen] = useState<Record<string, boolean>>({ p0: true });
-  const [tab, setTab] = useState<'prep' | 'ref' | 'track' | 'down' | 'dice' | 'spells' | 'names' | 'dmref'>('prep');
+  const [tab, setTab] = useState<'prep' | 'ref' | 'track' | 'down' | 'dice' | 'spells' | 'names' | 'locations' | 'dmref'>('prep');
   const [soloMode, setSoloMode] = useState<boolean>(campaign.data?.__soloMode ?? true);
   const [syncState, setSyncState] = useState<'synced' | 'pending' | 'saving' | 'error'>('synced');
   const [syncError, setSyncError] = useState<string>('');
@@ -1205,7 +1206,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                     ['down', 'Downtime'] as const,
                     ['dice', 'Dice'] as const,
                     ['spells', 'Spells'] as const,
-                    ...(isPro ? [['names', 'Names'] as const] : []),
+                    ...(isPro ? [['names', 'Names'] as const, ['locations', 'Locations'] as const] : []),
                     ['dmref', 'DM Ref'] as const,
                   ].map(([id, label], i) => (
                     <button
@@ -1850,6 +1851,8 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
         )}
 
         {tab === 'names' && isPro && <NamesTab />}
+
+        {tab === 'locations' && isPro && <LocationsTab />}
 
         {tab === 'dmref' && <DMRefTab />}
 
