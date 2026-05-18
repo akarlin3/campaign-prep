@@ -555,6 +555,162 @@ const ClockCard = ({ data, onChange, onRemove }: any) => {
 type EncounterMonster = { cr: string; count: number };
 type EncounterCalcState = { pcLevel: number; monsters: EncounterMonster[] };
 
+type DowntimeEntry = {
+  id: string;
+  type: string;
+  fields: Record<string, string>;
+  createdAt: string;
+  archived?: boolean;
+};
+
+const DOWNTIME_TYPES: Array<{
+  id: string;
+  label: string;
+  fields: Array<{ key: string; label: string; placeholder: string; rows?: number }>;
+  reference?: string;
+}> = [
+  {
+    id: 'stronghold',
+    label: 'Building a Stronghold',
+    fields: [
+      { key: 'propertyType', label: 'Property Type', placeholder: 'Tower, keep, manor...' },
+      { key: 'location', label: 'Location', placeholder: 'Where is it being built?' },
+      { key: 'dailyCost', label: 'Daily Cost (gp)', placeholder: 'e.g. 125' },
+      { key: 'daysRemaining', label: 'Days Remaining', placeholder: 'e.g. 60' },
+    ],
+    reference:
+      'Abbey/Temple/Keep ~50,000gp over ~400 days · Tower/Outpost ~15,000gp over ~100 days · ' +
+      'Trading post/Guildhall ~5,000gp over ~60 days · Palace ~500,000gp over ~1,200 days · ' +
+      'Noble manor ~25,000gp over ~150 days.',
+  },
+  {
+    id: 'carousing',
+    label: 'Carousing',
+    fields: [
+      { key: 'lifestyle', label: 'Lifestyle', placeholder: 'Modest / Comfortable / Wealthy / Aristocratic' },
+      { key: 'daysSpent', label: 'Days Spent', placeholder: 'e.g. 5' },
+      { key: 'outcome', label: 'Outcome Notes', placeholder: 'What happened — contacts, complications, rumors', rows: 3 },
+    ],
+  },
+  {
+    id: 'crafting',
+    label: 'Crafting a Magic Item',
+    fields: [
+      { key: 'itemName', label: 'Item Name', placeholder: 'What is being crafted' },
+      { key: 'rarity', label: 'Rarity', placeholder: 'Common / Uncommon / Rare / Very Rare / Legendary' },
+      { key: 'daysRemaining', label: 'Days Remaining', placeholder: 'Working days left' },
+      { key: 'gpCommitted', label: 'GP Committed', placeholder: 'Total invested so far' },
+    ],
+    reference:
+      'Common 100gp / min lvl 3 · Uncommon 500gp / min lvl 3 · Rare 5,000gp / min lvl 6 · ' +
+      'Very Rare 50,000gp / min lvl 11 · Legendary 500,000gp / min lvl 17.',
+  },
+  {
+    id: 'renown',
+    label: 'Gaining Renown',
+    fields: [
+      { key: 'factionName', label: 'Faction', placeholder: 'Which faction' },
+      { key: 'currentRenown', label: 'Current Renown', placeholder: 'e.g. 3' },
+      { key: 'targetRenown', label: 'Target Renown', placeholder: 'e.g. 10' },
+      { key: 'narrative', label: 'Narrative', placeholder: 'What is the character doing to earn it?', rows: 3 },
+    ],
+  },
+  {
+    id: 'sacredRites',
+    label: 'Performing Sacred Rites',
+    fields: [
+      { key: 'faith', label: 'Faith / Temple', placeholder: 'Which faith or temple' },
+      { key: 'daysSpent', label: 'Days Spent', placeholder: 'e.g. 10' },
+      { key: 'intent', label: 'Intent', placeholder: 'What the rite is for', rows: 3 },
+    ],
+  },
+  {
+    id: 'business',
+    label: 'Running a Business',
+    fields: [
+      { key: 'businessType', label: 'Business Type', placeholder: 'Tavern, smithy, ship...' },
+      { key: 'daysManaged', label: 'Days Managed', placeholder: 'e.g. 30' },
+      { key: 'profitLoss', label: 'Profit / Loss (gp)', placeholder: 'Positive or negative' },
+      { key: 'narrative', label: 'Narrative', placeholder: 'How is it going?', rows: 3 },
+    ],
+  },
+  {
+    id: 'sellingMagic',
+    label: 'Selling Magic Items',
+    fields: [
+      { key: 'item', label: 'Item', placeholder: 'What is being sold' },
+      { key: 'askingPrice', label: 'Asking Price', placeholder: 'In gp' },
+      { key: 'buyer', label: 'Buyer', placeholder: 'Named buyer or "looking for buyer"' },
+    ],
+  },
+  {
+    id: 'training',
+    label: 'Training',
+    fields: [
+      { key: 'skillOrFeat', label: 'Skill or Feat', placeholder: 'What is being learned' },
+      { key: 'totalDays', label: 'Total Days Needed', placeholder: 'e.g. 250' },
+      { key: 'daysCompleted', label: 'Days Completed', placeholder: 'e.g. 47' },
+    ],
+  },
+];
+
+function makeDowntimeId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+const DowntimeCard = ({
+  entry,
+  onChange,
+  onArchive,
+  onUnarchive,
+  onRemove,
+}: {
+  entry: DowntimeEntry;
+  onChange: (e: DowntimeEntry) => void;
+  onArchive: () => void;
+  onUnarchive: () => void;
+  onRemove: () => void;
+}) => {
+  const type = DOWNTIME_TYPES.find(t => t.id === entry.type);
+  if (!type) return null;
+  return (
+    <div className={`rounded border p-3 space-y-2 shadow-card ${entry.archived ? 'border-rule/60 bg-parchment-deep/40 opacity-80' : 'border-rule bg-parchment'}`}>
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-display text-sm tracking-wide text-ink">{type.label}</span>
+        <div className="flex gap-1.5">
+          {entry.archived ? (
+            <button onClick={onUnarchive} className="text-[10px] px-2 py-0.5 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider">Unarchive</button>
+          ) : (
+            <button onClick={onArchive} className="text-[10px] px-2 py-0.5 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider">Archive</button>
+          )}
+          <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
+        </div>
+      </div>
+      <div className="space-y-2">
+        {type.fields.map(f => (
+          <div key={f.key}>
+            <CardLabel>{f.label}</CardLabel>
+            <Field
+              value={entry.fields[f.key] || ''}
+              onChange={(v) => onChange({ ...entry, fields: { ...entry.fields, [f.key]: v } })}
+              placeholder={f.placeholder}
+              rows={f.rows}
+            />
+          </div>
+        ))}
+      </div>
+      {type.reference && (
+        <div className="text-[10px] text-ink-mute italic font-serif border-t border-rule pt-1.5">
+          {type.reference}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const CR_OPTIONS = ["0", "1/8", "1/4", "1/2", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10",
   "11", "12", "13", "14", "15", "16", "17", "18", "19", "20",
   "21", "22", "23", "24", "25", "26", "27", "28", "29", "30"];
@@ -727,7 +883,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
   );
   const [openChars, setOpenChars] = useState<Record<string, boolean>>({});
   const [phaseOpen, setPhaseOpen] = useState<Record<string, boolean>>({ p0: true });
-  const [tab, setTab] = useState<'prep' | 'ref' | 'track' | 'dice' | 'spells' | 'names' | 'dmref'>('prep');
+  const [tab, setTab] = useState<'prep' | 'ref' | 'track' | 'down' | 'dice' | 'spells' | 'names' | 'dmref'>('prep');
   const [soloMode, setSoloMode] = useState<boolean>(campaign.data?.__soloMode ?? true);
   const [syncState, setSyncState] = useState<'synced' | 'pending' | 'saving' | 'error'>('synced');
   const [syncError, setSyncError] = useState<string>('');
@@ -932,6 +1088,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                   ['prep', 'Prep Flow'] as const,
                   ['ref', 'Reference'] as const,
                   ['track', 'Tracking'] as const,
+                  ['down', 'Downtime'] as const,
                   ['dice', 'Dice'] as const,
                   ['spells', 'Spells'] as const,
                   ...(isPro ? [['names', 'Names'] as const] : []),
@@ -1335,6 +1492,42 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               </ol>
             </div>
             <div className="rounded border border-rule bg-parchment p-4 shadow-card">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <h2 className="font-display text-lg tracking-wide text-ink">Campaign Events Between Sessions</h2>
+                <Inspire tableId="campaignEvents" label="Roll Event" onPick={(e) => {
+                  const log = (get('campaignEventLog', []) as string[]) || [];
+                  setVal('campaignEventLog', [...log, e]);
+                }} />
+              </div>
+              <p className="text-sm text-ink-soft font-serif mb-2">
+                Quick &quot;while the party was away&quot; events for solo or sandbox play.
+              </p>
+              {((get('campaignEventLog', []) as string[]) || []).length === 0 ? (
+                <p className="text-sm text-ink-mute italic font-serif">No events logged yet. Click &quot;Roll Event&quot; to add one.</p>
+              ) : (
+                <ol className="space-y-1 text-sm text-ink-soft font-serif">
+                  {((get('campaignEventLog', []) as string[]) || []).map((evt, i) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <span className="flex-1">
+                        <span className="font-display text-xs text-brass-deep mr-1">{i + 1}.</span>
+                        {evt}
+                      </span>
+                      <button
+                        onClick={() => {
+                          const log = (get('campaignEventLog', []) as string[]) || [];
+                          setVal('campaignEventLog', log.filter((_, j) => j !== i));
+                        }}
+                        className="text-ink-mute hover:text-crimson"
+                        title="Remove this event"
+                      >
+                        <X size={12} />
+                      </button>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
+            <div className="rounded border border-rule bg-parchment p-4 shadow-card">
               <h2 className="font-display text-lg tracking-wide text-ink mb-2">The 10-Sentence NPC</h2>
               <p className="text-sm text-ink-soft font-serif">
                 Detailed NPCs benefit from a roughly ten-sentence sketch: occupation and history,
@@ -1420,6 +1613,114 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
             </div>
           </div>
         )}
+
+        {tab === 'down' && (() => {
+          const downtime = (get('downtime', []) as DowntimeEntry[]) || [];
+          const active = downtime.filter(e => !e.archived);
+          const archived = downtime.filter(e => !!e.archived);
+          const [archivedOpen, setArchivedOpen] = [(get('__archivedDowntimeOpen', false) as boolean), (v: boolean) => setVal('__archivedDowntimeOpen', v)];
+
+          const addEntry = (typeId: string) => {
+            const next: DowntimeEntry = {
+              id: makeDowntimeId(),
+              type: typeId,
+              fields: {},
+              createdAt: new Date().toISOString(),
+            };
+            setVal('downtime', [...downtime, next]);
+          };
+          const updateEntry = (id: string, patch: DowntimeEntry) => {
+            setVal('downtime', downtime.map(e => e.id === id ? patch : e));
+          };
+          const setArchived = (id: string, archived: boolean) => {
+            setVal('downtime', downtime.map(e => e.id === id ? { ...e, archived } : e));
+          };
+          const removeEntry = (id: string) => {
+            const entry = downtime.find(e => e.id === id);
+            const typeLabel = DOWNTIME_TYPES.find(t => t.id === entry?.type)?.label || 'this entry';
+            if (!confirm(`Delete "${typeLabel}"? This cannot be undone.`)) return;
+            setVal('downtime', downtime.filter(e => e.id !== id));
+          };
+
+          const groupedActive = DOWNTIME_TYPES
+            .map(t => ({ type: t, entries: active.filter(e => e.type === t.id) }))
+            .filter(g => g.entries.length > 0);
+
+          return (
+            <div className="space-y-3 text-sm">
+              <div className="rounded border border-rule bg-parchment p-4 shadow-card">
+                <p className="text-ink-soft font-serif">
+                  Downtime activities take place between adventures. Each activity has a cost, a duration,
+                  and consequences. Track them here so the time between sessions feels lived-in rather than skipped.
+                </p>
+              </div>
+
+              <div className="rounded border border-rule bg-parchment p-3 shadow-card flex items-center gap-2 flex-wrap">
+                <label className="text-xs text-ink-soft font-display uppercase tracking-wider">Add Downtime Activity</label>
+                <select
+                  value=""
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      addEntry(e.target.value);
+                      e.target.value = '';
+                    }
+                  }}
+                  className="bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif"
+                >
+                  <option value="">— Choose Activity —</option>
+                  {DOWNTIME_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+                </select>
+              </div>
+
+              {active.length === 0 && (
+                <p className="text-sm text-ink-mute italic font-serif">No active downtime activities yet.</p>
+              )}
+
+              {groupedActive.map(({ type, entries }) => (
+                <div key={type.id} className="space-y-2">
+                  <h3 className="font-display tracking-wide text-ink text-sm">{type.label}</h3>
+                  {entries.map(entry => (
+                    <DowntimeCard
+                      key={entry.id}
+                      entry={entry}
+                      onChange={(v) => updateEntry(entry.id, v)}
+                      onArchive={() => setArchived(entry.id, true)}
+                      onUnarchive={() => setArchived(entry.id, false)}
+                      onRemove={() => removeEntry(entry.id)}
+                    />
+                  ))}
+                </div>
+              ))}
+
+              <div className="rounded border border-rule bg-parchment p-3 shadow-card">
+                <button
+                  onClick={() => setArchivedOpen(!archivedOpen)}
+                  className="flex items-center gap-1.5 font-display tracking-wide text-ink text-sm hover:text-crimson"
+                >
+                  {archivedOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                  Archived ({archived.length})
+                </button>
+                {archivedOpen && (
+                  <div className="space-y-2 mt-3">
+                    {archived.length === 0 && (
+                      <p className="text-sm text-ink-mute italic font-serif">No archived downtime activities yet.</p>
+                    )}
+                    {archived.map(entry => (
+                      <DowntimeCard
+                        key={entry.id}
+                        entry={entry}
+                        onChange={(v) => updateEntry(entry.id, v)}
+                        onArchive={() => setArchived(entry.id, true)}
+                        onUnarchive={() => setArchived(entry.id, false)}
+                        onRemove={() => removeEntry(entry.id)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
         {tab === 'dice' && (
           <DiceRoller
