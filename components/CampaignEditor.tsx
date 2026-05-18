@@ -980,13 +980,12 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
   );
   const [openChars, setOpenChars] = useState<Record<string, boolean>>({});
   const [phaseOpen, setPhaseOpen] = useState<Record<string, boolean>>({ p0: true });
-  const [tab, setTab] = useState<'prep' | 'ref' | 'track' | 'down' | 'dice' | 'spells' | 'names' | 'dmref'>('prep');
+  const [tab, setTab] = useState<'prep' | 'ref' | 'track' | 'down' | 'dice' | 'spells' | 'names' | 'locations' | 'dmref'>('prep');
   const [soloMode, setSoloMode] = useState<boolean>(campaign.data?.__soloMode ?? true);
   const [syncState, setSyncState] = useState<'synced' | 'pending' | 'saving' | 'error'>('synced');
   const [syncError, setSyncError] = useState<string>('');
   const [uploadingChar, setUploadingChar] = useState(false);
   const [charUploadError, setCharUploadError] = useState<string>('');
-  const [useOpusForParse, setUseOpusForParse] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const characterFileInputRef = useRef<HTMLInputElement>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -1067,7 +1066,6 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
       const idToken = await user.getIdToken();
       const form = new FormData();
       form.append('file', file);
-      if (useOpusForParse) form.append('useOpus', 'true');
       const res = await fetch('/api/parse-character-sheet', {
         method: 'POST',
         headers: { Authorization: `Bearer ${idToken}` },
@@ -1200,10 +1198,10 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               </div>
             </div>
 
-            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 justify-between">
-              <div className="-mx-1 px-1 overflow-x-auto max-w-full" role="tablist" aria-label="Campaign sections">
-                <div className="inline-flex border border-rule rounded overflow-hidden font-display uppercase tracking-wider text-xs whitespace-nowrap">
-                  {[
+            <div className="mt-3 flex flex-wrap items-start gap-x-3 gap-y-2 justify-between">
+              <div className="flex flex-col gap-1" role="tablist" aria-label="Campaign sections">
+                {(() => {
+                  const allTabs = [
                     ['prep', 'Prep Flow'] as const,
                     ['ref', 'Reference'] as const,
                     ['track', 'Tracking'] as const,
@@ -1212,23 +1210,33 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                     ['spells', 'Spells'] as const,
                     ['names', 'Names'] as const,
                     ['dmref', 'DM Ref'] as const,
-                  ].map(([id, label], i) => (
-                    <button
-                      key={id}
-                      type="button"
-                      role="tab"
-                      aria-selected={tab === id}
-                      onClick={() => setTab(id)}
-                      className={`px-3 py-1.5 transition-colors ${i > 0 ? 'border-l border-rule' : ''} ${
-                        tab === id
-                          ? 'bg-crimson text-parchment'
-                          : 'text-ink-soft hover:bg-parchment-deep'
-                      }`}
+                  ];
+                  const half = Math.ceil(allTabs.length / 2);
+                  const rows = [allTabs.slice(0, half), allTabs.slice(half)];
+                  return rows.map((row, rowIdx) => (
+                    <div
+                      key={rowIdx}
+                      className="inline-flex border border-rule rounded overflow-hidden font-display uppercase tracking-wider text-xs whitespace-nowrap self-start"
                     >
-                      {label}
-                    </button>
-                  ))}
-                </div>
+                      {row.map(([id, label], i) => (
+                        <button
+                          key={id}
+                          type="button"
+                          role="tab"
+                          aria-selected={tab === id}
+                          onClick={() => setTab(id)}
+                          className={`px-3 py-1.5 transition-colors ${i > 0 ? 'border-l border-rule' : ''} ${
+                            tab === id
+                              ? 'bg-crimson text-parchment'
+                              : 'text-ink-soft hover:bg-parchment-deep'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  ));
+                })()}
               </div>
               <div className="text-xs text-brass-deep font-display uppercase tracking-wider ml-auto">
                 {completedCount} Steps Done
@@ -1368,19 +1376,6 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                       >
                         <FileUp size={12} /> {uploadingChar ? 'Parsing…' : 'Upload Sheet'}
                       </button>
-                      <label
-                        className="text-xs text-ink-soft hover:text-ink flex items-center gap-1.5 font-display uppercase tracking-wider cursor-pointer select-none"
-                        title="Use Claude Opus instead of Sonnet for parsing (slower, higher cost, may catch more detail)"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={useOpusForParse}
-                          onChange={(e) => setUseOpusForParse(e.target.checked)}
-                          disabled={uploadingChar}
-                          className="accent-crimson"
-                        />
-                        Use Opus
-                      </label>
                       <input
                         ref={characterFileInputRef}
                         type="file"
@@ -1864,6 +1859,8 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
             Mix Western European with Drow, batch fifty at a time, or roll a single random one.
           </LockedPanel>
         ))}
+
+        {tab === 'locations' && isPro && <LocationsTab />}
 
         {tab === 'dmref' && <DMRefTab />}
 
