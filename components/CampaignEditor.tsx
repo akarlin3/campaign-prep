@@ -18,7 +18,8 @@ import SpellsTab, { type Spell } from './SpellsTab';
 import DMRefTab from './DMRefTab';
 import CharacterCard from './CharacterCard';
 import NamesTab from './NamesTab';
-import LocationsTab from './LocationsTab';
+import { AccountMenu } from './AccountMenu';
+import { LockedInline, LockedPanel } from './LockedFeature';
 import {
   type Character,
   emptyCharacter,
@@ -1147,7 +1148,10 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               <Link href="/campaign" className="text-xs text-brass-deep hover:text-crimson font-display uppercase tracking-wider flex items-center gap-1">
                 <ArrowLeft size={12} /> All Campaigns
               </Link>
-              <SyncIndicator />
+              <div className="flex items-center gap-2">
+                <SyncIndicator />
+                <AccountMenu />
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <ScrollText size={20} className="text-crimson flex-shrink-0" />
@@ -1204,7 +1208,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                     ['down', 'Downtime'] as const,
                     ['dice', 'Dice'] as const,
                     ['spells', 'Spells'] as const,
-                    ...(isPro ? [['names', 'Names'] as const, ['locations', 'Locations'] as const] : []),
+                    ['names', 'Names'] as const,
                     ['dmref', 'DM Ref'] as const,
                   ];
                   const half = Math.ceil(allTabs.length / 2);
@@ -1362,7 +1366,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                   <button onClick={addCharacter} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
                     <Plus size={12} /> Add Character
                   </button>
-                  {isPro && (
+                  {isPro ? (
                     <>
                       <button
                         onClick={() => characterFileInputRef.current?.click()}
@@ -1380,6 +1384,8 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                         className="hidden"
                       />
                     </>
+                  ) : (
+                    <LockedInline label="Upload Sheet" />
                   )}
                   {charUploadError && (
                     <span className="text-xs text-crimson italic" title={charUploadError}>
@@ -1845,7 +1851,14 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
           />
         )}
 
-        {tab === 'names' && isPro && <NamesTab />}
+        {tab === 'names' && (isPro ? (
+          <NamesTab />
+        ) : (
+          <LockedPanel title="Names Generator">
+            Generate culture-rooted first and last names for NPCs, towns, and places — powered by Claude.
+            Mix Western European with Drow, batch fifty at a time, or roll a single random one.
+          </LockedPanel>
+        ))}
 
         {tab === 'locations' && isPro && <LocationsTab />}
 

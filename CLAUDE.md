@@ -6,20 +6,33 @@ Every feature that calls an LLM (Anthropic, OpenAI, etc.) or any other paid
 inference API must be gated to pro users at **both** layers:
 
 1. **Server (required, security boundary).** New routes under `app/api/` that
-   invoke a model must call `verifyPro(idToken)` before doing any work. The
-   reference implementation lives in `app/api/parse-character-sheet/route.ts`
-   — it pulls the Bearer token from `Authorization`, validates it against
-   Firebase Identity Toolkit, and returns `403 "Pro only"` if the email is not
-   in `PRO_EMAILS`. Reuse that pattern; do not call the model before the check
-   passes. If `verifyPro` ends up duplicated across routes, lift it into a
-   shared helper rather than copying the email set.
+   invoke a model must call `verifyPro(idToken)` from `lib/verify-pro.ts`
+   before doing any work. `verifyPro` verifies the Firebase ID token via the
+   Admin SDK, then approves the request if either (a) the email is in
+   `PRO_EMAILS` (comp allowlist) or (b) the user's Firestore `users/{uid}` doc
+   shows an active subscription with `currentPeriodEndMs > now`. Returns
+   `403 "Pro only"` otherwise. Reference: `app/api/parse-character-sheet/route.ts`.
 
-2. **Client (UX).** Wrap the entry point (button, menu item, file input) in
-   `{isPro && (...)}` using `isPro` from `useAuth()` (`lib/firebase/auth-context.tsx`).
-   Don't surface upsell/teaser copy that reveals the feature exists to non-pro
-   users — see the empty-state fix in `CampaignEditor.tsx` Player Characters
-   section for the convention.
+2. **Client (UX).** Read `isPro` from `useAuth()`
+   (`lib/firebase/auth-context.tsx`). For AI features, **show a locked CTA**
+   that reveals the feature exists and links to `/account` — use
+   `<LockedInline label="…" />` for inline buttons and `<LockedPanel
+   title="…">…</LockedPanel>` for whole tabs/sections. Don't simply hide the
+   feature; surfacing it is the entire reason there is an upgrade flow.
+   Reference: the "Upload Sheet" affordance and the "Names" tab in
+   `CampaignEditor.tsx`.
 
-The pro-email allowlist is `PRO_EMAILS` in both `lib/firebase/auth-context.tsx`
-and `app/api/parse-character-sheet/route.ts`. Keep them in sync (or unify
-them) when adding emails.
+The shared pro-evaluation rule lives in `lib/pro-status.ts` (`evaluatePro`,
+`PRO_EMAILS`). Server (`verify-pro.ts`) and client (`auth-context.tsx`)
+both import from there, so there is one source of truth.
+
+## Stripe subscription
+
+- Customers upgrade via Stripe Checkout (`/api/stripe/create-checkout-session`)
+  and manage/cancel via Stripe Customer Portal (`/api/stripe/create-portal-session`).
+- Subscription state is mirrored into Firestore by `/api/stripe/webhook`,
+  which is the only writer of `users/{uid}` and `stripeCustomers/{customerId}`.
+- The webhook uses the raw request body for signature verification — do not
+  add middleware that consumes the body before it reaches the handler.
+- Required env vars (server-side only): `STRIPE_SECRET_KEY`,
+  `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID`, `FIREBASE_SERVICE_ACCOUNT_JSON`.
