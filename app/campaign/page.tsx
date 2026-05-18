@@ -5,10 +5,11 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/firebase/auth-context';
 import { subscribeToUserCampaigns, createCampaign, type Campaign } from '@/lib/firebase/campaigns';
-import { Plus, LogOut, ScrollText, Calendar } from 'lucide-react';
+import { Plus, ScrollText, Calendar } from 'lucide-react';
+import { AccountMenu } from '@/components/AccountMenu';
 
 export default function CampaignListPage() {
-  const { user, loading: authLoading, isPro, logout } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,11 +40,6 @@ export default function CampaignListPage() {
     }
   };
 
-  const handleSignOut = async () => {
-    await logout();
-    router.replace('/login');
-  };
-
   if (authLoading || !user) {
     return (
       <main className="min-h-screen flex items-center justify-center text-sm text-ink-mute italic font-serif">
@@ -62,18 +58,8 @@ export default function CampaignListPage() {
                 Campaign Prep
               </div>
               <h1 className="font-display text-2xl sm:text-3xl text-crimson tracking-wide mt-1">Your Campaigns</h1>
-              <p className="text-sm text-ink-soft italic font-serif mt-1 break-all flex items-center gap-2 flex-wrap">
-                <span>{user.email}</span>
-                {isPro && (
-                  <span className="text-[10px] not-italic px-1.5 py-0.5 rounded-sm border border-crimson/60 bg-crimson/10 text-crimson font-display uppercase tracking-wider">
-                    Pro
-                  </span>
-                )}
-              </p>
             </div>
-            <button onClick={handleSignOut} className="text-xs px-3 py-1 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider flex items-center gap-1.5 flex-shrink-0">
-              <LogOut size={12} /> <span className="hidden sm:inline">Sign Out</span>
-            </button>
+            <AccountMenu />
           </header>
 
           <button onClick={handleCreate} className="w-full p-5 rounded border-2 border-dashed border-brass/60 text-brass-deep hover:text-crimson hover:border-crimson hover:bg-parchment transition-colors flex items-center justify-center gap-2 font-display uppercase tracking-wider text-sm">

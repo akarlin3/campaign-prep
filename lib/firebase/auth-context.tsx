@@ -2,8 +2,9 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
-import { getFirebaseAuth, googleProvider } from './client';
-import { isProEmail } from '@/lib/verify-pro';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { getDb, getFirebaseAuth, googleProvider } from './client';
+import { evaluatePro, isProEmail, ProSource, SubscriptionStatus, UserDoc } from '@/lib/pro-status';
 
 export { isProEmail };
 
@@ -11,6 +12,10 @@ type AuthContextValue = {
   user: User | null;
   loading: boolean;
   isPro: boolean;
+  proSource: ProSource;
+  subscriptionStatus: SubscriptionStatus | null;
+  currentPeriodEndMs: number | null;
+  cancelAtPeriodEnd: boolean;
   signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
 };
@@ -20,6 +25,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [userDoc, setUserDoc] = useState<Partial<UserDoc> | null>(null);
 
   useEffect(() => {
     const auth = getFirebaseAuth();
@@ -29,6 +35,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     return unsubscribe;
   }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setUserDoc(null);
+      return;
+    }
+    const ref = doc(getDb(), 'users', user.uid);
+    const unsubscribe = onSnapshot(
+      ref,
+      (snap) => setUserDoc(snap.exists() ? (snap.data() as Partial<UserDoc>) : null),
+      () => setUserDoc(null),
+    );
+    return unsubscribe;
+  }, [user]);
 
   const signInWithGoogle = async () => {
     const auth = getFirebaseAuth();
@@ -40,10 +60,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await signOut(auth);
   };
 
-  const isPro = isProEmail(user?.email);
+  const { isPro, source } = evaluatePro(user?.email, userDoc);
 
   return (
-    <AuthContext.Provider value={{ user, loading, isPro, signInWithGoogle, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        isPro,
+        proSource: source,
+        subscriptionStatus: userDoc?.subscriptionStatus ?? null,
+        currentPeriodEndMs: userDoc?.currentPeriodEndMs ?? null,
+        cancelAtPeriodEnd: userDoc?.cancelAtPeriodEnd ?? false,
+        signInWithGoogle,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
