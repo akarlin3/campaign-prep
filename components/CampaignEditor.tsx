@@ -12,6 +12,7 @@ import {
   FileUp, Sparkles,
 } from 'lucide-react';
 import { TABLES, sampleTable } from '@/lib/inspirationTables';
+import { CR_TO_XP, encounterMultiplier, difficultyForSolo } from '@/lib/encounterMath';
 import DiceRoller, { type Macro } from './DiceRoller';
 import SpellsTab, { type Spell } from './SpellsTab';
 import DMRefTab from './DMRefTab';
@@ -253,36 +254,71 @@ const CardLabel = ({ children }: { children: React.ReactNode }) => (
   <div className="text-xs text-brass-deep font-display uppercase tracking-wider mb-0.5">{children}</div>
 );
 
-const FactionCard = ({ data, onChange, onRemove }: any) => (
-  <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
-    <div className="flex justify-between items-center gap-2">
-      <Field value={data.name} onChange={(v) => onChange({ ...data, name: v })} placeholder="Faction Name" />
-      <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
+const FactionCard = ({ data, onChange, onRemove }: any) => {
+  const renown = typeof data.renown === 'number' ? data.renown : 0;
+  const rank = renownRank(renown, data.rankLabels);
+  return (
+    <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
+      <div className="flex justify-between items-center gap-2">
+        <Field value={data.name} onChange={(v) => onChange({ ...data, name: v })} placeholder="Faction Name" />
+        <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
+      </div>
+      <div><CardLabel>Archetype</CardLabel>
+        <select value={data.archetype || ''} onChange={(e) => onChange({ ...data, archetype: e.target.value })} className="w-full bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif">
+          <option value="">— Choose —</option>
+          <option>Government (preserves order/stability)</option>
+          <option>Religious</option><option>Criminal / underground</option><option>Mercantile</option>
+          <option>Military</option><option>Cult</option><option>Scholarly</option>
+          <option>Revolutionary</option><option>Other</option>
+        </select></div>
+      <div><CardLabel>Identity</CardLabel>
+        <Field value={data.identity} onChange={(v) => onChange({ ...data, identity: v })} placeholder="One sentence" rows={2} /></div>
+      <div><CardLabel>Area of Operation</CardLabel>
+        <Field value={data.area} onChange={(v) => onChange({ ...data, area: v })} placeholder="Where active" /></div>
+      <div><CardLabel>Power Level</CardLabel>
+        <Field value={data.power} onChange={(v) => onChange({ ...data, power: v })} placeholder="Resources" /></div>
+      <div><CardLabel>Ideology</CardLabel>
+        <Field value={data.ideology} onChange={(v) => onChange({ ...data, ideology: v })} placeholder="Why they do it" rows={2} /></div>
+      <div><CardLabel>Short-Term Goals</CardLabel>
+        <ListField items={data.shortGoals || []} onChange={(v) => onChange({ ...data, shortGoals: v })} placeholder="A short-term goal" /></div>
+      <div><CardLabel>Mid-Term Goals</CardLabel>
+        <ListField items={data.midGoals || []} onChange={(v) => onChange({ ...data, midGoals: v })} placeholder="A mid-term goal" /></div>
+      <div><CardLabel>Long-Term Goal</CardLabel>
+        <Field value={data.longGoal} onChange={(v) => onChange({ ...data, longGoal: v })} placeholder="The one big thing" /></div>
+      <div>
+        <CardLabel>Renown</CardLabel>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => onChange({ ...data, renown: renown - 1 })}
+            className="w-7 h-7 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display"
+            title="Decrease renown"
+          >
+            −
+          </button>
+          <input
+            type="number"
+            value={renown}
+            onChange={(e) => {
+              const v = parseInt(e.target.value || '0', 10);
+              onChange({ ...data, renown: isNaN(v) ? 0 : v });
+            }}
+            className="w-16 bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif text-center"
+          />
+          <button
+            onClick={() => onChange({ ...data, renown: renown + 1 })}
+            className="w-7 h-7 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display"
+            title="Increase renown"
+          >
+            +
+          </button>
+          <span className="text-xs px-2 py-0.5 rounded-sm border border-wine/40 bg-wine/5 text-wine font-display uppercase tracking-wider">
+            {rank}
+          </span>
+        </div>
+      </div>
     </div>
-    <div><CardLabel>Archetype</CardLabel>
-      <select value={data.archetype || ''} onChange={(e) => onChange({ ...data, archetype: e.target.value })} className="w-full bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif">
-        <option value="">— Choose —</option>
-        <option>Government (preserves order/stability)</option>
-        <option>Religious</option><option>Criminal / underground</option><option>Mercantile</option>
-        <option>Military</option><option>Cult</option><option>Scholarly</option>
-        <option>Revolutionary</option><option>Other</option>
-      </select></div>
-    <div><CardLabel>Identity</CardLabel>
-      <Field value={data.identity} onChange={(v) => onChange({ ...data, identity: v })} placeholder="One sentence" rows={2} /></div>
-    <div><CardLabel>Area of Operation</CardLabel>
-      <Field value={data.area} onChange={(v) => onChange({ ...data, area: v })} placeholder="Where active" /></div>
-    <div><CardLabel>Power Level</CardLabel>
-      <Field value={data.power} onChange={(v) => onChange({ ...data, power: v })} placeholder="Resources" /></div>
-    <div><CardLabel>Ideology</CardLabel>
-      <Field value={data.ideology} onChange={(v) => onChange({ ...data, ideology: v })} placeholder="Why they do it" rows={2} /></div>
-    <div><CardLabel>Short-Term Goals</CardLabel>
-      <ListField items={data.shortGoals || []} onChange={(v) => onChange({ ...data, shortGoals: v })} placeholder="A short-term goal" /></div>
-    <div><CardLabel>Mid-Term Goals</CardLabel>
-      <ListField items={data.midGoals || []} onChange={(v) => onChange({ ...data, midGoals: v })} placeholder="A mid-term goal" /></div>
-    <div><CardLabel>Long-Term Goal</CardLabel>
-      <Field value={data.longGoal} onChange={(v) => onChange({ ...data, longGoal: v })} placeholder="The one big thing" /></div>
-  </div>
-);
+  );
+};
 
 const GoalCard = ({ data, onChange, onRemove }: any) => (
   <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
@@ -515,6 +551,151 @@ const ClockCard = ({ data, onChange, onRemove }: any) => {
     </div>
   );
 };
+
+type EncounterMonster = { cr: string; count: number };
+type EncounterCalcState = { pcLevel: number; monsters: EncounterMonster[] };
+
+const CR_OPTIONS = ["0", "1/8", "1/4", "1/2", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10",
+  "11", "12", "13", "14", "15", "16", "17", "18", "19", "20",
+  "21", "22", "23", "24", "25", "26", "27", "28", "29", "30"];
+
+const RATING_COLORS: Record<string, string> = {
+  Trivial: 'text-emerald-700 bg-emerald-100/40 border-emerald-700/40',
+  Easy:    'text-emerald-700 bg-emerald-100/40 border-emerald-700/40',
+  Medium:  'text-yellow-700 bg-yellow-100/50 border-yellow-700/40',
+  Hard:    'text-orange-700 bg-orange-100/50 border-orange-700/40',
+  Deadly:  'text-red-700 bg-red-100/50 border-red-700/50',
+  Lethal:  'text-red-900 bg-red-200/60 border-red-900/60',
+};
+
+const EncounterHelper = ({
+  state,
+  onChange,
+}: {
+  state: EncounterCalcState;
+  onChange: (s: EncounterCalcState) => void;
+}) => {
+  const monsters = state.monsters || [];
+  const totalCount = monsters.reduce((sum, m) => sum + (m.count || 0), 0);
+  const baseXP = monsters.reduce((sum, m) => sum + (CR_TO_XP[m.cr] || 0) * (m.count || 0), 0);
+  const mult = encounterMultiplier(totalCount);
+  const adjustedXP = Math.round(baseXP * mult);
+  const { rating, rationale } = difficultyForSolo(adjustedXP, state.pcLevel || 1);
+  const ratingClass = RATING_COLORS[rating] || RATING_COLORS.Medium;
+
+  const updateMonster = (i: number, patch: Partial<EncounterMonster>) => {
+    const next = monsters.map((m, j) => j === i ? { ...m, ...patch } : m);
+    onChange({ ...state, monsters: next });
+  };
+  const addMonster = () => {
+    if (monsters.length >= 6) return;
+    onChange({ ...state, monsters: [...monsters, { cr: '1/4', count: 1 }] });
+  };
+  const removeMonster = (i: number) => {
+    onChange({ ...state, monsters: monsters.filter((_, j) => j !== i) });
+  };
+
+  return (
+    <div className="rounded border border-amber-900/30 bg-amber-950/10 p-3 space-y-2.5">
+      <div className="flex items-center justify-between">
+        <span className="font-display text-xs uppercase tracking-wider text-amber-900">Solo Encounter Helper</span>
+        <span className="text-[10px] text-ink-mute italic font-serif">5e SRD thresholds · solo-adjusted</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <label className="text-xs text-ink-soft font-serif">PC Level</label>
+        <input
+          type="number"
+          min={1}
+          max={20}
+          value={state.pcLevel || 1}
+          onChange={(e) => {
+            const v = parseInt(e.target.value || '1', 10);
+            onChange({ ...state, pcLevel: Math.min(20, Math.max(1, isNaN(v) ? 1 : v)) });
+          }}
+          className="w-16 bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif"
+        />
+      </div>
+      <div className="space-y-1.5">
+        {monsters.map((m, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <span className="text-xs text-ink-mute w-4">{i + 1}.</span>
+            <label className="text-[10px] text-ink-mute font-display uppercase tracking-wider">CR</label>
+            <select
+              value={m.cr}
+              onChange={(e) => updateMonster(i, { cr: e.target.value })}
+              className="bg-parchment-soft border border-rule rounded px-2 py-1 text-xs text-ink font-serif"
+            >
+              {CR_OPTIONS.map(cr => <option key={cr} value={cr}>{cr}</option>)}
+            </select>
+            <span className="text-[10px] text-ink-mute font-serif">×</span>
+            <input
+              type="number"
+              min={1}
+              max={99}
+              value={m.count || 1}
+              onChange={(e) => {
+                const v = parseInt(e.target.value || '1', 10);
+                updateMonster(i, { count: Math.max(1, isNaN(v) ? 1 : v) });
+              }}
+              className="w-14 bg-parchment-soft border border-rule rounded px-2 py-1 text-xs text-ink font-serif"
+            />
+            <span className="text-[10px] text-ink-mute font-serif flex-1">
+              = {(CR_TO_XP[m.cr] || 0) * (m.count || 0)} XP
+            </span>
+            <button onClick={() => removeMonster(i)} className="text-ink-mute hover:text-crimson"><X size={12} /></button>
+          </div>
+        ))}
+        {monsters.length < 6 && (
+          <button onClick={addMonster} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
+            <Plus size={12} /> Add Monster
+          </button>
+        )}
+      </div>
+      {monsters.length > 0 && (
+        <div className="border-t border-amber-900/20 pt-2 space-y-1 text-xs font-serif">
+          <div className="flex justify-between text-ink-soft">
+            <span>Base XP</span><span>{baseXP}</span>
+          </div>
+          <div className="flex justify-between text-ink-soft">
+            <span>Group multiplier ({totalCount} creature{totalCount === 1 ? '' : 's'})</span>
+            <span>× {mult}</span>
+          </div>
+          <div className="flex justify-between text-ink font-semibold">
+            <span>Adjusted XP</span><span>{adjustedXP}</span>
+          </div>
+          <div className={`mt-1.5 rounded border px-2 py-1.5 flex items-center justify-between ${ratingClass}`}>
+            <span className="font-display uppercase tracking-wider text-xs">{rating}</span>
+            <span className="text-[10px] italic">{rationale}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const RENOWN_RANKS: Array<{ min: number; label: string }> = [
+  { min: 50, label: 'Legend' },
+  { min: 25, label: 'Honored' },
+  { min: 10, label: 'Established' },
+  { min: 3,  label: 'Trusted' },
+  { min: 1,  label: 'Initiate' },
+  { min: 0,  label: 'Unknown' },
+];
+
+function renownRank(value: number, custom?: string[]): string {
+  if (custom && custom.length === 6) {
+    if (value >= 50) return custom[5];
+    if (value >= 25) return custom[4];
+    if (value >= 10) return custom[3];
+    if (value >= 3)  return custom[2];
+    if (value >= 1)  return custom[1];
+    return custom[0];
+  }
+  for (const r of RENOWN_RANKS) {
+    if (value >= r.min) return r.label;
+  }
+  return 'Unknown';
+}
 
 const Phase = ({ n, title, sub, methods, children, expanded, onToggle, icon: Icon }: any) => (
   <div className="border border-rule rounded-lg overflow-hidden bg-parchment-soft shadow-page">
@@ -1053,6 +1234,10 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               <Section id="s7-mon" title="7 · Choose Relevant Monsters" methods={['shea']} done={done['s7-mon']} onToggle={toggleDone} open={open['s7-mon']} onToggleOpen={toggleOpen} icon={Swords}>
                 <SoloNote>Solo level-1 ~8-12 HP. CR 1/8 one-at-a-time. Narrative outs always.</SoloNote>
                 <ListField items={get('monsters', [])} onChange={(v) => setVal('monsters', v)} placeholder="Monster — CR — use case" target={getTarget('monsters', soloMode)} />
+                <EncounterHelper
+                  state={(get('__encounterCalc', { pcLevel: 1, monsters: [] })) as EncounterCalcState}
+                  onChange={(s) => setVal('__encounterCalc', s)}
+                />
               </Section>
               <Section id="s8-rew" title="8 · Select Magic Item Rewards" methods={['shea', 'pr']} done={done['s8-rew']} onToggle={toggleDone} open={open['s8-rew']} onToggleOpen={toggleOpen} icon={Gift}>
                 <BookQuote source="PR ch. 6">Your +1 needs to be actionable.</BookQuote>
