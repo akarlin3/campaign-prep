@@ -9,8 +9,10 @@ import {
   ChevronDown, ChevronRight, Check, Plus, X, Quote,
   User, Users, Map, Swords, Gift, Layers, Calendar, Target, Trophy,
   Download, Upload, ScrollText, Trash2, ArrowLeft, Cloud, CloudOff,
-  FileUp,
+  FileUp, Sparkles,
 } from 'lucide-react';
+import { TABLES, sampleTable } from '@/lib/inspirationTables';
+import { CR_TO_XP, encounterMultiplier, difficultyForSolo } from '@/lib/encounterMath';
 import DiceRoller, { type Macro } from './DiceRoller';
 import SpellsTab, { type Spell } from './SpellsTab';
 import DMRefTab from './DMRefTab';
@@ -90,6 +92,68 @@ const Pitfall = ({ children }: { children: React.ReactNode }) => (
     <X size={13} className="text-crimson flex-shrink-0 mt-0.5" />
     <div className="text-ink-soft font-serif"><span className="font-display uppercase tracking-wider text-xs text-crimson">Common Pitfall · </span>{children}</div>
   </div>
+);
+
+const Inspire = ({
+  tableId,
+  onPick,
+  count = 5,
+  label = 'Inspire',
+}: {
+  tableId: string;
+  onPick: (entry: string) => void;
+  count?: number;
+  label?: string;
+}) => {
+  const [open, setOpen] = useState(false);
+  const [picks, setPicks] = useState<string[]>([]);
+  const table = TABLES[tableId];
+  if (!table) return null;
+
+  const reroll = () => setPicks(sampleTable(tableId, count));
+
+  const toggle = () => {
+    if (!open) reroll();
+    setOpen(o => !o);
+  };
+
+  return (
+    <div className="relative inline-block">
+      <button
+        type="button"
+        onClick={toggle}
+        className="text-[11px] px-2 py-0.5 rounded border border-amber-900/40 bg-amber-950/20 text-amber-300 hover:bg-amber-950/40 flex items-center gap-1"
+        title={`Inspire from ${table.title}`}
+      >
+        <Sparkles size={11} /> {label}
+      </button>
+      {open && (
+        <div className="absolute right-0 mt-1 w-80 z-50 rounded border border-zinc-700 bg-zinc-900 shadow-xl p-2 space-y-1.5">
+          <div className="flex items-center justify-between text-[10px] text-zinc-500 px-1 pb-1 border-b border-zinc-800">
+            <span>{table.title}</span>
+            <div className="flex gap-2">
+              <button onClick={reroll} className="text-amber-400 hover:text-amber-300">Reroll</button>
+              <button onClick={() => setOpen(false)} className="text-zinc-500 hover:text-zinc-300">Close</button>
+            </div>
+          </div>
+          {picks.map((entry, i) => (
+            <button
+              key={i}
+              onClick={() => { onPick(entry); setOpen(false); }}
+              className="block w-full text-left text-xs px-2 py-1.5 rounded text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100"
+            >
+              {entry}
+            </button>
+          ))}
+          <div className="text-[9px] text-zinc-600 px-1 pt-1 italic">{table.attribution}</div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const InspireGroup = ({ children }: { children: React.ReactNode }) => (
+  <div className="flex flex-wrap gap-1.5 items-center">{children}</div>
 );
 
 const TargetBar = ({ current, target, source }: { current: number; target: number; source?: string }) => {
@@ -190,36 +254,71 @@ const CardLabel = ({ children }: { children: React.ReactNode }) => (
   <div className="text-xs text-brass-deep font-display uppercase tracking-wider mb-0.5">{children}</div>
 );
 
-const FactionCard = ({ data, onChange, onRemove }: any) => (
-  <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
-    <div className="flex justify-between items-center gap-2">
-      <Field value={data.name} onChange={(v) => onChange({ ...data, name: v })} placeholder="Faction Name" />
-      <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
+const FactionCard = ({ data, onChange, onRemove }: any) => {
+  const renown = typeof data.renown === 'number' ? data.renown : 0;
+  const rank = renownRank(renown, data.rankLabels);
+  return (
+    <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
+      <div className="flex justify-between items-center gap-2">
+        <Field value={data.name} onChange={(v) => onChange({ ...data, name: v })} placeholder="Faction Name" />
+        <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
+      </div>
+      <div><CardLabel>Archetype</CardLabel>
+        <select value={data.archetype || ''} onChange={(e) => onChange({ ...data, archetype: e.target.value })} className="w-full bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif">
+          <option value="">— Choose —</option>
+          <option>Government (preserves order/stability)</option>
+          <option>Religious</option><option>Criminal / underground</option><option>Mercantile</option>
+          <option>Military</option><option>Cult</option><option>Scholarly</option>
+          <option>Revolutionary</option><option>Other</option>
+        </select></div>
+      <div><CardLabel>Identity</CardLabel>
+        <Field value={data.identity} onChange={(v) => onChange({ ...data, identity: v })} placeholder="One sentence" rows={2} /></div>
+      <div><CardLabel>Area of Operation</CardLabel>
+        <Field value={data.area} onChange={(v) => onChange({ ...data, area: v })} placeholder="Where active" /></div>
+      <div><CardLabel>Power Level</CardLabel>
+        <Field value={data.power} onChange={(v) => onChange({ ...data, power: v })} placeholder="Resources" /></div>
+      <div><CardLabel>Ideology</CardLabel>
+        <Field value={data.ideology} onChange={(v) => onChange({ ...data, ideology: v })} placeholder="Why they do it" rows={2} /></div>
+      <div><CardLabel>Short-Term Goals</CardLabel>
+        <ListField items={data.shortGoals || []} onChange={(v) => onChange({ ...data, shortGoals: v })} placeholder="A short-term goal" /></div>
+      <div><CardLabel>Mid-Term Goals</CardLabel>
+        <ListField items={data.midGoals || []} onChange={(v) => onChange({ ...data, midGoals: v })} placeholder="A mid-term goal" /></div>
+      <div><CardLabel>Long-Term Goal</CardLabel>
+        <Field value={data.longGoal} onChange={(v) => onChange({ ...data, longGoal: v })} placeholder="The one big thing" /></div>
+      <div>
+        <CardLabel>Renown</CardLabel>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => onChange({ ...data, renown: renown - 1 })}
+            className="w-7 h-7 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display"
+            title="Decrease renown"
+          >
+            −
+          </button>
+          <input
+            type="number"
+            value={renown}
+            onChange={(e) => {
+              const v = parseInt(e.target.value || '0', 10);
+              onChange({ ...data, renown: isNaN(v) ? 0 : v });
+            }}
+            className="w-16 bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif text-center"
+          />
+          <button
+            onClick={() => onChange({ ...data, renown: renown + 1 })}
+            className="w-7 h-7 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display"
+            title="Increase renown"
+          >
+            +
+          </button>
+          <span className="text-xs px-2 py-0.5 rounded-sm border border-wine/40 bg-wine/5 text-wine font-display uppercase tracking-wider">
+            {rank}
+          </span>
+        </div>
+      </div>
     </div>
-    <div><CardLabel>Archetype</CardLabel>
-      <select value={data.archetype || ''} onChange={(e) => onChange({ ...data, archetype: e.target.value })} className="w-full bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif">
-        <option value="">— Choose —</option>
-        <option>Government (preserves order/stability)</option>
-        <option>Religious</option><option>Criminal / underground</option><option>Mercantile</option>
-        <option>Military</option><option>Cult</option><option>Scholarly</option>
-        <option>Revolutionary</option><option>Other</option>
-      </select></div>
-    <div><CardLabel>Identity</CardLabel>
-      <Field value={data.identity} onChange={(v) => onChange({ ...data, identity: v })} placeholder="One sentence" rows={2} /></div>
-    <div><CardLabel>Area of Operation</CardLabel>
-      <Field value={data.area} onChange={(v) => onChange({ ...data, area: v })} placeholder="Where active" /></div>
-    <div><CardLabel>Power Level</CardLabel>
-      <Field value={data.power} onChange={(v) => onChange({ ...data, power: v })} placeholder="Resources" /></div>
-    <div><CardLabel>Ideology</CardLabel>
-      <Field value={data.ideology} onChange={(v) => onChange({ ...data, ideology: v })} placeholder="Why they do it" rows={2} /></div>
-    <div><CardLabel>Short-Term Goals</CardLabel>
-      <ListField items={data.shortGoals || []} onChange={(v) => onChange({ ...data, shortGoals: v })} placeholder="A short-term goal" /></div>
-    <div><CardLabel>Mid-Term Goals</CardLabel>
-      <ListField items={data.midGoals || []} onChange={(v) => onChange({ ...data, midGoals: v })} placeholder="A mid-term goal" /></div>
-    <div><CardLabel>Long-Term Goal</CardLabel>
-      <Field value={data.longGoal} onChange={(v) => onChange({ ...data, longGoal: v })} placeholder="The one big thing" /></div>
-  </div>
-);
+  );
+};
 
 const GoalCard = ({ data, onChange, onRemove }: any) => (
   <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
@@ -241,29 +340,65 @@ const GoalCard = ({ data, onChange, onRemove }: any) => (
   </div>
 );
 
-const NPCCard = ({ data, onChange, onRemove }: any) => (
-  <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
-    <div className="flex justify-between gap-2">
-      <Field value={data.name} onChange={(v) => onChange({ ...data, name: v })} placeholder="NPC Name" />
-      <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
+const NPCCard = ({ data, onChange, onRemove, defaultDetailsOpen = false }: any) => {
+  const [showDetails, setShowDetails] = useState<boolean>(
+    defaultDetailsOpen ||
+    !!(data.appearance || data.abilities || data.talent || data.mannerism ||
+       data.interactions || data.knowledge || data.ideal || data.bond || data.flaw)
+  );
+  return (
+    <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
+      <div className="flex justify-between gap-2">
+        <Field value={data.name} onChange={(v) => onChange({ ...data, name: v })} placeholder="NPC Name" />
+        <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div><CardLabel>Type</CardLabel>
+          <select value={data.type || ''} onChange={(e) => onChange({ ...data, type: e.target.value })} className="w-full bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif">
+            <option value="">— Choose —</option>
+            <option>Ally</option><option>Villain</option><option>Patron</option><option>Rival</option><option>Neutral / Colour</option>
+          </select></div>
+        <div><CardLabel>Faction</CardLabel>
+          <Field value={data.faction} onChange={(v) => onChange({ ...data, faction: v })} placeholder="..." /></div>
+      </div>
+      <div><CardLabel>Archetype</CardLabel>
+        <Field value={data.archetype} onChange={(v) => onChange({ ...data, archetype: v })} placeholder='e.g. "Han Solo"' /></div>
+      <div><CardLabel>Active Goal</CardLabel>
+        <Field value={data.goal} onChange={(v) => onChange({ ...data, goal: v })} placeholder="What are they pursuing?" rows={2} /></div>
+      <div><CardLabel>Method of Pursuit</CardLabel>
+        <Field value={data.method} onChange={(v) => onChange({ ...data, method: v })} placeholder="Violence? Charm?" /></div>
+      <button
+        onClick={() => setShowDetails(s => !s)}
+        className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider"
+      >
+        {showDetails ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+        {showDetails ? 'Hide Details' : 'Show Details'}
+      </button>
+      {showDetails && (
+        <div className="space-y-2 pt-1 border-t border-rule">
+          <div><CardLabel>Appearance</CardLabel>
+            <Field value={data.appearance} onChange={(v) => onChange({ ...data, appearance: v })} placeholder="Distinctive physical detail or two" /></div>
+          <div><CardLabel>Abilities</CardLabel>
+            <Field value={data.abilities} onChange={(v) => onChange({ ...data, abilities: v })} placeholder="High/low ability — strong, slow, perceptive..." /></div>
+          <div><CardLabel>Talent</CardLabel>
+            <Field value={data.talent} onChange={(v) => onChange({ ...data, talent: v })} placeholder="Something they can do that's distinctive" /></div>
+          <div><CardLabel>Mannerism</CardLabel>
+            <Field value={data.mannerism} onChange={(v) => onChange({ ...data, mannerism: v })} placeholder="Small habit that makes them memorable" /></div>
+          <div><CardLabel>Interactions</CardLabel>
+            <Field value={data.interactions} onChange={(v) => onChange({ ...data, interactions: v })} placeholder="Default conversational stance — curious, suspicious..." /></div>
+          <div><CardLabel>Knowledge</CardLabel>
+            <Field value={data.knowledge} onChange={(v) => onChange({ ...data, knowledge: v })} placeholder="Something useful they know" rows={2} /></div>
+          <div><CardLabel>Ideal</CardLabel>
+            <Field value={data.ideal} onChange={(v) => onChange({ ...data, ideal: v })} placeholder="What drives them" /></div>
+          <div><CardLabel>Bond</CardLabel>
+            <Field value={data.bond} onChange={(v) => onChange({ ...data, bond: v })} placeholder="Who or what they're tied to" /></div>
+          <div><CardLabel>Flaw / Secret</CardLabel>
+            <Field value={data.flaw} onChange={(v) => onChange({ ...data, flaw: v })} placeholder="Flaw or secret that could undermine them" /></div>
+        </div>
+      )}
     </div>
-    <div className="grid grid-cols-2 gap-2">
-      <div><CardLabel>Type</CardLabel>
-        <select value={data.type || ''} onChange={(e) => onChange({ ...data, type: e.target.value })} className="w-full bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif">
-          <option value="">— Choose —</option>
-          <option>Ally</option><option>Villain</option><option>Patron</option><option>Rival</option><option>Neutral / Colour</option>
-        </select></div>
-      <div><CardLabel>Faction</CardLabel>
-        <Field value={data.faction} onChange={(v) => onChange({ ...data, faction: v })} placeholder="..." /></div>
-    </div>
-    <div><CardLabel>Archetype</CardLabel>
-      <Field value={data.archetype} onChange={(v) => onChange({ ...data, archetype: v })} placeholder='e.g. "Han Solo"' /></div>
-    <div><CardLabel>Active Goal</CardLabel>
-      <Field value={data.goal} onChange={(v) => onChange({ ...data, goal: v })} placeholder="What are they pursuing?" rows={2} /></div>
-    <div><CardLabel>Method of Pursuit</CardLabel>
-      <Field value={data.method} onChange={(v) => onChange({ ...data, method: v })} placeholder="Violence? Charm?" /></div>
-  </div>
-);
+  );
+};
 
 const LocationCard = ({ data, onChange, onRemove }: any) => (
   <div className="rounded border border-rule bg-parchment p-3 space-y-2.5 shadow-card">
@@ -417,6 +552,307 @@ const ClockCard = ({ data, onChange, onRemove }: any) => {
   );
 };
 
+type EncounterMonster = { cr: string; count: number };
+type EncounterCalcState = { pcLevel: number; monsters: EncounterMonster[] };
+
+type DowntimeEntry = {
+  id: string;
+  type: string;
+  fields: Record<string, string>;
+  createdAt: string;
+  archived?: boolean;
+};
+
+const DOWNTIME_TYPES: Array<{
+  id: string;
+  label: string;
+  fields: Array<{ key: string; label: string; placeholder: string; rows?: number }>;
+  reference?: string;
+}> = [
+  {
+    id: 'stronghold',
+    label: 'Building a Stronghold',
+    fields: [
+      { key: 'propertyType', label: 'Property Type', placeholder: 'Tower, keep, manor...' },
+      { key: 'location', label: 'Location', placeholder: 'Where is it being built?' },
+      { key: 'dailyCost', label: 'Daily Cost (gp)', placeholder: 'e.g. 125' },
+      { key: 'daysRemaining', label: 'Days Remaining', placeholder: 'e.g. 60' },
+    ],
+    reference:
+      'Abbey/Temple/Keep ~50,000gp over ~400 days · Tower/Outpost ~15,000gp over ~100 days · ' +
+      'Trading post/Guildhall ~5,000gp over ~60 days · Palace ~500,000gp over ~1,200 days · ' +
+      'Noble manor ~25,000gp over ~150 days.',
+  },
+  {
+    id: 'carousing',
+    label: 'Carousing',
+    fields: [
+      { key: 'lifestyle', label: 'Lifestyle', placeholder: 'Modest / Comfortable / Wealthy / Aristocratic' },
+      { key: 'daysSpent', label: 'Days Spent', placeholder: 'e.g. 5' },
+      { key: 'outcome', label: 'Outcome Notes', placeholder: 'What happened — contacts, complications, rumors', rows: 3 },
+    ],
+  },
+  {
+    id: 'crafting',
+    label: 'Crafting a Magic Item',
+    fields: [
+      { key: 'itemName', label: 'Item Name', placeholder: 'What is being crafted' },
+      { key: 'rarity', label: 'Rarity', placeholder: 'Common / Uncommon / Rare / Very Rare / Legendary' },
+      { key: 'daysRemaining', label: 'Days Remaining', placeholder: 'Working days left' },
+      { key: 'gpCommitted', label: 'GP Committed', placeholder: 'Total invested so far' },
+    ],
+    reference:
+      'Common 100gp / min lvl 3 · Uncommon 500gp / min lvl 3 · Rare 5,000gp / min lvl 6 · ' +
+      'Very Rare 50,000gp / min lvl 11 · Legendary 500,000gp / min lvl 17.',
+  },
+  {
+    id: 'renown',
+    label: 'Gaining Renown',
+    fields: [
+      { key: 'factionName', label: 'Faction', placeholder: 'Which faction' },
+      { key: 'currentRenown', label: 'Current Renown', placeholder: 'e.g. 3' },
+      { key: 'targetRenown', label: 'Target Renown', placeholder: 'e.g. 10' },
+      { key: 'narrative', label: 'Narrative', placeholder: 'What is the character doing to earn it?', rows: 3 },
+    ],
+  },
+  {
+    id: 'sacredRites',
+    label: 'Performing Sacred Rites',
+    fields: [
+      { key: 'faith', label: 'Faith / Temple', placeholder: 'Which faith or temple' },
+      { key: 'daysSpent', label: 'Days Spent', placeholder: 'e.g. 10' },
+      { key: 'intent', label: 'Intent', placeholder: 'What the rite is for', rows: 3 },
+    ],
+  },
+  {
+    id: 'business',
+    label: 'Running a Business',
+    fields: [
+      { key: 'businessType', label: 'Business Type', placeholder: 'Tavern, smithy, ship...' },
+      { key: 'daysManaged', label: 'Days Managed', placeholder: 'e.g. 30' },
+      { key: 'profitLoss', label: 'Profit / Loss (gp)', placeholder: 'Positive or negative' },
+      { key: 'narrative', label: 'Narrative', placeholder: 'How is it going?', rows: 3 },
+    ],
+  },
+  {
+    id: 'sellingMagic',
+    label: 'Selling Magic Items',
+    fields: [
+      { key: 'item', label: 'Item', placeholder: 'What is being sold' },
+      { key: 'askingPrice', label: 'Asking Price', placeholder: 'In gp' },
+      { key: 'buyer', label: 'Buyer', placeholder: 'Named buyer or "looking for buyer"' },
+    ],
+  },
+  {
+    id: 'training',
+    label: 'Training',
+    fields: [
+      { key: 'skillOrFeat', label: 'Skill or Feat', placeholder: 'What is being learned' },
+      { key: 'totalDays', label: 'Total Days Needed', placeholder: 'e.g. 250' },
+      { key: 'daysCompleted', label: 'Days Completed', placeholder: 'e.g. 47' },
+    ],
+  },
+];
+
+function makeDowntimeId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+const DowntimeCard = ({
+  entry,
+  onChange,
+  onArchive,
+  onUnarchive,
+  onRemove,
+}: {
+  entry: DowntimeEntry;
+  onChange: (e: DowntimeEntry) => void;
+  onArchive: () => void;
+  onUnarchive: () => void;
+  onRemove: () => void;
+}) => {
+  const type = DOWNTIME_TYPES.find(t => t.id === entry.type);
+  if (!type) return null;
+  return (
+    <div className={`rounded border p-3 space-y-2 shadow-card ${entry.archived ? 'border-rule/60 bg-parchment-deep/40 opacity-80' : 'border-rule bg-parchment'}`}>
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-display text-sm tracking-wide text-ink">{type.label}</span>
+        <div className="flex gap-1.5">
+          {entry.archived ? (
+            <button onClick={onUnarchive} className="text-[10px] px-2 py-0.5 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider">Unarchive</button>
+          ) : (
+            <button onClick={onArchive} className="text-[10px] px-2 py-0.5 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider">Archive</button>
+          )}
+          <button onClick={onRemove} className="text-ink-mute hover:text-crimson"><X size={14} /></button>
+        </div>
+      </div>
+      <div className="space-y-2">
+        {type.fields.map(f => (
+          <div key={f.key}>
+            <CardLabel>{f.label}</CardLabel>
+            <Field
+              value={entry.fields[f.key] || ''}
+              onChange={(v) => onChange({ ...entry, fields: { ...entry.fields, [f.key]: v } })}
+              placeholder={f.placeholder}
+              rows={f.rows}
+            />
+          </div>
+        ))}
+      </div>
+      {type.reference && (
+        <div className="text-[10px] text-ink-mute italic font-serif border-t border-rule pt-1.5">
+          {type.reference}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const CR_OPTIONS = ["0", "1/8", "1/4", "1/2", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10",
+  "11", "12", "13", "14", "15", "16", "17", "18", "19", "20",
+  "21", "22", "23", "24", "25", "26", "27", "28", "29", "30"];
+
+const RATING_COLORS: Record<string, string> = {
+  Trivial: 'text-emerald-700 bg-emerald-100/40 border-emerald-700/40',
+  Easy:    'text-emerald-700 bg-emerald-100/40 border-emerald-700/40',
+  Medium:  'text-yellow-700 bg-yellow-100/50 border-yellow-700/40',
+  Hard:    'text-orange-700 bg-orange-100/50 border-orange-700/40',
+  Deadly:  'text-red-700 bg-red-100/50 border-red-700/50',
+  Lethal:  'text-red-900 bg-red-200/60 border-red-900/60',
+};
+
+const EncounterHelper = ({
+  state,
+  onChange,
+}: {
+  state: EncounterCalcState;
+  onChange: (s: EncounterCalcState) => void;
+}) => {
+  const monsters = state.monsters || [];
+  const totalCount = monsters.reduce((sum, m) => sum + (m.count || 0), 0);
+  const baseXP = monsters.reduce((sum, m) => sum + (CR_TO_XP[m.cr] || 0) * (m.count || 0), 0);
+  const mult = encounterMultiplier(totalCount);
+  const adjustedXP = Math.round(baseXP * mult);
+  const { rating, rationale } = difficultyForSolo(adjustedXP, state.pcLevel || 1);
+  const ratingClass = RATING_COLORS[rating] || RATING_COLORS.Medium;
+
+  const updateMonster = (i: number, patch: Partial<EncounterMonster>) => {
+    const next = monsters.map((m, j) => j === i ? { ...m, ...patch } : m);
+    onChange({ ...state, monsters: next });
+  };
+  const addMonster = () => {
+    if (monsters.length >= 6) return;
+    onChange({ ...state, monsters: [...monsters, { cr: '1/4', count: 1 }] });
+  };
+  const removeMonster = (i: number) => {
+    onChange({ ...state, monsters: monsters.filter((_, j) => j !== i) });
+  };
+
+  return (
+    <div className="rounded border border-amber-900/30 bg-amber-950/10 p-3 space-y-2.5">
+      <div className="flex items-center justify-between">
+        <span className="font-display text-xs uppercase tracking-wider text-amber-900">Solo Encounter Helper</span>
+        <span className="text-[10px] text-ink-mute italic font-serif">5e SRD thresholds · solo-adjusted</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <label className="text-xs text-ink-soft font-serif">PC Level</label>
+        <input
+          type="number"
+          min={1}
+          max={20}
+          value={state.pcLevel || 1}
+          onChange={(e) => {
+            const v = parseInt(e.target.value || '1', 10);
+            onChange({ ...state, pcLevel: Math.min(20, Math.max(1, isNaN(v) ? 1 : v)) });
+          }}
+          className="w-16 bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif"
+        />
+      </div>
+      <div className="space-y-1.5">
+        {monsters.map((m, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <span className="text-xs text-ink-mute w-4">{i + 1}.</span>
+            <label className="text-[10px] text-ink-mute font-display uppercase tracking-wider">CR</label>
+            <select
+              value={m.cr}
+              onChange={(e) => updateMonster(i, { cr: e.target.value })}
+              className="bg-parchment-soft border border-rule rounded px-2 py-1 text-xs text-ink font-serif"
+            >
+              {CR_OPTIONS.map(cr => <option key={cr} value={cr}>{cr}</option>)}
+            </select>
+            <span className="text-[10px] text-ink-mute font-serif">×</span>
+            <input
+              type="number"
+              min={1}
+              max={99}
+              value={m.count || 1}
+              onChange={(e) => {
+                const v = parseInt(e.target.value || '1', 10);
+                updateMonster(i, { count: Math.max(1, isNaN(v) ? 1 : v) });
+              }}
+              className="w-14 bg-parchment-soft border border-rule rounded px-2 py-1 text-xs text-ink font-serif"
+            />
+            <span className="text-[10px] text-ink-mute font-serif flex-1">
+              = {(CR_TO_XP[m.cr] || 0) * (m.count || 0)} XP
+            </span>
+            <button onClick={() => removeMonster(i)} className="text-ink-mute hover:text-crimson"><X size={12} /></button>
+          </div>
+        ))}
+        {monsters.length < 6 && (
+          <button onClick={addMonster} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
+            <Plus size={12} /> Add Monster
+          </button>
+        )}
+      </div>
+      {monsters.length > 0 && (
+        <div className="border-t border-amber-900/20 pt-2 space-y-1 text-xs font-serif">
+          <div className="flex justify-between text-ink-soft">
+            <span>Base XP</span><span>{baseXP}</span>
+          </div>
+          <div className="flex justify-between text-ink-soft">
+            <span>Group multiplier ({totalCount} creature{totalCount === 1 ? '' : 's'})</span>
+            <span>× {mult}</span>
+          </div>
+          <div className="flex justify-between text-ink font-semibold">
+            <span>Adjusted XP</span><span>{adjustedXP}</span>
+          </div>
+          <div className={`mt-1.5 rounded border px-2 py-1.5 flex items-center justify-between ${ratingClass}`}>
+            <span className="font-display uppercase tracking-wider text-xs">{rating}</span>
+            <span className="text-[10px] italic">{rationale}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const RENOWN_RANKS: Array<{ min: number; label: string }> = [
+  { min: 50, label: 'Legend' },
+  { min: 25, label: 'Honored' },
+  { min: 10, label: 'Established' },
+  { min: 3,  label: 'Trusted' },
+  { min: 1,  label: 'Initiate' },
+  { min: 0,  label: 'Unknown' },
+];
+
+function renownRank(value: number, custom?: string[]): string {
+  if (custom && custom.length === 6) {
+    if (value >= 50) return custom[5];
+    if (value >= 25) return custom[4];
+    if (value >= 10) return custom[3];
+    if (value >= 3)  return custom[2];
+    if (value >= 1)  return custom[1];
+    return custom[0];
+  }
+  for (const r of RENOWN_RANKS) {
+    if (value >= r.min) return r.label;
+  }
+  return 'Unknown';
+}
+
 const Phase = ({ n, title, sub, methods, children, expanded, onToggle, icon: Icon }: any) => (
   <div className="border border-rule rounded-lg overflow-hidden bg-parchment-soft shadow-page">
     <button onClick={onToggle} className="w-full flex items-center gap-2.5 sm:gap-4 p-3 sm:p-4 hover:bg-parchment-deep/30 text-left transition-colors">
@@ -447,7 +883,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
   );
   const [openChars, setOpenChars] = useState<Record<string, boolean>>({});
   const [phaseOpen, setPhaseOpen] = useState<Record<string, boolean>>({ p0: true });
-  const [tab, setTab] = useState<'prep' | 'ref' | 'track' | 'dice' | 'spells' | 'names' | 'dmref'>('prep');
+  const [tab, setTab] = useState<'prep' | 'ref' | 'track' | 'down' | 'dice' | 'spells' | 'names' | 'dmref'>('prep');
   const [soloMode, setSoloMode] = useState<boolean>(campaign.data?.__soloMode ?? true);
   const [syncState, setSyncState] = useState<'synced' | 'pending' | 'saving' | 'error'>('synced');
   const [syncError, setSyncError] = useState<string>('');
@@ -652,6 +1088,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                   ['prep', 'Prep Flow'] as const,
                   ['ref', 'Reference'] as const,
                   ['track', 'Tracking'] as const,
+                  ['down', 'Downtime'] as const,
                   ['dice', 'Dice'] as const,
                   ['spells', 'Spells'] as const,
                   ...(isPro ? [['names', 'Names'] as const] : []),
@@ -690,6 +1127,21 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               <Section id="pitch" title="Quick Pitch" methods={['ccd']} done={done.pitch} onToggle={toggleDone} open={open.pitch} onToggleOpen={toggleOpen}>
                 <BookQuote source="CCD case study">Pitch the results, not the concept.</BookQuote>
                 <Field value={get('pitch', '')} onChange={(v) => setVal('pitch', v)} placeholder="2-3 sentences" rows={4} />
+                <InspireGroup>
+                  <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Goal seeds:</span>
+                  <Inspire tableId="dungeonGoals" label="Dungeon" onPick={(e) => {
+                    const cur = get('pitch', '') as string;
+                    setVal('pitch', cur ? `${cur}\n• ${e}` : `• ${e}`);
+                  }} />
+                  <Inspire tableId="wildernessGoals" label="Wilderness" onPick={(e) => {
+                    const cur = get('pitch', '') as string;
+                    setVal('pitch', cur ? `${cur}\n• ${e}` : `• ${e}`);
+                  }} />
+                  <Inspire tableId="urbanGoals" label="Urban" onPick={(e) => {
+                    const cur = get('pitch', '') as string;
+                    setVal('pitch', cur ? `${cur}\n• ${e}` : `• ${e}`);
+                  }} />
+                </InspireGroup>
               </Section>
             </Phase>
 
@@ -713,6 +1165,18 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                     const next = [...(get('factions', []) as any[])]; next[i] = v; setVal('factions', next);
                   }} onRemove={() => setVal('factions', (get('factions', []) as any[]).filter((_: any, j: number) => j !== i))} />
                 ))}
+                <InspireGroup>
+                  <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Add faction from:</span>
+                  <Inspire tableId="villainArchetypes" label="Villain" onPick={(e) => {
+                    setVal('factions', [...(get('factions', []) as any[]), { name: '', archetype: '', identity: e, area: '', power: '', ideology: '', shortGoals: [], midGoals: [], longGoal: '' }]);
+                  }} />
+                  <Inspire tableId="allyTypes" label="Ally" onPick={(e) => {
+                    setVal('factions', [...(get('factions', []) as any[]), { name: '', archetype: '', identity: e, area: '', power: '', ideology: '', shortGoals: [], midGoals: [], longGoal: '' }]);
+                  }} />
+                  <Inspire tableId="patronTypes" label="Patron" onPick={(e) => {
+                    setVal('factions', [...(get('factions', []) as any[]), { name: '', archetype: '', identity: e, area: '', power: '', ideology: '', shortGoals: [], midGoals: [], longGoal: '' }]);
+                  }} />
+                </InspireGroup>
                 <button onClick={() => setVal('factions', [...(get('factions', []) as any[]), { name: '', archetype: '', identity: '', area: '', power: '', ideology: '', shortGoals: [], midGoals: [], longGoal: '' }])} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
                   <Plus size={12} /> Add Faction
                 </button>
@@ -720,6 +1184,21 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               <Section id="conflicts" title="Active Conflicts" methods={['ccd', 'pr']} done={done.conflicts} onToggle={toggleDone} open={open.conflicts} onToggleOpen={toggleOpen}>
                 <BookQuote source="CCD ch. 2">Conflicts are the end goal of worldbuilding.</BookQuote>
                 <ListField items={get('conflicts', [])} onChange={(v) => setVal('conflicts', v)} placeholder="Faction A vs Faction B over X" rows={2} target={getTarget('conflicts', soloMode)} />
+                <InspireGroup>
+                  <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Inspire:</span>
+                  <Inspire tableId="twists" label="Twist" onPick={(e) => {
+                    setVal('conflicts', [...(get('conflicts', []) as string[]), e]);
+                  }} />
+                  <Inspire tableId="moralQuandaries" label="Quandary" onPick={(e) => {
+                    setVal('conflicts', [...(get('conflicts', []) as string[]), e]);
+                  }} />
+                  <Inspire tableId="sideComplications" label="Complication" onPick={(e) => {
+                    setVal('conflicts', [...(get('conflicts', []) as string[]), e]);
+                  }} />
+                  <Inspire tableId="campaignEvents" label="Event" onPick={(e) => {
+                    setVal('conflicts', [...(get('conflicts', []) as string[]), e]);
+                  }} />
+                </InspireGroup>
               </Section>
             </Phase>
 
@@ -817,15 +1296,43 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               <Section id="s2-start" title="2 · Create a Strong Start" methods={['shea']} done={done['s2-start']} onToggle={toggleDone} open={open['s2-start']} onToggleOpen={toggleOpen}>
                 <SoloNote>Solo level-1 cannot reliably survive opening combat. Substitute action that isn't a losable fight.</SoloNote>
                 <Field value={get('strongStart', '')} onChange={(v) => setVal('strongStart', v)} placeholder="One sentence or paragraph" rows={4} />
+                <InspireGroup>
+                  <Inspire tableId="introductions" label="Introduction" onPick={(e) => {
+                    const cur = (get('strongStart', '') as string).trim();
+                    if (cur && !confirm('Replace the current strong start?')) return;
+                    setVal('strongStart', e);
+                  }} />
+                </InspireGroup>
               </Section>
               <Section id="s3-scenes" title="3 · Outline Potential Scenes" methods={['shea']} done={done['s3-scenes']} onToggle={toggleDone} open={open['s3-scenes']} onToggleOpen={toggleOpen}>
                 <BookQuote source="Lazy DM (Perkins)">Be prepared to throw what you have away.</BookQuote>
                 <ListField items={get('scenes', [])} onChange={(v) => setVal('scenes', v)} placeholder="A scene" target={getTarget('scenes', soloMode)} />
+                <InspireGroup>
+                  <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Inspire:</span>
+                  <Inspire tableId="sideQuests" label="Side Quest" onPick={(e) => {
+                    setVal('scenes', [...(get('scenes', []) as string[]), e]);
+                  }} />
+                  <Inspire tableId="sideComplications" label="Complication" onPick={(e) => {
+                    setVal('scenes', [...(get('scenes', []) as string[]), e]);
+                  }} />
+                </InspireGroup>
               </Section>
               <Section id="s4-secrets" title="4 · Define Secrets & Clues" methods={['shea']} done={done['s4-secrets']} onToggle={toggleDone} open={open['s4-secrets']} onToggleOpen={toggleOpen}>
                 <BookQuote source="Lazy DM ch. 6">Secrets and clues are the connective tissue of an adventure.</BookQuote>
                 <Pitfall>Tying a secret to a specific NPC means if players skip them, the secret never surfaces.</Pitfall>
                 <ListField items={get('secrets', [])} onChange={(v) => setVal('secrets', v)} placeholder="A single-sentence secret" rows={2} target={getTarget('secrets', soloMode)} />
+                <InspireGroup>
+                  <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Inspire:</span>
+                  <Inspire tableId="villainSchemes" label="Scheme" onPick={(e) => {
+                    setVal('secrets', [...(get('secrets', []) as string[]), e]);
+                  }} />
+                  <Inspire tableId="villainWeaknesses" label="Weakness" onPick={(e) => {
+                    setVal('secrets', [...(get('secrets', []) as string[]), e]);
+                  }} />
+                  <Inspire tableId="campaignEvents" label="Event" onPick={(e) => {
+                    setVal('secrets', [...(get('secrets', []) as string[]), e]);
+                  }} />
+                </InspireGroup>
               </Section>
               <Section id="s5-loc" title="5 · Develop Fantastic Locations" methods={['shea']} done={done['s5-loc']} onToggle={toggleDone} open={open['s5-loc']} onToggleOpen={toggleOpen} icon={Map}>
                 <BookQuote source="Lazy DM ch. 7">When in doubt, go for scale.</BookQuote>
@@ -847,6 +1354,36 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                     const next = [...(get('npcs', []) as any[])]; next[i] = v; setVal('npcs', next);
                   }} onRemove={() => setVal('npcs', (get('npcs', []) as any[]).filter((_: any, j: number) => j !== i))} />
                 ))}
+                <InspireGroup>
+                  <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Add NPC from:</span>
+                  <Inspire tableId="villainArchetypes" label="Villain" onPick={(e) => {
+                    setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: 'Villain', faction: '', archetype: e, goal: '', method: '' }]);
+                  }} />
+                  <Inspire tableId="npcBackgroundConcepts" label="Background" onPick={(e) => {
+                    setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: '', faction: '', archetype: e, goal: '', method: '' }]);
+                  }} />
+                  <Inspire tableId="raceCharacterNotes" label="Species" onPick={(e) => {
+                    setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: '', faction: '', archetype: e, goal: '', method: '' }]);
+                  }} />
+                  <Inspire tableId="npcMannerisms" label="Mannerism" onPick={(e) => {
+                    setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: '', faction: '', archetype: '', goal: '', method: '', mannerism: e }]);
+                  }} />
+                  <Inspire tableId="npcTalents" label="Talent" onPick={(e) => {
+                    setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: '', faction: '', archetype: '', goal: '', method: '', talent: e }]);
+                  }} />
+                  <Inspire tableId="npcInteractionTraits" label="Interaction" onPick={(e) => {
+                    setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: '', faction: '', archetype: '', goal: '', method: '', interactions: e }]);
+                  }} />
+                  <Inspire tableId="npcIdeals" label="Ideal" onPick={(e) => {
+                    setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: '', faction: '', archetype: '', goal: '', method: '', ideal: e }]);
+                  }} />
+                  <Inspire tableId="npcBonds" label="Bond" onPick={(e) => {
+                    setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: '', faction: '', archetype: '', goal: '', method: '', bond: e }]);
+                  }} />
+                  <Inspire tableId="npcFlawsSecrets" label="Flaw" onPick={(e) => {
+                    setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: '', faction: '', archetype: '', goal: '', method: '', flaw: e }]);
+                  }} />
+                </InspireGroup>
                 <button onClick={() => setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: '', faction: '', archetype: '', goal: '', method: '' }])} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
                   <Plus size={12} /> Add NPC
                 </button>
@@ -854,6 +1391,10 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               <Section id="s7-mon" title="7 · Choose Relevant Monsters" methods={['shea']} done={done['s7-mon']} onToggle={toggleDone} open={open['s7-mon']} onToggleOpen={toggleOpen} icon={Swords}>
                 <SoloNote>Solo level-1 ~8-12 HP. CR 1/8 one-at-a-time. Narrative outs always.</SoloNote>
                 <ListField items={get('monsters', [])} onChange={(v) => setVal('monsters', v)} placeholder="Monster — CR — use case" target={getTarget('monsters', soloMode)} />
+                <EncounterHelper
+                  state={(get('__encounterCalc', { pcLevel: 1, monsters: [] })) as EncounterCalcState}
+                  onChange={(s) => setVal('__encounterCalc', s)}
+                />
               </Section>
               <Section id="s8-rew" title="8 · Select Magic Item Rewards" methods={['shea', 'pr']} done={done['s8-rew']} onToggle={toggleDone} open={open['s8-rew']} onToggleOpen={toggleOpen} icon={Gift}>
                 <BookQuote source="PR ch. 6">Your +1 needs to be actionable.</BookQuote>
@@ -902,6 +1443,17 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               </Section>
               <Section id="end-collect" title="Collect Every Thread" methods={['ccd']} done={done['end-collect']} onToggle={toggleDone} open={open['end-collect']} onToggleOpen={toggleOpen}>
                 <Field value={get('endThreads', '')} onChange={(v) => setVal('endThreads', v)} placeholder="Active threads list" rows={6} />
+                <InspireGroup>
+                  <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Inspire:</span>
+                  <Inspire tableId="climaxes" label="Climax" onPick={(e) => {
+                    const cur = get('endThreads', '') as string;
+                    setVal('endThreads', cur ? `${cur}\n• ${e}` : `• ${e}`);
+                  }} />
+                  <Inspire tableId="campaignEvents" label="Event" onPick={(e) => {
+                    const cur = get('endThreads', '') as string;
+                    setVal('endThreads', cur ? `${cur}\n• ${e}` : `• ${e}`);
+                  }} />
+                </InspireGroup>
               </Section>
               <Section id="end-catalyst" title="Add Catalysts" methods={['ccd']} done={done['end-catalyst']} onToggle={toggleDone} open={open['end-catalyst']} onToggleOpen={toggleOpen}>
                 <Field value={get('endCatalyst', '')} onChange={(v) => setVal('endCatalyst', v)} placeholder="Forcing events" rows={3} />
@@ -938,6 +1490,50 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                 <li><span className="font-semibold text-ink">Consequences for Failure.</span> If retryable, it was a skill check.</li>
                 <li><span className="font-semibold text-ink">Fun to Pursue.</span> GM can imagine obstacles.</li>
               </ol>
+            </div>
+            <div className="rounded border border-rule bg-parchment p-4 shadow-card">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <h2 className="font-display text-lg tracking-wide text-ink">Campaign Events Between Sessions</h2>
+                <Inspire tableId="campaignEvents" label="Roll Event" onPick={(e) => {
+                  const log = (get('campaignEventLog', []) as string[]) || [];
+                  setVal('campaignEventLog', [...log, e]);
+                }} />
+              </div>
+              <p className="text-sm text-ink-soft font-serif mb-2">
+                Quick &quot;while the party was away&quot; events for solo or sandbox play.
+              </p>
+              {((get('campaignEventLog', []) as string[]) || []).length === 0 ? (
+                <p className="text-sm text-ink-mute italic font-serif">No events logged yet. Click &quot;Roll Event&quot; to add one.</p>
+              ) : (
+                <ol className="space-y-1 text-sm text-ink-soft font-serif">
+                  {((get('campaignEventLog', []) as string[]) || []).map((evt, i) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <span className="flex-1">
+                        <span className="font-display text-xs text-brass-deep mr-1">{i + 1}.</span>
+                        {evt}
+                      </span>
+                      <button
+                        onClick={() => {
+                          const log = (get('campaignEventLog', []) as string[]) || [];
+                          setVal('campaignEventLog', log.filter((_, j) => j !== i));
+                        }}
+                        className="text-ink-mute hover:text-crimson"
+                        title="Remove this event"
+                      >
+                        <X size={12} />
+                      </button>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
+            <div className="rounded border border-rule bg-parchment p-4 shadow-card">
+              <h2 className="font-display text-lg tracking-wide text-ink mb-2">The 10-Sentence NPC</h2>
+              <p className="text-sm text-ink-soft font-serif">
+                Detailed NPCs benefit from a roughly ten-sentence sketch: occupation and history,
+                appearance, abilities, talent, mannerism, interactions, useful knowledge, ideal, bond,
+                and flaw or secret. Click &quot;Show Details&quot; on any NPC card to expand the full set.
+              </p>
             </div>
             <div className="rounded border border-wine/40 bg-wine/5 p-4 shadow-card">
               <h2 className="font-display text-lg tracking-wide text-ink mb-2 flex items-center gap-2"><User size={16} className="text-wine" /> Solo Play Adaptations</h2>
@@ -1017,6 +1613,114 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
             </div>
           </div>
         )}
+
+        {tab === 'down' && (() => {
+          const downtime = (get('downtime', []) as DowntimeEntry[]) || [];
+          const active = downtime.filter(e => !e.archived);
+          const archived = downtime.filter(e => !!e.archived);
+          const [archivedOpen, setArchivedOpen] = [(get('__archivedDowntimeOpen', false) as boolean), (v: boolean) => setVal('__archivedDowntimeOpen', v)];
+
+          const addEntry = (typeId: string) => {
+            const next: DowntimeEntry = {
+              id: makeDowntimeId(),
+              type: typeId,
+              fields: {},
+              createdAt: new Date().toISOString(),
+            };
+            setVal('downtime', [...downtime, next]);
+          };
+          const updateEntry = (id: string, patch: DowntimeEntry) => {
+            setVal('downtime', downtime.map(e => e.id === id ? patch : e));
+          };
+          const setArchived = (id: string, archived: boolean) => {
+            setVal('downtime', downtime.map(e => e.id === id ? { ...e, archived } : e));
+          };
+          const removeEntry = (id: string) => {
+            const entry = downtime.find(e => e.id === id);
+            const typeLabel = DOWNTIME_TYPES.find(t => t.id === entry?.type)?.label || 'this entry';
+            if (!confirm(`Delete "${typeLabel}"? This cannot be undone.`)) return;
+            setVal('downtime', downtime.filter(e => e.id !== id));
+          };
+
+          const groupedActive = DOWNTIME_TYPES
+            .map(t => ({ type: t, entries: active.filter(e => e.type === t.id) }))
+            .filter(g => g.entries.length > 0);
+
+          return (
+            <div className="space-y-3 text-sm">
+              <div className="rounded border border-rule bg-parchment p-4 shadow-card">
+                <p className="text-ink-soft font-serif">
+                  Downtime activities take place between adventures. Each activity has a cost, a duration,
+                  and consequences. Track them here so the time between sessions feels lived-in rather than skipped.
+                </p>
+              </div>
+
+              <div className="rounded border border-rule bg-parchment p-3 shadow-card flex items-center gap-2 flex-wrap">
+                <label className="text-xs text-ink-soft font-display uppercase tracking-wider">Add Downtime Activity</label>
+                <select
+                  value=""
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      addEntry(e.target.value);
+                      e.target.value = '';
+                    }
+                  }}
+                  className="bg-parchment-soft border border-rule rounded px-2 py-1 text-sm text-ink font-serif"
+                >
+                  <option value="">— Choose Activity —</option>
+                  {DOWNTIME_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+                </select>
+              </div>
+
+              {active.length === 0 && (
+                <p className="text-sm text-ink-mute italic font-serif">No active downtime activities yet.</p>
+              )}
+
+              {groupedActive.map(({ type, entries }) => (
+                <div key={type.id} className="space-y-2">
+                  <h3 className="font-display tracking-wide text-ink text-sm">{type.label}</h3>
+                  {entries.map(entry => (
+                    <DowntimeCard
+                      key={entry.id}
+                      entry={entry}
+                      onChange={(v) => updateEntry(entry.id, v)}
+                      onArchive={() => setArchived(entry.id, true)}
+                      onUnarchive={() => setArchived(entry.id, false)}
+                      onRemove={() => removeEntry(entry.id)}
+                    />
+                  ))}
+                </div>
+              ))}
+
+              <div className="rounded border border-rule bg-parchment p-3 shadow-card">
+                <button
+                  onClick={() => setArchivedOpen(!archivedOpen)}
+                  className="flex items-center gap-1.5 font-display tracking-wide text-ink text-sm hover:text-crimson"
+                >
+                  {archivedOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                  Archived ({archived.length})
+                </button>
+                {archivedOpen && (
+                  <div className="space-y-2 mt-3">
+                    {archived.length === 0 && (
+                      <p className="text-sm text-ink-mute italic font-serif">No archived downtime activities yet.</p>
+                    )}
+                    {archived.map(entry => (
+                      <DowntimeCard
+                        key={entry.id}
+                        entry={entry}
+                        onChange={(v) => updateEntry(entry.id, v)}
+                        onArchive={() => setArchived(entry.id, true)}
+                        onUnarchive={() => setArchived(entry.id, false)}
+                        onRemove={() => removeEntry(entry.id)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
         {tab === 'dice' && (
           <DiceRoller
