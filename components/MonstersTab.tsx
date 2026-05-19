@@ -57,7 +57,6 @@ type Monster = {
   special_abilities: Action[];
   desc: string;
   source: string;
-  is_srd: boolean;
 };
 
 const TYPES = [
@@ -299,7 +298,6 @@ function StatBlock({ m }: { m: Monster }) {
 
       <div className="text-[10px] text-ink-mute font-display uppercase tracking-wider pt-1">
         Source: {m.source || 'Unknown'}
-        {m.is_srd && ' · SRD'}
       </div>
     </div>
   );
@@ -321,7 +319,6 @@ export default function MonstersTab() {
   const [crMinIdx, setCrMinIdx] = useState(0);
   const [crMaxIdx, setCrMaxIdx] = useState(CR_OPTIONS.length - 1);
   const [types, setTypes] = useState<Set<string>>(new Set());
-  const [srdOnly, setSrdOnly] = useState(false);
   const [picked, setPicked] = useState<Monster | null>(null);
 
   useEffect(() => {
@@ -348,12 +345,11 @@ export default function MonstersTab() {
   const pool = useMemo(() => {
     if (!monsters) return [];
     return monsters.filter((m) => {
-      if (srdOnly && !m.is_srd) return false;
       if (m.cr < crMin || m.cr > crMax) return false;
       if (types.size && !types.has(m.type)) return false;
       return true;
     });
-  }, [monsters, srdOnly, crMin, crMax, types]);
+  }, [monsters, crMin, crMax, types]);
 
   const roll = () => {
     const next = pickRandom(pool, picked ?? undefined);
@@ -373,11 +369,9 @@ export default function MonstersTab() {
     setCrMinIdx(0);
     setCrMaxIdx(CR_OPTIONS.length - 1);
     setTypes(new Set());
-    setSrdOnly(false);
   };
 
   const totalCount = monsters?.length ?? 0;
-  const srdCount = monsters ? monsters.filter((m) => m.is_srd).length : 0;
 
   const modeToggle = (
     <div
@@ -502,17 +496,8 @@ export default function MonstersTab() {
               ))}
             </select>
           </div>
-          <label className="flex items-center gap-1.5 cursor-pointer select-none font-display uppercase tracking-wider text-ink-soft">
-            <input
-              type="checkbox"
-              checked={srdOnly}
-              onChange={(e) => setSrdOnly(e.target.checked)}
-              className="accent-crimson"
-            />
-            SRD only
-          </label>
           <span className="text-ink-mute font-display tracking-wider ml-auto">
-            {pool.length.toLocaleString()} / {(srdOnly ? srdCount : totalCount).toLocaleString()} in pool
+            {pool.length.toLocaleString()} / {totalCount.toLocaleString()} in pool
           </span>
         </div>
 
@@ -523,7 +508,7 @@ export default function MonstersTab() {
               {t}
             </Chip>
           ))}
-          {(types.size > 0 || srdOnly || crMinIdx > 0 || crMaxIdx < CR_OPTIONS.length - 1) && (
+          {(types.size > 0 || crMinIdx > 0 || crMaxIdx < CR_OPTIONS.length - 1) && (
             <button
               type="button"
               onClick={clearFilters}
