@@ -1,0 +1,90 @@
+'use client';
+
+import { GeneratorPanel, type InputSpec } from './GeneratorPanel';
+import { generateMagicShop } from '@/lib/generators/magic-shop';
+import type { MagicShopArchetype } from '@/lib/generators/tables/shop-tables';
+import type { ItemRarity, MagicShopResult, SettlementSizeClass } from '@/lib/generators/types';
+
+const SETTLEMENT_OPTIONS: { value: SettlementSizeClass; label: string }[] = [
+  { value: 'thorp', label: 'Thorp' },
+  { value: 'hamlet', label: 'Hamlet' },
+  { value: 'village', label: 'Village' },
+  { value: 'town', label: 'Town' },
+  { value: 'small city', label: 'Small City' },
+  { value: 'large city', label: 'Large City' },
+  { value: 'metropolis', label: 'Metropolis' },
+];
+
+const RARITY_OPTIONS: { value: Exclude<ItemRarity, 'mundane'>; label: string }[] = [
+  { value: 'common', label: 'Common' },
+  { value: 'uncommon', label: 'Uncommon' },
+  { value: 'rare', label: 'Rare' },
+  { value: 'very rare', label: 'Very Rare' },
+  { value: 'legendary', label: 'Legendary' },
+];
+
+const ARCHETYPE_OPTIONS: { value: MagicShopArchetype; label: string }[] = [
+  { value: 'curio shop', label: 'Curio Shop (markup +20%)' },
+  { value: 'hedge wizard', label: 'Hedge Wizard (markup +50%)' },
+  { value: 'black market', label: 'Black Market (discount, no questions)' },
+  { value: 'temple', label: 'Temple (fair-market offerings)' },
+];
+
+const INPUTS: InputSpec[] = [
+  { kind: 'select', key: 'archetype', label: 'Shop Archetype', default: 'curio shop', options: ARCHETYPE_OPTIONS },
+  { kind: 'select', key: 'maxRarity', label: 'Max Rarity', default: 'rare', options: RARITY_OPTIONS },
+  { kind: 'select', key: 'settlementSize', label: 'Settlement Size', default: 'small city', options: SETTLEMENT_OPTIONS },
+];
+
+export default function MagicShopGenerator({
+  onSave,
+}: {
+  onSave?: (result: MagicShopResult) => Promise<void>;
+}) {
+  return (
+    <GeneratorPanel<{ archetype: string; maxRarity: string; settlementSize: string }, MagicShopResult>
+      title="Magic Item Shop"
+      description="Generate a shop trading in magic items, filtered by settlement scarcity and tier cap. Save creates a Location (subtype: shop) and a minor NPC for the proprietor."
+      inputs={INPUTS}
+      generate={(inputs, rng) =>
+        generateMagicShop(
+          {
+            archetype: inputs.archetype as MagicShopArchetype,
+            maxRarity: inputs.maxRarity as Exclude<ItemRarity, 'mundane'>,
+            settlementSize: inputs.settlementSize as SettlementSizeClass,
+          },
+          rng,
+        )
+      }
+      enhance={{ kind: 'magic-shop' }}
+      onSave={onSave}
+      renderResult={(r) => (
+        <div className="space-y-3 font-serif text-sm text-ink">
+          <div>
+            <div className="font-display tracking-wide text-base">{r.shopName}</div>
+            <div className="text-xs text-ink-mute italic">{r.inputs.archetype} · {r.inputs.settlementSize}</div>
+          </div>
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-brass-deep font-display">Proprietor</div>
+            <div>{r.owner.name} — <span className="italic text-ink-soft">{r.owner.descriptor}</span></div>
+          </div>
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-brass-deep font-display">Inventory</div>
+            <ul className="space-y-2 mt-1">
+              {r.inventory.map((it, i) => (
+                <li key={i} className="border-l-2 border-crimson/40 pl-2">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="font-display tracking-wide">{it.name}</span>
+                    <span className="text-xs text-brass-deep font-display tracking-wider">{it.price}</span>
+                  </div>
+                  <div className="text-[10px] uppercase text-ink-mute">{it.rarity}</div>
+                  {it.note && <div className="text-xs text-ink-soft italic mt-0.5">{it.note}</div>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+    />
+  );
+}

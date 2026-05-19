@@ -21,6 +21,7 @@ import SidekickAddPanel from './SidekickAddPanel';
 import NamesTab from './NamesTab';
 import LocationsTab from './LocationsTab';
 import MonstersTab, { type HomebrewMonster } from './MonstersTab';
+import GeneratorsTab from './generators/GeneratorsTab';
 import { AccountMenu } from './AccountMenu';
 import { LockedInline, LockedPanel } from './LockedFeature';
 import {
@@ -995,7 +996,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
   );
   const [openChars, setOpenChars] = useState<Record<string, boolean>>({});
   const [phaseOpen, setPhaseOpen] = useState<Record<string, boolean>>({ p0: true });
-  const [tab, setTab] = useState<'prep' | 'ref' | 'track' | 'down' | 'dice' | 'spells' | 'names' | 'locations' | 'monsters' | 'dmref'>('prep');
+  const [tab, setTab] = useState<'prep' | 'ref' | 'track' | 'down' | 'dice' | 'spells' | 'generators' | 'names' | 'locations' | 'monsters' | 'dmref'>('prep');
   const [soloMode, setSoloMode] = useState<boolean>(campaign.data?.__soloMode ?? true);
   const [syncState, setSyncState] = useState<'synced' | 'pending' | 'saving' | 'error'>('synced');
   const [syncError, setSyncError] = useState<string>('');
@@ -1223,6 +1224,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                     ['down', 'Downtime'] as const,
                     ['dice', 'Dice'] as const,
                     ['spells', 'Spells'] as const,
+                    ['generators', 'Generators'] as const,
                     ['names', 'Names'] as const,
                     ['locations', 'Locations'] as const,
                     ['monsters', 'Monsters'] as const,
@@ -1882,6 +1884,23 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
             onFavoritesChange={(v) => setVal('spellFavs', v)}
             homebrewSpells={get('homebrewSpells', []) as Spell[]}
             onHomebrewSpellsChange={(v) => setVal('homebrewSpells', v)}
+          />
+        )}
+
+        {tab === 'generators' && (
+          <GeneratorsTab
+            data={state}
+            onDataChange={(next) => setState(next as typeof state)}
+            renderNames={() => (isPro ? <NamesTab /> : (
+              <LockedPanel title="Names Generator">
+                Generate culture-rooted first and last names for NPCs, towns, and places — powered by Claude.
+              </LockedPanel>
+            ))}
+            renderLocations={() => (isPro ? <LocationsTab /> : (
+              <LockedPanel title="Locations Generator">
+                Generate evocative location names with type tag, cultural tradition, and a one-line atmospheric blurb. Powered by Claude.
+              </LockedPanel>
+            ))}
           />
         )}
 

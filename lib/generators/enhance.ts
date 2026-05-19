@@ -1,0 +1,230 @@
+// Per-generator AI-enhance prompts. Server-only.
+//
+// Each enhance() takes the deterministic result, asks Claude to layer
+// narrative on top, and returns the same result shape with `enhanced: true`
+// and the relevant prose-y fields populated. The deterministic data is never
+// rewritten — only descriptive text is added or rephrased.
+
+import type Anthropic from '@anthropic-ai/sdk';
+import type {
+  DungeonResult,
+  GeneratorResult,
+  MagicShopResult,
+  MundaneShopResult,
+  SettlementResult,
+  TavernResult,
+  TreasureHoardResult,
+  TrinketResult,
+} from './types';
+
+export type EnhanceableKind = GeneratorResult['kind'];
+
+const MODEL = 'claude-haiku-4-5-20251001';
+const MAX_TOKENS = 1500;
+
+async function callJson<T>(
+  client: Anthropic,
+  system: string,
+  user: string,
+  schema: Record<string, unknown>,
+): Promise<T> {
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: MAX_TOKENS,
+    system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
+    output_config: { format: { type: 'json_schema', schema } },
+    messages: [{ role: 'user', content: user }],
+  });
+  const text = response.content
+    .filter((b): b is Anthropic.Messages.TextBlock => b.type === 'text')
+    .map((b) => b.text)
+    .join('');
+  return JSON.parse(text) as T;
+}
+
+export async function enhanceResult(
+  client: Anthropic,
+  kind: EnhanceableKind,
+  raw: unknown,
+): Promise<GeneratorResult> {
+  if (!raw || typeof raw !== 'object') throw new Error('Missing result');
+  switch (kind) {
+    case 'treasure-hoard': return enhanceTreasureHoard(client, raw as TreasureHoardResult);
+    case 'trinket': return enhanceTrinket(client, raw as TrinketResult);
+    case 'mundane-shop': return enhanceMundaneShop(client, raw as MundaneShopResult);
+    case 'magic-shop': return enhanceMagicShop(client, raw as MagicShopResult);
+    case 'tavern': return enhanceTavern(client, raw as TavernResult);
+    case 'dungeon': return enhanceDungeon(client, raw as DungeonResult);
+    case 'settlement': return enhanceSettlement(client, raw as SettlementResult);
+    default: throw new Error(`Unknown enhance kind: ${String(kind)}`);
+  }
+}
+
+// ── Treasure Hoard ──────────────────────────────────────────────────────────
+async function enhanceTreasureHoard(client: Anthropic, r: TreasureHoardResult): Promise<TreasureHoardResult> {
+  const system = `You enhance a TTRPG treasure-hoard generator result. You receive a JSON hoard.
+Output a JSON object with:
+- "narrative": one evocative sentence (≤22 words) describing how the hoard is presented (chest, cairn, scattered, etc.) and one arresting detail.
+- "magicItemNotes": array of one-sentence (≤18 words) atmospheric notes, one per magic item, in the same order as the input. Each note hints at provenance, condition, or marking without inventing mechanical effects.
+Do not rename items, change values, or invent new items.`;
+  const user = JSON.stringify({ coins: r.coins, gems: r.gems, artObjects: r.artObjects, magicItems: r.magicItems });
+  const schema = {
+    type: 'object', additionalProperties: false,
+    properties: {
+      narrative: { type: 'string' },
+      magicItemNotes: { type: 'array', items: { type: 'string' } },
+    },
+    required: ['narrative', 'magicItemNotes'],
+  };
+  const out = await callJson<{ narrative: string; magicItemNotes: string[] }>(client, system, user, schema);
+  return {
+    ...r,
+    enhancementNote: out.narrative,
+    magicItems: r.magicItems.map((mi, i) => ({ ...mi, note: out.magicItemNotes[i] ?? mi.note })),
+    enhanced: true,
+  };
+}
+
+// ── Trinkets ────────────────────────────────────────────────────────────────
+async function enhanceTrinket(client: Anthropic, r: TrinketResult): Promise<TrinketResult> {
+  const system = `You enhance TTRPG trinket descriptions. You receive a list of trinket strings.
+For each, write a one-sentence (≤22 words) hook: who might want it, where it came from, or what oddity it whispers of. Do not rewrite the trinket itself.`;
+  const user = JSON.stringify(r.trinkets.map((t) => t.description));
+  const schema = {
+    type: 'object', additionalProperties: false,
+    properties: { hooks: { type: 'array', items: { type: 'string' } } },
+    required: ['hooks'],
+  };
+  const out = await callJson<{ hooks: string[] }>(client, system, user, schema);
+  return {
+    ...r,
+    trinkets: r.trinkets.map((t, i) => ({ ...t, hook: out.hooks[i] ?? t.hook })),
+    enhanced: true,
+  };
+}
+
+// ── Mundane Shops ──────────────────────────────────────────────────────────
+async function enhanceMundaneShop(client: Anthropic, r: MundaneShopResult): Promise<MundaneShopResult> {
+  const system = `You enhance a TTRPG mundane shop. You receive name, owner, inventory.
+Output JSON with:
+- "ownerDescriptor": rewritten one-line descriptor for the owner (≤18 words), keeping their name.
+- "flavorItems": two additional inventory entries (objects with "name", "price", "note"), priced in copper/silver/gold, that read like quirky, in-character offerings (e.g. "a chipped mug that supposedly belonged to a saint, 4 gp"). Use the local currency convention shown in inventory.
+- "rumor": one rumor (one sentence, ≤24 words) the patrons might overhear.
+Do not change the existing inventory.`;
+  const user = JSON.stringify({ shopName: r.shopName, owner: r.owner, shopType: r.inputs.shopType, settlementSize: r.inputs.settlementSize, inventory: r.inventory.slice(0, 8) });
+  const schema = {
+    type: 'object', additionalProperties: false,
+    properties: {
+      ownerDescriptor: { type: 'string' },
+      flavorItems: { type: 'array', items: { type: 'object', additionalProperties: false, properties: { name: { type: 'string' }, price: { type: 'string' }, note: { type: 'string' } }, required: ['name', 'price', 'note'] } },
+      rumor: { type: 'string' },
+    },
+    required: ['ownerDescriptor', 'flavorItems', 'rumor'],
+  };
+  const out = await callJson<{ ownerDescriptor: string; flavorItems: { name: string; price: string; note: string }[]; rumor: string }>(client, system, user, schema);
+  return {
+    ...r,
+    owner: { ...r.owner, descriptor: out.ownerDescriptor },
+    inventory: [
+      ...r.inventory,
+      ...out.flavorItems.map((fi) => ({ name: fi.name, category: 'gear' as const, rarity: 'mundane' as const, price: fi.price, note: fi.note })),
+    ],
+    rumor: out.rumor,
+    enhanced: true,
+  };
+}
+
+// ── Magic Item Shops ───────────────────────────────────────────────────────
+async function enhanceMagicShop(client: Anthropic, r: MagicShopResult): Promise<MagicShopResult> {
+  const system = `You enhance a TTRPG magic item shop. You receive shop archetype, owner, and inventory.
+Output JSON with:
+- "ownerDescriptor": rewritten owner descriptor (≤18 words), name unchanged.
+- "itemConstraints": for each inventory entry in order, a single constraint string (≤22 words) that begins "The seller will only part with this if…" — a price-of-soul or quest-style trade rather than coin alone.
+Do not change names, rarities, or base prices.`;
+  const user = JSON.stringify({ shopName: r.shopName, owner: r.owner, archetype: r.inputs.archetype, inventory: r.inventory });
+  const schema = {
+    type: 'object', additionalProperties: false,
+    properties: {
+      ownerDescriptor: { type: 'string' },
+      itemConstraints: { type: 'array', items: { type: 'string' } },
+    },
+    required: ['ownerDescriptor', 'itemConstraints'],
+  };
+  const out = await callJson<{ ownerDescriptor: string; itemConstraints: string[] }>(client, system, user, schema);
+  return {
+    ...r,
+    owner: { ...r.owner, descriptor: out.ownerDescriptor },
+    inventory: r.inventory.map((it, i) => ({ ...it, note: out.itemConstraints[i] ?? it.note })),
+    enhanced: true,
+  };
+}
+
+// ── Taverns ────────────────────────────────────────────────────────────────
+async function enhanceTavern(client: Anthropic, r: TavernResult): Promise<TavernResult> {
+  const system = `You enhance a TTRPG tavern. You receive name, vibe, owner, patrons, rumors.
+Output JSON with:
+- "rumors": rewritten list of rumors (same count, same order), each ≤24 words, sharper and more grounded; if any campaignContext is supplied, weave it in naturally.
+Do not invent NPCs or rename the tavern.`;
+  const user = JSON.stringify({ name: r.name, vibe: r.inputs.vibe, owner: r.details.owner, patrons: r.details.patrons, rumors: r.details.rumors });
+  const schema = {
+    type: 'object', additionalProperties: false,
+    properties: { rumors: { type: 'array', items: { type: 'string' } } },
+    required: ['rumors'],
+  };
+  const out = await callJson<{ rumors: string[] }>(client, system, user, schema);
+  return {
+    ...r,
+    details: { ...r.details, rumors: out.rumors },
+    enhanced: true,
+  };
+}
+
+// ── Dungeons ───────────────────────────────────────────────────────────────
+async function enhanceDungeon(client: Anthropic, r: DungeonResult): Promise<DungeonResult> {
+  const system = `You enhance a TTRPG dungeon. You receive a name, theme, and room list.
+Output JSON with:
+- "hook": one paragraph (3-4 sentences) explaining why adventurers come here now.
+- "vividRoomIndices": pick three of the most interesting room indices.
+- "vividRoomDescriptions": three vivid descriptions (2-3 sentences each) in the same order, each painting senses + danger + a small detail.
+Do not invent new rooms or alter the room list.`;
+  const user = JSON.stringify({ name: r.name, theme: r.inputs.theme, hazards: r.details.hazards, inhabitants: r.details.inhabitants, rooms: r.details.rooms });
+  const schema = {
+    type: 'object', additionalProperties: false,
+    properties: {
+      hook: { type: 'string' },
+      vividRoomIndices: { type: 'array', items: { type: 'integer' } },
+      vividRoomDescriptions: { type: 'array', items: { type: 'string' } },
+    },
+    required: ['hook', 'vividRoomIndices', 'vividRoomDescriptions'],
+  };
+  const out = await callJson<{ hook: string; vividRoomIndices: number[]; vividRoomDescriptions: string[] }>(client, system, user, schema);
+  const rooms = [...r.details.rooms];
+  out.vividRoomIndices.forEach((idx, i) => {
+    const room = rooms.find((rm) => rm.index === idx);
+    if (room && out.vividRoomDescriptions[i]) {
+      room.dressing = out.vividRoomDescriptions[i];
+    }
+  });
+  return {
+    ...r,
+    hook: out.hook,
+    details: { ...r.details, rooms },
+    enhanced: true,
+  };
+}
+
+// ── Settlements ────────────────────────────────────────────────────────────
+async function enhanceSettlement(client: Anthropic, r: SettlementResult): Promise<SettlementResult> {
+  const system = `You enhance a TTRPG settlement. You receive name, sizeClass, government, economy, hooks.
+Output JSON with:
+- "currentSituation": exactly three sentences weaving the supplied hooks into a single "what's happening right now" paragraph. Reference the settlement's economy or government when natural.
+Do not invent NPCs, factions, or new hooks.`;
+  const user = JSON.stringify({ name: r.name, sizeClass: r.details.sizeClass, government: r.details.government, economy: r.details.economy, hooks: r.details.hooks });
+  const schema = {
+    type: 'object', additionalProperties: false,
+    properties: { currentSituation: { type: 'string' } },
+    required: ['currentSituation'],
+  };
+  const out = await callJson<{ currentSituation: string }>(client, system, user, schema);
+  return { ...r, currentSituation: out.currentSituation, enhanced: true };
+}
