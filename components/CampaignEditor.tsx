@@ -1905,6 +1905,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
 
         {tab === 'monsters' && (
           <MonstersTab
+            characters={characters}
             homebrewMonsters={get('homebrewMonsters', []) as HomebrewMonster[]}
             onHomebrewMonstersChange={(v) => setVal('homebrewMonsters', v)}
           />
