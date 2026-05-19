@@ -1903,7 +1903,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
           </LockedPanel>
         ))}
 
-        {tab === 'monsters' && <MonstersTab />}
+        {tab === 'monsters' && <MonstersTab characters={characters} />}
 
         {tab === 'dmref' && <DMRefTab />}
 

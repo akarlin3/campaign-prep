@@ -6,8 +6,10 @@ import { CR_TO_XP } from '@/lib/encounterMath';
 import { useAuth } from '@/lib/firebase/auth-context';
 import { LockedPanel } from './LockedFeature';
 import MonsterScaler from './MonsterScaler';
+import EncounterBuilder from './EncounterBuilder';
+import type { Character } from '@/lib/character-schema';
 
-type Mode = 'roll' | 'scale';
+type Mode = 'roll' | 'scale' | 'build';
 
 type Action = {
   name: string;
@@ -311,7 +313,7 @@ function pickRandom<T>(arr: T[], avoid?: T): T | null {
   return arr[idx];
 }
 
-export default function MonstersTab() {
+export default function MonstersTab({ characters }: { characters?: Character[] }) {
   const { isPro } = useAuth();
   const [mode, setMode] = useState<Mode>('roll');
   const [monsters, setMonsters] = useState<Monster[] | null>(null);
@@ -410,6 +412,17 @@ export default function MonstersTab() {
           Pro
         </span>
       </button>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={mode === 'build'}
+        onClick={() => setMode('build')}
+        className={`px-3 py-1.5 border-l border-rule transition-colors ${
+          mode === 'build' ? 'bg-crimson text-parchment' : 'text-ink-soft hover:bg-parchment-deep'
+        }`}
+      >
+        Build Encounter
+      </button>
     </div>
   );
 
@@ -426,6 +439,15 @@ export default function MonstersTab() {
             statblock ready to drop into your next encounter.
           </LockedPanel>
         )}
+      </div>
+    );
+  }
+
+  if (mode === 'build') {
+    return (
+      <div className="space-y-3">
+        {modeToggle}
+        <EncounterBuilder characters={characters} />
       </div>
     );
   }

@@ -69,3 +69,129 @@ export function difficultyForSolo(adjustedXP: number, pcLevel: number, gestalt =
   if (adjustedXP < soloDeadly * 1.5) return { rating: 'Deadly', rationale: `${label} deadly: ${soloDeadly}+` };
   return { rating: 'Lethal', rationale: `Well above ${label.toLowerCase()} deadly threshold (${soloDeadly}). Reconsider.` };
 }
+
+export type Difficulty = 'easy' | 'medium' | 'hard' | 'deadly';
+export const DIFFICULTIES: Difficulty[] = ['easy', 'medium', 'hard', 'deadly'];
+
+export type PartyMember = {
+  level: number;
+  weight: number; // 1 for a PC, 0.5 for a sidekick
+  gestalt: boolean;
+};
+
+export type PartyThresholds = Record<Difficulty, number>;
+
+// Sum standard 5e XP thresholds across the party. Sidekicks contribute at half
+// weight. The solo penalty (0.75x for a lone non-gestalt PC) is applied only
+// when the effective party is one PC or smaller; gestalt PCs use the full
+// standard threshold because their extra class restores the missing action
+// economy.
+export function partyThresholds(party: PartyMember[]): PartyThresholds {
+  const totalWeight = party.reduce((s, p) => s + p.weight, 0);
+  const isSolo = totalWeight <= 1.0001;
+
+  const acc: PartyThresholds = { easy: 0, medium: 0, hard: 0, deadly: 0 };
+  for (const p of party) {
+    const lvl = Math.min(20, Math.max(1, Math.round(p.level)));
+    const t = XP_THRESHOLDS[lvl];
+    const soloPenalty = isSolo && !p.gestalt ? 0.75 : 1.0;
+    const scale = p.weight * soloPenalty;
+    acc.easy += t.easy * scale;
+    acc.medium += t.medium * scale;
+    acc.hard += t.hard * scale;
+    acc.deadly += t.deadly * scale;
+  }
+  return {
+    easy: Math.round(acc.easy),
+    medium: Math.round(acc.medium),
+    hard: Math.round(acc.hard),
+    deadly: Math.round(acc.deadly),
+  };
+}
+
+export type EncounterCombo = {
+  cr: string;
+  count: number;
+  baseXP: number;
+  multiplier: number;
+  adjustedXP: number;
+};
+
+const CR_LIST: string[] = [
+  '0', '1/8', '1/4', '1/2',
+  '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
+  '11', '12', '13', '14', '15', '16', '17', '18', '19', '20',
+  '21', '22', '23', '24', '25', '26', '27', '28', '29', '30',
+];
+
+// Suggest CR/count combinations whose adjusted XP lands inside [minXP, maxXP).
+// Walks counts 1..maxCount; for each count, picks the CR (if any) whose
+// adjusted XP is closest to the band's midpoint. Returns combos sorted by
+// count so the user sees a spread of party-size options.
+export function suggestCombosForBand(
+  minXP: number,
+  maxXP: number,
+  opts: { maxCount?: number } = {},
+): EncounterCombo[] {
+  const maxCount = opts.maxCount ?? 12;
+  if (!(maxXP > minXP)) return [];
+  const mid = (minXP + maxXP) / 2;
+  const out: EncounterCombo[] = [];
+
+  for (let count = 1; count <= maxCount; count++) {
+    const mult = encounterMultiplier(count);
+    let best: EncounterCombo | null = null;
+    let bestGap = Infinity;
+    for (const cr of CR_LIST) {
+      const baseXP = CR_TO_XP[cr];
+      if (baseXP == null) continue;
+      const adjustedXP = baseXP * count * mult;
+      if (adjustedXP < minXP || adjustedXP >= maxXP) continue;
+      const gap = Math.abs(adjustedXP - mid);
+      if (gap < bestGap) {
+        bestGap = gap;
+        best = { cr, count, baseXP, multiplier: mult, adjustedXP };
+      }
+    }
+    if (best) out.push(best);
+  }
+  return out;
+}
+
+export function suggestEncounters(
+  thresholds: PartyThresholds,
+): Record<Difficulty, EncounterCombo[]> {
+  const bands: Record<Difficulty, [number, number]> = {
+    easy: [thresholds.easy, thresholds.medium],
+    medium: [thresholds.medium, thresholds.hard],
+    hard: [thresholds.hard, thresholds.deadly],
+    deadly: [thresholds.deadly, Math.round(thresholds.deadly * 1.5)],
+  };
+  return {
+    easy: suggestCombosForBand(bands.easy[0], bands.easy[1]),
+    medium: suggestCombosForBand(bands.medium[0], bands.medium[1]),
+    hard: suggestCombosForBand(bands.hard[0], bands.hard[1]),
+    deadly: suggestCombosForBand(bands.deadly[0], bands.deadly[1]),
+  };
+}
+
+// Parse a level out of a free-form classLevel string. For multiclass entries
+// like "Fighter 3 / Rogue 2" we sum the slash-separated chunks; for simple
+// "Wizard 5" the lone number wins. Returns null if no digits are present.
+export function parseLevelFromClassLevel(classLevel: string): number | null {
+  if (!classLevel) return null;
+  const nums = classLevel.match(/\d+/g);
+  if (!nums || nums.length === 0) return null;
+  if (classLevel.includes('/')) {
+    const total = classLevel
+      .split('/')
+      .map((part) => {
+        const m = part.match(/\d+/);
+        return m ? parseInt(m[0], 10) : 0;
+      })
+      .reduce((a, b) => a + b, 0);
+    if (total > 0) return Math.min(20, total);
+  }
+  const max = nums.reduce((a, b) => Math.max(a, parseInt(b, 10)), 0);
+  return max > 0 ? Math.min(20, max) : null;
+}
