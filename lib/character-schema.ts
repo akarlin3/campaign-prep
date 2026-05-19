@@ -1,3 +1,5 @@
+import type { SidekickClass, SidekickBaseId, SpellList } from './sidekicks';
+
 export type Attack = {
   name: string;
   bonus: string;
@@ -7,6 +9,11 @@ export type Attack = {
 
 export type Character = {
   id: string;
+  isSidekick: boolean;
+  sidekickClass: SidekickClass | '';
+  sidekickSpellList: SpellList | '';
+  sidekickBase: SidekickBaseId | '';
+  sidekickLevel: number;
   name: string;
   player: string;
   race: string;
@@ -66,6 +73,11 @@ export function makeCharacterId(): string {
 export function emptyCharacter(): Character {
   return {
     id: makeCharacterId(),
+    isSidekick: false,
+    sidekickClass: '',
+    sidekickSpellList: '',
+    sidekickBase: '',
+    sidekickLevel: 0,
     name: '',
     player: '',
     race: '',
@@ -115,9 +127,35 @@ export function normalizeCharacter(input: unknown): Character {
 
   const asStr = (v: unknown): string =>
     v === null || v === undefined ? '' : typeof v === 'string' ? v : String(v);
+  const asNum = (v: unknown): number => {
+    if (typeof v === 'number' && Number.isFinite(v)) return v;
+    if (typeof v === 'string') {
+      const n = parseInt(v, 10);
+      return Number.isFinite(n) ? n : 0;
+    }
+    return 0;
+  };
+
+  const validSidekickClass = (v: unknown): SidekickClass | '' => {
+    const s = asStr(v);
+    return s === 'expert' || s === 'spellcaster' || s === 'warrior' ? s : '';
+  };
+  const validSpellList = (v: unknown): SpellList | '' => {
+    const s = asStr(v);
+    return s === 'mage' || s === 'healer' || s === 'prodigy' ? s : '';
+  };
+  const validBase = (v: unknown): SidekickBaseId | '' => {
+    const s = asStr(v);
+    return s === 'commoner' || s === 'guard' || s === 'bandit' || s === 'acolyte' || s === 'scout' || s === 'tribal-warrior' ? s : '';
+  };
 
   return {
     id: asStr(o.id) || base.id,
+    isSidekick: o.isSidekick === true,
+    sidekickClass: validSidekickClass(o.sidekickClass),
+    sidekickSpellList: validSpellList(o.sidekickSpellList),
+    sidekickBase: validBase(o.sidekickBase),
+    sidekickLevel: asNum(o.sidekickLevel),
     name: asStr(o.name),
     player: asStr(o.player),
     race: asStr(o.race),

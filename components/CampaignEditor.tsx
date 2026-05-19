@@ -17,6 +17,7 @@ import DiceRoller, { type Macro } from './DiceRoller';
 import SpellsTab, { type Spell } from './SpellsTab';
 import DMRefTab from './DMRefTab';
 import CharacterCard from './CharacterCard';
+import SidekickAddPanel from './SidekickAddPanel';
 import NamesTab from './NamesTab';
 import LocationsTab from './LocationsTab';
 import { AccountMenu } from './AccountMenu';
@@ -1408,6 +1409,22 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                     </span>
                   )}
                 </div>
+
+                {soloMode && (
+                  <div className="pt-2">
+                    <SoloNote>
+                      Running solo? Add a <strong>sidekick</strong> from Tasha's Cauldron — an
+                      Expert, Spellcaster, or Warrior companion that levels with you.
+                    </SoloNote>
+                    <SidekickAddPanel
+                      isPro={isPro}
+                      onAdd={(c) => {
+                        setVal('characters', [...characters, c]);
+                        setOpenChars(o => ({ ...o, [c.id]: true }));
+                      }}
+                    />
+                  </div>
+                )}
               </Section>
               <Section id="goals" title="PC Goals (5 Rules of Proactive Fun)" methods={['pr']} done={done.goals} onToggle={toggleDone} open={open.goals} onToggleOpen={toggleOpen} icon={Target}>
                 <div className="rounded border border-wine/40 bg-wine/5 p-3 text-sm space-y-1.5 text-ink-soft font-serif">

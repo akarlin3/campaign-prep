@@ -100,11 +100,19 @@ export default function CharacterCard({ data, open, soloMode, onToggleOpen, onCh
     .join(' · ');
 
   return (
-    <div className="rounded border border-rule bg-parchment shadow-card">
+    <div className={`rounded border shadow-card ${data.isSidekick ? 'border-wine/40 bg-wine/[0.04]' : 'border-rule bg-parchment'}`}>
       <div className="flex items-center gap-2 p-2.5">
         <button onClick={onToggleOpen} className="text-brass-deep hover:text-crimson flex-shrink-0">
           {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         </button>
+        {data.isSidekick && (
+          <span
+            className="text-[9px] font-display uppercase tracking-wider px-1.5 py-0.5 rounded bg-wine/15 text-wine border border-wine/30 flex-shrink-0"
+            title="Tasha's Cauldron of Everything — sidekick"
+          >
+            Sidekick
+          </span>
+        )}
         <div className="flex-1 min-w-0 font-display tracking-wide text-sm text-ink truncate">
           {headerLabel}
         </div>
