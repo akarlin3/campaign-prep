@@ -91,14 +91,7 @@ type CatalogEntry = {
   type: string;
   size: string;
   tag: string;
-  crNum: number;
-  isSrd: boolean;
 };
-
-const CR_TO_NUM: Record<string, number> = { '0': 0, '1/8': 0.125, '1/4': 0.25, '1/2': 0.5 };
-function crToNum(cr: string): number {
-  return CR_TO_NUM[cr] ?? Number(cr);
-}
 
 function buildCatalog(): CatalogEntry[] {
   const file = path.join(process.cwd(), 'public', 'srd', 'monsters.json');
@@ -112,7 +105,6 @@ function buildCatalog(): CatalogEntry[] {
     actions?: Array<{ name: string }>;
     special_abilities?: Array<{ name: string }>;
     legendary_actions?: Array<{ name: string }>;
-    is_srd?: boolean;
   }>;
 
   return monsters
@@ -144,8 +136,6 @@ function buildCatalog(): CatalogEntry[] {
         type: m.type || '',
         size: m.size || '',
         tag,
-        crNum: crToNum(m.challenge_rating),
-        isSrd: m.is_srd === true,
       };
     });
 }
@@ -154,21 +144,6 @@ let _catalog: CatalogEntry[] | null = null;
 function getCatalog(): CatalogEntry[] {
   if (!_catalog) _catalog = buildCatalog();
   return _catalog;
-}
-
-function filterCatalogForCR(target: string, srdOnly: boolean): CatalogEntry[] {
-  const targetNum = crToNum(target);
-  const base = srdOnly ? getCatalog().filter((m) => m.isSrd) : getCatalog();
-  // SRD is small (~320 entries) — send the whole list so the model has full coverage at any CR.
-  if (srdOnly) return base;
-  // Window scales with target CR: low CRs are dense, high CRs sparse.
-  const window = targetNum <= 4 ? 4 : targetNum <= 10 ? 6 : 10;
-  const lo = targetNum - window;
-  const hi = targetNum + window;
-  const inWindow = base.filter((m) => m.crNum >= lo && m.crNum <= hi);
-  // Cap to avoid bloating the prompt — 600 entries is plenty for matching.
-  if (inWindow.length <= 600) return inWindow;
-  return inWindow.slice(0, 600);
 }
 
 const SCALING_REFERENCE = `Scaling rules (5e-style targets):
@@ -211,7 +186,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Server missing ANTHROPIC_API_KEY' }, { status: 500 });
   }
 
-  let body: { description?: unknown; cr?: unknown; srdOnly?: unknown };
+  let body: { description?: unknown; cr?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -231,12 +206,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const srdOnly = body.srdOnly === true;
-
   let catalogLines: string;
   try {
-    const entries = filterCatalogForCR(rawCr, srdOnly);
-    catalogLines = entries
+    catalogLines = getCatalog()
       .map((m) => `${m.name} | CR ${m.cr} | ${m.size} ${m.type}${m.tag ? ` — ${m.tag}` : ''}`)
       .join('\n');
   } catch (err) {
@@ -244,12 +216,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Monster catalog unavailable: ${msg}` }, { status: 500 });
   }
 
-  const catalogScope = srdOnly
-    ? 'restricted to the SRD (System Reference Document) only'
-    : `restricted to candidates near target CR ${rawCr}`;
   const systemPrompt = `${SYSTEM_HEADER}
 
-Monster catalog (name | CR | size+type — short tag), ${catalogScope}:
+Monster catalog (name | CR | size+type — short tag), drawn from the SRD (System Reference Document):
 ${catalogLines}`;
 
   const userMessage = `Concept: ${description}

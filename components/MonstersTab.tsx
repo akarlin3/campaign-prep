@@ -67,7 +67,6 @@ type Monster = {
   special_abilities: Action[];
   desc: string;
   source: string;
-  is_srd: boolean;
   homebrew?: boolean;
 };
 
@@ -155,7 +154,6 @@ function blankHomebrewMonster(): HomebrewMonster {
     special_abilities: [],
     desc: '',
     source: 'Homebrew',
-    is_srd: false,
     homebrew: true,
   };
 }
@@ -384,7 +382,6 @@ function StatBlock({ m }: { m: Monster }) {
 
       <div className="text-[10px] text-ink-mute font-display uppercase tracking-wider pt-1">
         Source: {m.source || 'Unknown'}
-        {m.is_srd && ' · SRD'}
         {m.homebrew && ' · Homebrew'}
       </div>
     </div>
@@ -413,7 +410,6 @@ export default function MonstersTab({
   const [crMinIdx, setCrMinIdx] = useState(0);
   const [crMaxIdx, setCrMaxIdx] = useState(CR_OPTIONS.length - 1);
   const [types, setTypes] = useState<Set<string>>(new Set());
-  const [srdOnly, setSrdOnly] = useState(false);
   const [hbOnly, setHbOnly] = useState(false);
   const [picked, setPicked] = useState<Monster | null>(null);
 
@@ -447,12 +443,11 @@ export default function MonstersTab({
     if (!allMonsters) return [];
     return allMonsters.filter((m) => {
       if (hbOnly && !m.homebrew) return false;
-      if (srdOnly && !m.is_srd) return false;
       if (m.cr < crMin || m.cr > crMax) return false;
       if (types.size && !types.has(m.type)) return false;
       return true;
     });
-  }, [allMonsters, hbOnly, srdOnly, crMin, crMax, types]);
+  }, [allMonsters, hbOnly, crMin, crMax, types]);
 
   const roll = () => {
     const next = pickRandom(pool, picked ?? undefined);
@@ -472,13 +467,11 @@ export default function MonstersTab({
     setCrMinIdx(0);
     setCrMaxIdx(CR_OPTIONS.length - 1);
     setTypes(new Set());
-    setSrdOnly(false);
     setHbOnly(false);
   };
 
   const totalCount = allMonsters?.length ?? 0;
-  const srdCount = srdMonsters ? srdMonsters.filter((m) => m.is_srd).length : 0;
-  const denominator = hbOnly ? homebrewMonsters.length : srdOnly ? srdCount : totalCount;
+  const denominator = hbOnly ? homebrewMonsters.length : totalCount;
 
   const modeToggle = (
     <div
@@ -639,23 +632,8 @@ export default function MonstersTab({
           <label className="flex items-center gap-1.5 cursor-pointer select-none font-display uppercase tracking-wider text-ink-soft">
             <input
               type="checkbox"
-              checked={srdOnly}
-              onChange={(e) => {
-                setSrdOnly(e.target.checked);
-                if (e.target.checked) setHbOnly(false);
-              }}
-              className="accent-crimson"
-            />
-            SRD only
-          </label>
-          <label className="flex items-center gap-1.5 cursor-pointer select-none font-display uppercase tracking-wider text-ink-soft">
-            <input
-              type="checkbox"
               checked={hbOnly}
-              onChange={(e) => {
-                setHbOnly(e.target.checked);
-                if (e.target.checked) setSrdOnly(false);
-              }}
+              onChange={(e) => setHbOnly(e.target.checked)}
               className="accent-crimson"
               disabled={homebrewMonsters.length === 0}
             />
@@ -675,7 +653,7 @@ export default function MonstersTab({
               {t}
             </Chip>
           ))}
-          {(types.size > 0 || srdOnly || hbOnly || crMinIdx > 0 || crMaxIdx < CR_OPTIONS.length - 1) && (
+          {(types.size > 0 || hbOnly || crMinIdx > 0 || crMaxIdx < CR_OPTIONS.length - 1) && (
             <button
               type="button"
               onClick={clearFilters}
