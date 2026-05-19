@@ -209,4 +209,28 @@ _Per project policy (defer-minimization), these go here only, not into a backlog
 
 ## Closed in this PR
 
-Audit only. Schema changes, shared `<GeneratorPanel>`, table-roll util, save pipeline, and the individual generators are all deferred to subsequent checkpoints.
+**Audit + full Generators Suite implementation through Checkpoint 11.**
+
+### What shipped
+
+- **CP2 (infrastructure):** `lib/generators/rng.ts` (mulberry32 SeededRng), `lib/tables/roll.ts` (`rollOn` / `rollMultiple` / `rollOnTiered` / `rollDice` over uniform or weighted tables), `lib/generators/types.ts` (StructuredItem / StructuredLocation with subtype + typed details / StructuredNpc with `tier`, GeneratorResult discriminated union, GenerationHistoryEntry), `lib/generators/save.ts` (pure-function pipeline returning patched `data` + entity refs), `components/generators/GeneratorPanel.tsx` (shared panel — never existed before), `app/api/generators/enhance/route.ts` + `lib/generators/enhance.ts` (single Pro-gated endpoint dispatching on result kind), migration note at `docs/migrations/2026-05-19-generators-schema-additions.md`.
+- **CP3 (treasure hoards):** Original CR-tiered coin / gem / art / magic-item tables (49 original magic items, five rarity bands). Source comment at the top of the tables file confirming original authorship.
+- **CP4 (trinkets):** Original 100-entry trinket table.
+- **CP5 (mundane shops):** Original ~70-entry equipment inventory across 8 shop types with copper-piece base prices and availability tiers; size-keyed price markup and availability matrices.
+- **CP6 (magic item shops):** Four archetypes (curio shop, hedge wizard, black market, temple) with per-archetype price multipliers, settlement-size scarcity cap, per-rarity gp ranges. Reuses the CP3 magic-item pool.
+- **CP7 (taverns):** Two-part name table, vibe-keyed atmosphere descriptors, settlement-sized menu (food / drink / lodging), patron stubs, templated rumors with random slot-filling.
+- **CP8 (dungeons):** Seven themes, four sizes (5/10/20/40 rooms), weighted room-content table, theme/tier-keyed inhabitant pool, hazard table. Save creates a single Location with rooms inside `details.rooms`. v2 deferrals (visual map, connectivity graph, per-room encounter balancing) intentionally not implemented.
+- **CP9 (settlements):** Seven size classes with population bands, government / economy tables, notable-role pool, hook table.
+- **CP10 (unified surface):** New `generators` top-level tab in `CampaignEditor.tsx` with grouped sidebar (Treasure / World / People & Places), re-homing of existing Names + Locations generators alongside the seven new ones. `RecentGenerations` reads from `data.generationsHistory` (capped at 20). Keyboard shortcuts: G focuses sidebar, R rerolls, S saves, E enhances (Pro-only).
+- **CP11 (tests):** 40 tests across four `node:test` files covering RNG, roll utility, all seven `generate()` functions (determinism, range, no undefined SRD references, no item-pool leaks), and the save pipeline (entity counts, source tags, history cap). `npm test` runs them via `tsx`. Full Next.js production build also passes (`npm run build`).
+
+### Pro-gating
+
+All seven new generators produce useful deterministic output **without AI** for free users. Only the per-result "Enhance with AI" button is Pro-gated — non-Pro users see a `<LockedInline label="Enhance with AI" />` that links to the waitlist, matching project policy in `CLAUDE.md`. Server enforcement happens in `/api/generators/enhance` via `verifyPro`.
+
+### Not in scope / intentionally deferred
+
+- Visual dungeon maps, room-connectivity graphs, per-room encounter balancing (CP8).
+- Promoting "minor" NPCs to full NPCs from the generated lists (the schema supports it via `tier`, but no promotion UI yet).
+- Destructive migration of `data.items: string[]` legacy entries into structured items (they continue to render side-by-side; no migration script needed for the additive schema).
+- A `withPro(handler)` wrapper consolidating the four-line preamble across `verifyPro`-gated routes (audit observation; not in scope here).
