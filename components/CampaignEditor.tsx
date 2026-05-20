@@ -1,14 +1,13 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, Fragment } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { updateCampaign, deleteCampaign as deleteCampaignDoc, type Campaign } from '@/lib/firebase/campaigns';
 import { getFirebaseAuth } from '@/lib/firebase/client';
 import {
   ChevronDown, ChevronRight, Check, Plus, X, Quote,
   User, Users, Map, Swords, Gift, Layers, Calendar, Target, Trophy,
-  Download, Upload, ScrollText, Trash2, ArrowLeft, Cloud, CloudOff,
+  Download, Upload, ScrollText, ArrowLeft, Cloud, CloudOff,
   FileUp, Sparkles, Play, Search, BookOpen, Dice5, Wand2, Skull, Footprints, Hash, ClipboardList,
 } from 'lucide-react';
 import { TABLES, sampleTable } from '@/lib/inspirationTables';
@@ -42,6 +41,7 @@ import type { GeneratorLogs, LogEntry, LogKind } from '@/lib/generators/log';
 import { AccountMenu } from './AccountMenu';
 import { LockedInline, LockedPanel } from './LockedFeature';
 import CommandPalette, { type CommandItem } from './CommandPalette';
+import KeyboardShortcuts from './KeyboardShortcuts';
 import {
   type Character,
   emptyCharacter,
@@ -54,6 +54,58 @@ const M = {
   ccd: { label: 'CCD', color: 'border-brass/40 bg-brass/5 text-brass-deep' },
   pr: { label: 'Proactive', color: 'border-wine/40 bg-wine/5 text-wine' },
 };
+
+// Module-level tab order — shared by the sidebar renderer and the
+// arrow-key navigation handler so a single edit moves both together.
+export type TabId =
+  | 'prep' | 'ref' | 'track' | 'down' | 'log'
+  | 'dice' | 'spells' | 'generators' | 'names'
+  | 'locations' | 'monsters' | 'vivify'
+  | 'dmref' | 'traps' | 'chase';
+
+type TabGroupId = 'prep' | 'run' | 'tools';
+
+type TabGroup = {
+  id: TabGroupId;
+  label: string;
+  tabs: ReadonlyArray<readonly [TabId, string]>;
+};
+
+const TAB_GROUPS: ReadonlyArray<TabGroup> = [
+  { id: 'prep', label: 'Prep', tabs: [
+    ['prep', 'Prep Flow'],
+    ['ref', 'Reference'],
+    ['track', 'Tracking'],
+    ['down', 'Downtime'],
+  ]},
+  { id: 'run', label: 'Run', tabs: [
+    ['dice', 'Dice'],
+    ['spells', 'Spells'],
+    ['dmref', 'DM Ref'],
+    ['chase', 'Chase'],
+  ]},
+  { id: 'tools', label: 'Tools', tabs: [
+    ['generators', 'Generators'],
+    ['names', 'Names'],
+    ['locations', 'Locations'],
+    ['monsters', 'Monsters'],
+    ['traps', 'Traps'],
+    ['vivify', 'Vivify'],
+    ['log', 'Sessions'],
+  ]},
+] as const;
+
+// Flat order used by ←/→ arrow-key tab cycling. Derived from the group
+// order so adding/reordering a group automatically updates cycling.
+const TAB_LIST: ReadonlyArray<readonly [TabId, string]> =
+  TAB_GROUPS.flatMap(g => g.tabs);
+
+function groupForTab(tab: TabId): TabGroupId {
+  for (const g of TAB_GROUPS) {
+    if (g.tabs.some(([id]) => id === tab)) return g.id;
+  }
+  return 'prep';
+}
 
 // Prep item targets — book-grounded with solo adaptations
 // Keys match section ids / state keys used throughout the editor
@@ -91,10 +143,6 @@ function getTarget(key: string, soloMode: boolean): number {
 
 const Tag = ({ m }: { m: keyof typeof M }) => (
   <span className={`text-[10px] px-1.5 py-0.5 rounded-sm border font-display uppercase tracking-wider ${M[m].color}`}>{M[m].label}</span>
-);
-
-const Flourish = () => (
-  <div className="flourish my-2"><span>❦</span></div>
 );
 
 const BookQuote = ({ source, children }: { source: string; children: React.ReactNode }) => (
@@ -1039,8 +1087,20 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
   );
   const [openChars, setOpenChars] = useState<Record<string, boolean>>({});
   const [phaseOpen, setPhaseOpen] = useState<Record<string, boolean>>({ p0: true });
-  const [tab, setTab] = useState<'prep' | 'ref' | 'track' | 'down' | 'log' | 'dice' | 'spells' | 'generators' | 'names' | 'locations' | 'monsters' | 'vivify' | 'dmref' | 'traps' | 'chase'>('prep');
+  const [tab, setTab] = useState<TabId>('prep');
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  // Group expand/collapse for the sidebar. Initial state is empty; the
+  // renderer treats "not explicitly set" as "expanded if it contains the
+  // active tab", so the right group always shows on first render. When
+  // `tab` changes (arrow keys, Cmd+K), the effect below force-expands the
+  // group containing the new active tab so users never end up with an
+  // active tab hidden behind a collapsed header.
+  const [openGroups, setOpenGroups] = useState<Partial<Record<TabGroupId, boolean>>>({});
+  useEffect(() => {
+    const g = groupForTab(tab);
+    setOpenGroups(o => (o[g] === true ? o : { ...o, [g]: true }));
+  }, [tab]);
   const [soloMode, setSoloMode] = useState<boolean>(campaign.data?.__soloMode ?? true);
   const [syncState, setSyncState] = useState<'synced' | 'pending' | 'saving' | 'error'>('synced');
   const [syncError, setSyncError] = useState<string>('');
@@ -1213,6 +1273,61 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
     return <span className="text-xs text-brass-deep flex items-center gap-1 font-display uppercase tracking-wider"><Cloud size={12} /> Saved</span>;
   };
 
+  // Manual retry — uses current state, bypasses the debounce timer. Wired to
+  // the bottom-pill in error state so the user can recover from a failed save
+  // without making another change first.
+  const retrySave = useCallback(() => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+    saveToDB({ name, data: { ...state, __soloMode: soloMode }, done });
+  }, [saveToDB, name, state, soloMode, done]);
+
+  // Bottom-pill overlay for risky sync states. The header SyncIndicator is the
+  // calm baseline; this pill is the urgent reminder when something is unsaved
+  // or has failed. Hidden once we're back to 'synced'.
+  const SyncPill = () => {
+    if (syncState === 'synced') return null;
+    const base = 'fixed bottom-4 left-1/2 -translate-x-1/2 z-40 px-3 py-1.5 rounded-full shadow-page border text-xs font-display uppercase tracking-wider flex items-center gap-2 transition-opacity';
+    if (syncState === 'pending') {
+      return (
+        <div className={`${base} border-brass-deep/60 bg-parchment text-brass-deep`}>
+          <span className="w-1.5 h-1.5 rounded-full bg-brass-deep animate-pulse" />
+          Saving in 1.5s…
+        </div>
+      );
+    }
+    if (syncState === 'saving') {
+      return (
+        <div className={`${base} border-moss/60 bg-moss/10 text-moss`}>
+          <Cloud size={12} className="animate-pulse" />
+          Saving…
+        </div>
+      );
+    }
+    return (
+      <button
+        type="button"
+        onClick={retrySave}
+        title={syncError || 'Click to retry'}
+        className={`${base} border-crimson/70 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment cursor-pointer`}
+      >
+        <CloudOff size={12} />
+        Save failed — click to retry
+      </button>
+    );
+  };
+
+  // Confirm tab/route changes while a save error is outstanding. Returns true
+  // if the navigation should proceed.
+  const confirmUnsavedNav = (): boolean => {
+    if (syncState !== 'error') return true;
+    return window.confirm(
+      'Your last change failed to save. Switching may lose unsaved data. Switch anyway?',
+    );
+  };
+
   const ToolBtn = ({ onClick, children, danger = false, title }: { onClick: () => void; children: React.ReactNode; danger?: boolean; title?: string }) => (
     <button onClick={onClick} title={title} className={`text-xs px-3 py-1 rounded border font-display uppercase tracking-wider flex items-center gap-1.5 transition-colors ${
       danger
@@ -1271,18 +1386,50 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
     if (target.anchor) scrollToAnchor(target.anchor);
   };
 
-  // Cmd/Ctrl-K opens the palette. Works from any focus including text inputs
-  // because the palette is the entire app's global "go anywhere" affordance.
+  // Global keyboard shortcuts:
+  //  - Cmd/Ctrl-K: open the command palette (works even inside text inputs —
+  //    the palette is the entire app's "go anywhere" affordance).
+  //  - ?: open the keyboard cheatsheet (suppressed inside text inputs so the
+  //    glyph still types into prose fields).
+  //  - ←/→: previous / next tab (suppressed inside text inputs and while any
+  //    modal — palette, cheatsheet, prep wizard, run session — is open).
   useEffect(() => {
+    const isTyping = (el: EventTarget | null) => {
+      const node = el as HTMLElement | null;
+      if (!node) return false;
+      const tag = node.tagName;
+      return tag === 'INPUT' || tag === 'TEXTAREA' || node.isContentEditable;
+    };
+
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setPaletteOpen(p => !p);
+        return;
+      }
+      if (isTyping(e.target)) return;
+      if (paletteOpen || shortcutsOpen) return;
+
+      if (e.key === '?' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        setShortcutsOpen(true);
+        return;
+      }
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        if (!confirmUnsavedNav()) return;
+        e.preventDefault();
+        setTab(current => {
+          const i = TAB_LIST.findIndex(([id]) => id === current);
+          if (i < 0) return current;
+          const step = e.key === 'ArrowRight' ? 1 : -1;
+          const next = (i + step + TAB_LIST.length) % TAB_LIST.length;
+          return TAB_LIST[next][0];
+        });
       }
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [paletteOpen, shortcutsOpen, syncState, syncError]);
 
   const TAB_META: Array<{ id: typeof tab; label: string; icon: any; keywords?: string[] }> = [
     { id: 'prep', label: 'Prep Flow', icon: ScrollText, keywords: ['lazy dm', 'ccd', 'pitch', 'givens'] },
@@ -1472,6 +1619,121 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
       });
     });
 
+    // PC goals — track progress in the 'track' tab where the goal-progress
+    // card lives, but expose the same prep-tab anchor as a sublabel hint.
+    const goals = (get('pcGoals', []) as Array<{ text?: string; timeframe?: string; status?: string }>);
+    goals.forEach((g, i) => {
+      const text = (g.text || '').trim();
+      if (!text) return;
+      const sub = [g.status, g.timeframe].filter(Boolean).join(' · ');
+      items.push({
+        id: `goal:${i}`,
+        label: text.length > 80 ? `${text.slice(0, 77)}…` : text,
+        sublabel: sub || `PC Goal ${i + 1}`,
+        group: 'Goals',
+        icon: Target,
+        run: () => navigateTo({ tab: 'prep', sectionId: 'goals', anchor: 'section:goals' }),
+      });
+    });
+
+    // Magic items live in the Phase 3 / step 8 prep section as a string list.
+    const magicItems = (get('items', []) as string[]);
+    magicItems.forEach((m, i) => {
+      const text = (m || '').trim();
+      if (!text) return;
+      items.push({
+        id: `magic:${i}`,
+        label: text.length > 80 ? `${text.slice(0, 77)}…` : text,
+        sublabel: `Magic Item ${i + 1}`,
+        group: 'Magic items',
+        icon: Gift,
+        run: () => navigateTo({ tab: 'prep', sectionId: 's8-rew', anchor: 'section:s8-rew' }),
+      });
+    });
+
+    // Faction clocks (Phase 4). No per-card anchor — clock cards aren't
+    // individually addressable today; landing on the tab is the goal.
+    const clocks = (get('clocks', []) as Array<{ text?: string; faction?: string; filled?: number; max?: number }>);
+    clocks.forEach((c, i) => {
+      const text = (c.text || '').trim();
+      const faction = (c.faction || '').trim();
+      const label = text || faction || `Clock ${i + 1}`;
+      const sub = [faction && text ? faction : null, typeof c.filled === 'number' && typeof c.max === 'number' ? `${c.filled}/${c.max}` : null].filter(Boolean).join(' · ');
+      items.push({
+        id: `clock:${i}`,
+        label: label.length > 80 ? `${label.slice(0, 77)}…` : label,
+        sublabel: sub || undefined,
+        group: 'Faction clocks',
+        keywords: [faction],
+        icon: Target,
+        run: () => { setPhaseOpen(p => ({ ...p, p4: true })); navigateTo({ tab: 'prep' }); },
+      });
+    });
+
+    // Homebrew monsters live in their own tab; no in-tab anchor today.
+    const homebrew = (get('homebrewMonsters', []) as Array<{ slug?: string; name?: string; challenge_rating?: string; type?: string }>);
+    homebrew.forEach((m, i) => {
+      const name = (m.name || '').trim() || `Monster ${i + 1}`;
+      const sub = [m.challenge_rating ? `CR ${m.challenge_rating}` : null, m.type].filter(Boolean).join(' · ');
+      items.push({
+        id: `mon:${m.slug || i}`,
+        label: name,
+        sublabel: sub || undefined,
+        group: 'Monsters',
+        keywords: [m.type || ''],
+        icon: Skull,
+        run: () => navigateTo({ tab: 'monsters' }),
+      });
+    });
+
+    const traps = (get('traps', []) as Array<{ id?: string; name?: string; tier?: string; severity?: string }>);
+    traps.forEach((t, i) => {
+      const name = (t.name || '').trim() || `Trap ${i + 1}`;
+      const sub = [t.tier, t.severity].filter(Boolean).join(' · ');
+      items.push({
+        id: `trap:${t.id || i}`,
+        label: name,
+        sublabel: sub || undefined,
+        group: 'Traps',
+        icon: Hash,
+        run: () => navigateTo({ tab: 'traps' }),
+      });
+    });
+
+    const chases = (get('chases', []) as Array<{ id?: string; name?: string; terrain?: string; resolved?: string }>);
+    chases.forEach((c, i) => {
+      const name = (c.name || '').trim() || `Chase ${i + 1}`;
+      const sub = [c.terrain, c.resolved && c.resolved !== 'ongoing' ? c.resolved : null].filter(Boolean).join(' · ');
+      items.push({
+        id: `chase:${c.id || i}`,
+        label: name,
+        sublabel: sub || undefined,
+        group: 'Chases',
+        keywords: [c.terrain || ''],
+        icon: Footprints,
+        run: () => navigateTo({ tab: 'chase' }),
+      });
+    });
+
+    const downtime = (get('downtime', []) as Array<DowntimeEntry>);
+    downtime.forEach((d) => {
+      const typeDef = DOWNTIME_TYPES.find(t => t.id === d.type);
+      const typeLabel = typeDef?.label || d.type || 'Downtime';
+      const firstField = typeDef?.fields?.[0];
+      const summary = firstField ? (d.fields?.[firstField.key] || '').trim() : '';
+      const label = summary || typeLabel;
+      const sub = summary ? typeLabel : (d.archived ? 'Archived' : undefined);
+      items.push({
+        id: `down:${d.id}`,
+        label: label.length > 80 ? `${label.slice(0, 77)}…` : label,
+        sublabel: sub,
+        group: 'Downtime',
+        keywords: [typeLabel],
+        icon: Calendar,
+        run: () => navigateTo({ tab: 'down' }),
+      });
+    });
+
     // Generator log: surface the most recent few per kind. Title is whatever
     // the generator stored — usually a name or one-line summary.
     const LOG_LABEL: Record<string, string> = {
@@ -1615,111 +1877,88 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
           <nav
             role="tablist"
             aria-label="Campaign sections"
-            className="flex md:flex-col border border-rule rounded font-display uppercase tracking-wider text-xs bg-parchment-soft overflow-x-auto md:overflow-x-visible"
+            className="flex md:flex-col border border-rule rounded font-display uppercase tracking-wider text-xs bg-parchment-soft overflow-x-auto md:overflow-x-visible md:overflow-hidden"
           >
-            {([
-              ['prep', 'Prep Flow'],
-              ['ref', 'Reference'],
-              ['track', 'Tracking'],
-              ['down', 'Downtime'],
-              ['log', 'Sessions'],
-              ['dice', 'Dice'],
-              ['spells', 'Spells'],
-              ['generators', 'Generators'],
-              ['names', 'Names'],
-              ['locations', 'Locations'],
-              ['monsters', 'Monsters'],
-              ['vivify', 'Vivify'],
-              ['traps', 'Traps'],
-              ['dmref', 'DM Ref'],
-              ['chase', 'Chase'],
-            ] as const).map(([id, label], i) => (
-              <button
-                key={id}
-                type="button"
-                role="tab"
-                aria-selected={tab === id}
-                onClick={() => setTab(id)}
-                className={`px-3 py-2 text-left whitespace-nowrap transition-colors ${
-                  i > 0 ? 'border-l md:border-l-0 md:border-t border-rule' : ''
-                } ${
-                  tab === id
-                    ? 'bg-crimson text-parchment'
-                    : 'text-ink-soft hover:bg-parchment-deep'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
+            {TAB_GROUPS.map((group, gIdx) => {
+              const containsActive = group.tabs.some(([id]) => id === tab);
+              const isExpanded = openGroups[group.id] ?? containsActive;
+              return (
+                <Fragment key={group.id}>
+                  {/* Mobile group label — small inline divider between groups */}
+                  <div
+                    className={`md:hidden flex items-center px-2 text-[9px] font-display uppercase tracking-wider text-brass-deep whitespace-nowrap ${
+                      gIdx > 0 ? 'border-l border-rule' : ''
+                    }`}
+                    aria-hidden="true"
+                  >
+                    {group.label}
+                  </div>
+                  {/* Desktop group header — collapsible accordion */}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOpenGroups(o => ({ ...o, [group.id]: !(o[group.id] ?? containsActive) }))
+                    }
+                    aria-expanded={isExpanded}
+                    className={`hidden md:flex w-full items-center justify-between px-3 py-1.5 font-display uppercase tracking-wider text-[10px] text-brass-deep hover:bg-parchment-deep/40 transition-colors ${
+                      gIdx > 0 ? 'border-t border-rule' : ''
+                    }`}
+                  >
+                    <span>{group.label}</span>
+                    {isExpanded ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+                  </button>
+                  {/* Sub-tabs — always visible on mobile (flat scroll); on desktop, collapsed when the group is. */}
+                  {group.tabs.map(([id, label], i) => (
+                    <button
+                      key={id}
+                      type="button"
+                      role="tab"
+                      aria-selected={tab === id}
+                      onClick={() => { if (confirmUnsavedNav()) setTab(id); }}
+                      className={`px-3 py-2 text-left whitespace-nowrap transition-colors border-l md:border-l-0 md:border-t border-rule ${
+                        !isExpanded ? 'md:hidden' : ''
+                      } ${
+                        tab === id
+                          ? 'bg-crimson text-parchment'
+                          : 'text-ink-soft hover:bg-parchment-deep'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </Fragment>
+              );
+            })}
           </nav>
         </aside>
         <div className="flex-1 min-w-0 bg-parchment-soft border border-rule rounded-lg shadow-page p-3 sm:p-5 md:p-8 space-y-4">
-          <header className="pb-4 border-b border-rule">
-            <div className="flex items-center justify-between gap-2 mb-3">
-              <Link href="/campaign" className="text-xs text-brass-deep hover:text-crimson font-display uppercase tracking-wider flex items-center gap-1">
+          <header className="pb-3 border-b border-rule">
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <button
+                type="button"
+                onClick={() => { if (confirmUnsavedNav()) router.push('/campaign'); }}
+                className="text-xs text-brass-deep hover:text-crimson font-display uppercase tracking-wider flex items-center gap-1"
+              >
                 <ArrowLeft size={12} /> All Campaigns
-              </Link>
+              </button>
               <div className="flex items-center gap-2">
                 <SyncIndicator />
-                <AccountMenu />
+                <AccountMenu
+                  onExport={exportJSON}
+                  onImport={() => fileInputRef.current?.click()}
+                  onDelete={handleDelete}
+                />
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <ScrollText size={20} className="text-crimson flex-shrink-0" />
               <textarea rows={1} value={name} onChange={(e) => setName(e.target.value)} placeholder="Campaign Name"
-                className="flex-1 min-w-0 bg-transparent border-b border-rule font-display text-xl sm:text-2xl tracking-wide text-ink placeholder:text-ink-faint focus:border-crimson focus:outline-none pb-1 resize-none whitespace-pre-wrap break-words [field-sizing:content]" />
-            </div>
-            <p className="text-sm text-ink-soft italic font-serif mt-1.5">Lazy DM · Collaborative Campaign Design · Proactive Roleplaying</p>
-
-            <Flourish />
-
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 justify-between">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <ToolBtn onClick={() => setPaletteOpen(true)} title="Open command palette (⌘K)">
-                  <Search size={12} /> Search
-                  <kbd className="ml-1 text-[10px] font-display uppercase tracking-wider border border-rule rounded px-1 py-px text-ink-mute">⌘K</kbd>
-                </ToolBtn>
-                <ToolBtn onClick={exportJSON}><Download size={12} /> Export</ToolBtn>
-                <ToolBtn onClick={() => fileInputRef.current?.click()}><Upload size={12} /> Import</ToolBtn>
-                <input ref={fileInputRef} type="file" accept=".json,application/json" onChange={importJSON} className="hidden" />
-                <ToolBtn onClick={handleDelete} danger><Trash2 size={12} /> Delete</ToolBtn>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setVal('__prepWizardOpen', true);
-                    setVal('__prepWizardStep', 1);
-                  }}
-                  disabled={get('__runSessionOpen', false) as boolean}
-                  className="text-xs px-3 py-1.5 rounded border border-moss/60 bg-moss/10 text-moss hover:bg-moss hover:text-parchment font-display uppercase tracking-wider flex items-center gap-1.5 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-moss/10 disabled:hover:text-moss"
-                  title={get('__runSessionOpen', false) ? 'Finish your current session first' : 'Walk through Lazy DM\'s 8-step prep'}
-                >
-                  <ClipboardList size={12} /> Prep Next Session
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const sessionId = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-                    setState(s => ({
-                      ...s,
-                      __activeSessionId: sessionId,
-                      __sessionStartedAt: Date.now(),
-                      __sessionChangeEvents: [],
-                      __sessionUsedScenes: [],
-                      __runSessionOpen: true,
-                    }));
-                  }}
-                  className="text-xs px-3 py-1.5 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment font-display uppercase tracking-wider flex items-center gap-1.5 shadow-sm"
-                  title="Enter Run Session mode for live play"
-                >
-                  <Play size={12} /> Run Session
-                </button>
+                className="flex-1 min-w-[12rem] bg-transparent border-b border-rule font-display text-xl sm:text-2xl tracking-wide text-ink placeholder:text-ink-faint focus:border-crimson focus:outline-none pb-1 resize-none whitespace-pre-wrap break-words [field-sizing:content]" />
               <div
                 role="group"
                 aria-label="Prep target mode"
                 title="Switch prep item targets between solo and group scale"
-                className="inline-flex rounded border border-rule overflow-hidden text-xs font-display uppercase tracking-wider"
+                className="inline-flex rounded border border-rule overflow-hidden text-xs font-display uppercase tracking-wider flex-shrink-0"
               >
                 <button
                   type="button"
@@ -1742,10 +1981,46 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                   <Users size={12} /> Group
                 </button>
               </div>
-              </div>
             </div>
+            <input ref={fileInputRef} type="file" accept=".json,application/json" onChange={importJSON} className="hidden" />
 
-            <div className="mt-3 flex justify-end">
+            <div className="mt-2.5 flex flex-wrap items-center gap-1.5 justify-between">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <ToolBtn onClick={() => setPaletteOpen(true)} title="Open command palette (⌘K)">
+                  <Search size={12} /> Search
+                  <kbd className="ml-1 text-[10px] font-display uppercase tracking-wider border border-rule rounded px-1 py-px text-ink-mute">⌘K</kbd>
+                </ToolBtn>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVal('__prepWizardOpen', true);
+                    setVal('__prepWizardStep', 1);
+                  }}
+                  disabled={get('__runSessionOpen', false) as boolean}
+                  className="text-xs px-3 py-1 rounded border border-moss/60 bg-moss/10 text-moss hover:bg-moss hover:text-parchment font-display uppercase tracking-wider flex items-center gap-1.5 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-moss/10 disabled:hover:text-moss"
+                  title={get('__runSessionOpen', false) ? 'Finish your current session first' : 'Walk through Lazy DM\'s 8-step prep'}
+                >
+                  <ClipboardList size={12} /> Prep Next Session
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const sessionId = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+                    setState(s => ({
+                      ...s,
+                      __activeSessionId: sessionId,
+                      __sessionStartedAt: Date.now(),
+                      __sessionChangeEvents: [],
+                      __sessionUsedScenes: [],
+                      __runSessionOpen: true,
+                    }));
+                  }}
+                  className="text-xs px-3 py-1 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment font-display uppercase tracking-wider flex items-center gap-1.5 shadow-sm"
+                  title="Enter Run Session mode for live play"
+                >
+                  <Play size={12} /> Run Session
+                </button>
+              </div>
               <div className="text-xs text-brass-deep font-display uppercase tracking-wider">
                 {completedCount} Steps Done
               </div>
@@ -2574,6 +2849,20 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
         onClose={() => setPaletteOpen(false)}
         items={paletteItems}
       />
+
+      <KeyboardShortcuts open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+
+      <button
+        type="button"
+        onClick={() => setShortcutsOpen(true)}
+        title="Keyboard shortcuts (press ?)"
+        aria-label="Keyboard shortcuts"
+        className="fixed bottom-4 left-4 z-30 w-8 h-8 rounded-full border border-rule bg-parchment-soft text-brass-deep hover:bg-brass hover:text-parchment shadow-page font-display text-sm leading-none flex items-center justify-center"
+      >
+        ?
+      </button>
+
+      <SyncPill />
     </main>
   );
 }
