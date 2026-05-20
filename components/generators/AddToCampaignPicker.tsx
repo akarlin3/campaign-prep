@@ -1,0 +1,156 @@
+'use client';
+
+// Compact "Add to campaign" affordance shared by the live result panel and
+// each log row. Renders a per-item checklist (single-item generators show a
+// single row), a destination picker constrained to the kinds allowed by the
+// generator, and an "Add to campaign" button.
+
+import { useEffect, useMemo, useState } from 'react';
+import { Plus, Check, FolderPlus } from 'lucide-react';
+import type { LogKind } from '@/lib/generators/log';
+import {
+  allowedDestsFor,
+  defaultDestFor,
+  itemsFor,
+  type CampaignDestKey,
+  type SelectableItem,
+} from '@/lib/generators/addToCampaign';
+import { DEST_LABEL } from '@/lib/generators/addToCampaign';
+
+export type AddToCampaignPickerProps = {
+  kind: LogKind;
+  payload: unknown;
+  // Called with the chosen destination and the user-ticked items. The caller
+  // does the actual buildPatch + setVal — we only collect the user's intent.
+  onAdd: (dest: CampaignDestKey, items: SelectableItem[]) => void;
+  // Optional: pre-tick all items by default. Default = true.
+  autoSelectAll?: boolean;
+};
+
+export default function AddToCampaignPicker({
+  kind,
+  payload,
+  onAdd,
+  autoSelectAll = true,
+}: AddToCampaignPickerProps) {
+  const allowed = allowedDestsFor(kind);
+  const items = useMemo(() => itemsFor(kind, payload), [kind, payload]);
+
+  const [dest, setDest] = useState<CampaignDestKey | null>(defaultDestFor(kind));
+  const [selected, setSelected] = useState<Set<string>>(() =>
+    autoSelectAll ? new Set(items.map((i) => i.id)) : new Set(),
+  );
+  const [justAdded, setJustAdded] = useState<{ count: number; dest: CampaignDestKey } | null>(null);
+
+  // If the underlying items list changes (e.g. result re-rolled in place),
+  // re-seed the selection so the user doesn't have to re-tick everything.
+  useEffect(() => {
+    setSelected(autoSelectAll ? new Set(items.map((i) => i.id)) : new Set());
+    setJustAdded(null);
+  }, [items, autoSelectAll]);
+
+  if (allowed.length === 0 || items.length === 0) return null;
+
+  const toggle = (id: string) => {
+    setSelected((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+    setJustAdded(null);
+  };
+
+  const selectAll = () => setSelected(new Set(items.map((i) => i.id)));
+  const selectNone = () => setSelected(new Set());
+
+  const handleAdd = () => {
+    if (!dest) return;
+    const picked = items.filter((i) => selected.has(i.id));
+    if (picked.length === 0) return;
+    onAdd(dest, picked);
+    setJustAdded({ count: picked.length, dest });
+  };
+
+  const isMulti = items.length > 1;
+  const allTicked = selected.size === items.length;
+
+  return (
+    <div className="rounded border border-brass-deep/40 bg-brass/5 p-2.5 space-y-2">
+      <div className="flex items-center gap-1.5">
+        <FolderPlus size={12} className="text-brass-deep" />
+        <span className="text-[10px] text-brass-deep font-display uppercase tracking-wider">
+          Add to campaign
+        </span>
+        {isMulti && (
+          <>
+            <span className="text-[10px] text-ink-mute italic ml-1">
+              {selected.size}/{items.length} selected
+            </span>
+            <div className="ml-auto flex items-center gap-2">
+              <button
+                onClick={allTicked ? selectNone : selectAll}
+                className="text-[10px] text-brass-deep hover:text-crimson font-display uppercase tracking-wider"
+              >
+                {allTicked ? 'None' : 'All'}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+
+      {isMulti && (
+        <ul className="space-y-0.5 max-h-44 overflow-auto pr-1">
+          {items.map((item) => (
+            <li key={item.id}>
+              <label className="flex items-start gap-2 text-xs text-ink font-serif cursor-pointer hover:bg-parchment-soft/60 rounded px-1 py-0.5">
+                <input
+                  type="checkbox"
+                  checked={selected.has(item.id)}
+                  onChange={() => toggle(item.id)}
+                  className="accent-crimson mt-0.5"
+                />
+                <span className="flex-1 leading-snug">{item.label}</span>
+              </label>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="flex items-center gap-2 flex-wrap">
+        <label className="text-[10px] text-ink-mute font-display uppercase tracking-wider">To</label>
+        <select
+          value={dest ?? ''}
+          onChange={(e) => {
+            setDest(e.target.value as CampaignDestKey);
+            setJustAdded(null);
+          }}
+          className="bg-parchment-soft border border-rule rounded px-2 py-1 text-xs text-ink font-serif focus:border-crimson focus:outline-none"
+        >
+          {allowed.map((d) => (
+            <option key={d} value={d}>{DEST_LABEL[d]}</option>
+          ))}
+        </select>
+        <button
+          onClick={handleAdd}
+          disabled={!dest || selected.size === 0}
+          className="text-[11px] px-2.5 py-1 rounded border border-brass-deep/60 bg-brass/10 text-brass-deep font-display uppercase tracking-wider flex items-center gap-1.5 hover:bg-brass hover:text-parchment hover:border-brass disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          title={
+            !dest
+              ? 'Choose a destination'
+              : selected.size === 0
+                ? 'Select at least one item'
+                : `Add ${selected.size} to ${DEST_LABEL[dest]}`
+          }
+        >
+          <Plus size={11} /> Add{isMulti && selected.size > 0 ? ` ${selected.size}` : ''}
+        </button>
+        {justAdded && (
+          <span className="text-[10px] text-brass-deep font-serif italic flex items-center gap-1">
+            <Check size={11} /> Added {justAdded.count} to {DEST_LABEL[justAdded.dest]}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}

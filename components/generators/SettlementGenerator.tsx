@@ -4,6 +4,7 @@ import { GeneratorPanel, type InputSpec } from './GeneratorPanel';
 import { generateSettlement } from '@/lib/generators/settlement';
 import type { CampaignContext, SettlementResult, SettlementSizeClass } from '@/lib/generators/types';
 import type { LogEntry } from '@/lib/generators/log';
+import type { CampaignDestKey, SelectableItem } from '@/lib/generators/addToCampaign';
 
 const SIZE_OPTIONS: { value: SettlementSizeClass; label: string }[] = [
   { value: 'thorp', label: 'Thorp (≤20)' },
@@ -49,11 +50,13 @@ export default function SettlementGenerator({
   onEntriesChange,
   campaignContext,
   saveToCampaign,
+  onAddToCampaign,
 }: {
   entries: LogEntry[];
   onEntriesChange: (next: LogEntry[]) => void;
   campaignContext?: CampaignContext;
   saveToCampaign?: { label?: string; onSave: (result: SettlementResult) => void };
+  onAddToCampaign?: (dest: CampaignDestKey, items: SelectableItem[]) => void;
 }) {
   return (
     <GeneratorPanel<{ sizeClass: string; region: string; government: string }, SettlementResult>
@@ -73,6 +76,7 @@ export default function SettlementGenerator({
       enhance={{ kind: 'settlement' }}
       campaignContext={campaignContext}
       saveToCampaign={saveToCampaign}
+      onAddToCampaign={onAddToCampaign}
       log={{
         kind: 'settlement',
         entries,

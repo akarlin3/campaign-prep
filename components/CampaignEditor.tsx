@@ -52,6 +52,7 @@ import type { SessionLogEntry } from '@/lib/sessionLog';
 import { nextSessionNumber } from '@/lib/sessionLog';
 import type { PrepWizardRun } from '@/lib/prepWizard';
 import type { GeneratorLogs, LogEntry, LogKind } from '@/lib/generators/log';
+import { buildPatch as buildCampaignPatch, type CampaignDestKey, type SelectableItem } from '@/lib/generators/addToCampaign';
 import { AccountMenu } from './AccountMenu';
 import { LockedInline, LockedPanel } from './LockedFeature';
 import CommandPalette, { type CommandItem } from './CommandPalette';
@@ -1266,6 +1267,27 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
   const setLogEntriesFor = (kind: LogKind) => (next: LogEntry[]) => {
     setVal('generatorLogs', { ...generatorLogs, [kind]: next });
   };
+
+  // Bridge from a generator log (or live result) into the campaign data lists.
+  // Returns a callback bound to one LogKind that the picker hands its
+  // (destination, items) selection to. The helper folds the rows in via
+  // `buildCampaignPatch`, then commits with a single setVal.
+  const addToCampaignFor = useCallback(
+    (kind: LogKind) => (dest: CampaignDestKey, items: SelectableItem[]) => {
+      const current = (state as Record<string, unknown>)[dest];
+      const { patch, added } = buildCampaignPatch(current, kind, dest, items);
+      if (added === 0) return;
+      setVal(patch.key, patch.value);
+      const eventKind: ChangeEventKind =
+        dest === 'locations' ? 'location_added' :
+        dest === 'npcs' ? 'npc_added' :
+        dest === 'monsters' ? 'monster_added' :
+        dest === 'items' ? 'magic_item_given' :
+        'other';
+      trackEvent(eventKind, `Added ${added} from ${kind} → ${dest}`);
+    },
+    [state, trackEvent],
+  );
 
   // Snapshot of the campaign's premise/theme fields for AI-enhance grounding.
   // Each field is read out of `state`; the helper inside GeneratorPanel hides
@@ -2706,6 +2728,20 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                     </div>
                   );
                 })()}
+                <div className="pt-3 border-t border-rule/60">
+                  <p className="text-xs text-brass-deep font-display uppercase tracking-wider mb-1.5">Treasure</p>
+                  <p className="text-[11px] text-ink-mute italic font-serif mb-1.5">
+                    Coins, gems, art, trinkets, and other rewards — generated entries land here.
+                  </p>
+                  <ListField
+                    items={get('treasure', [])}
+                    onChange={(v) => setVal('treasure', v)}
+                    placeholder="Treasure item — coins · gem · art · trinket"
+                    rows={2}
+                    rowIdFor={(i) => `treasure-${i}`}
+                    highlightId={highlightEntityId}
+                  />
+                </div>
               </Section>
             </Phase>
 
@@ -3081,10 +3117,12 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
             logs={generatorLogs}
             onLogsChange={(next) => setVal('generatorLogs', next)}
             campaignContext={generatorCampaignContext}
+            onAddToCampaign={addToCampaignFor}
             renderNames={() => (isPro ? (
               <NamesTab
                 logEntries={logEntriesFor('names')}
                 onLogEntriesChange={setLogEntriesFor('names')}
+                onAddToCampaign={addToCampaignFor('names')}
               />
             ) : (
               <LockedPanel title="Names Generator">
@@ -3095,6 +3133,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               <LocationsTab
                 logEntries={logEntriesFor('locations')}
                 onLogEntriesChange={setLogEntriesFor('locations')}
+                onAddToCampaign={addToCampaignFor('locations')}
               />
             ) : (
               <LockedPanel title="Locations Generator">
@@ -3108,6 +3147,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
           <NamesTab
             logEntries={logEntriesFor('names')}
             onLogEntriesChange={setLogEntriesFor('names')}
+            onAddToCampaign={addToCampaignFor('names')}
           />
         ) : (
           <LockedPanel title="Names Generator">
@@ -3120,6 +3160,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
           <LocationsTab
             logEntries={logEntriesFor('locations')}
             onLogEntriesChange={setLogEntriesFor('locations')}
+            onAddToCampaign={addToCampaignFor('locations')}
           />
         ) : (
           <LockedPanel title="Locations Generator">
@@ -3144,6 +3185,8 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
             onRollLogEntriesChange={setLogEntriesFor('monster-roll')}
             scaleLogEntries={logEntriesFor('monster-scale')}
             onScaleLogEntriesChange={setLogEntriesFor('monster-scale')}
+            onAddRollToCampaign={addToCampaignFor('monster-roll')}
+            onAddScaleToCampaign={addToCampaignFor('monster-scale')}
           />
         )}
 

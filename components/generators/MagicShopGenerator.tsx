@@ -5,6 +5,7 @@ import { generateMagicShop } from '@/lib/generators/magic-shop';
 import type { MagicShopArchetype } from '@/lib/generators/tables/shop-tables';
 import type { CampaignContext, ItemRarity, MagicShopResult, SettlementSizeClass } from '@/lib/generators/types';
 import type { LogEntry } from '@/lib/generators/log';
+import type { CampaignDestKey, SelectableItem } from '@/lib/generators/addToCampaign';
 
 const SETTLEMENT_OPTIONS: { value: SettlementSizeClass; label: string }[] = [
   { value: 'thorp', label: 'Thorp' },
@@ -52,11 +53,13 @@ export default function MagicShopGenerator({
   onEntriesChange,
   campaignContext,
   saveToCampaign,
+  onAddToCampaign,
 }: {
   entries: LogEntry[];
   onEntriesChange: (next: LogEntry[]) => void;
   campaignContext?: CampaignContext;
   saveToCampaign?: { label?: string; onSave: (result: MagicShopResult) => void };
+  onAddToCampaign?: (dest: CampaignDestKey, items: SelectableItem[]) => void;
 }) {
   return (
     <GeneratorPanel<{ archetype: string; maxRarity: string; settlementSize: string }, MagicShopResult>
@@ -76,6 +79,7 @@ export default function MagicShopGenerator({
       enhance={{ kind: 'magic-shop' }}
       campaignContext={campaignContext}
       saveToCampaign={saveToCampaign}
+      onAddToCampaign={onAddToCampaign}
       log={{
         kind: 'magic-shop',
         entries,

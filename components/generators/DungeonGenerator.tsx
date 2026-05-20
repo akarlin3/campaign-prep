@@ -23,6 +23,7 @@ import type {
   DungeonRoomKind,
 } from '@/lib/generators/types';
 import type { LogEntry } from '@/lib/generators/log';
+import type { CampaignDestKey, SelectableItem } from '@/lib/generators/addToCampaign';
 
 const SIZE_OPTIONS: { value: DungeonSize; label: string }[] = [
   { value: 'small', label: 'Small (5 rooms)' },
@@ -113,11 +114,13 @@ export default function DungeonGenerator({
   onEntriesChange,
   campaignContext,
   saveToCampaign,
+  onAddToCampaign,
 }: {
   entries: LogEntry[];
   onEntriesChange: (next: LogEntry[]) => void;
   campaignContext?: CampaignContext;
   saveToCampaign?: { label?: string; onSave: (result: DungeonResult) => void };
+  onAddToCampaign?: (dest: CampaignDestKey, items: SelectableItem[]) => void;
 }) {
   return (
     <GeneratorPanel<{ size: string; theme: string; challengeTier: string }, DungeonResult>
@@ -134,6 +137,7 @@ export default function DungeonGenerator({
       enhance={{ kind: 'dungeon' }}
       campaignContext={campaignContext}
       saveToCampaign={saveToCampaign}
+      onAddToCampaign={onAddToCampaign}
       log={{
         kind: 'dungeon',
         entries,

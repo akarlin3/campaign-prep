@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect, useCallback } from 'react';
 import { Coins, Gem, Shirt, Sparkles, Beer, MountainSnow, MapPinned, Map, ScrollText, Wand2, Signpost } from 'lucide-react';
 import type { CampaignContext, GeneratorKind } from '@/lib/generators/types';
 import type { GeneratorLogs, LogEntry, LogKind } from '@/lib/generators/log';
+import type { CampaignDestKey, SelectableItem } from '@/lib/generators/addToCampaign';
 import TreasureHoardGenerator from './TreasureHoardGenerator';
 import TrinketGenerator from './TrinketGenerator';
 import MundaneShopGenerator from './MundaneShopGenerator';
@@ -49,12 +50,14 @@ export default function GeneratorsTab({
   campaignContext,
   renderNames,
   renderLocations,
+  onAddToCampaign,
 }: {
   logs: GeneratorLogs;
   onLogsChange: (next: GeneratorLogs) => void;
   campaignContext?: CampaignContext;
   renderNames: () => React.ReactNode;
   renderLocations: () => React.ReactNode;
+  onAddToCampaign?: (kind: LogKind) => (dest: CampaignDestKey, items: SelectableItem[]) => void;
 }) {
   const [active, setActive] = useState<GenSlug>('treasure-hoard');
 
@@ -89,29 +92,34 @@ export default function GeneratorsTab({
     [logs, onLogsChange],
   );
 
+  const addFor = useCallback(
+    (kind: LogKind) => (onAddToCampaign ? onAddToCampaign(kind) : undefined),
+    [onAddToCampaign],
+  );
+
   const ActiveComponent = useMemo(() => {
     switch (active) {
       case 'treasure-hoard':
-        return <TreasureHoardGenerator entries={entriesFor('treasure-hoard')} onEntriesChange={setEntriesFor('treasure-hoard')} campaignContext={campaignContext} />;
+        return <TreasureHoardGenerator entries={entriesFor('treasure-hoard')} onEntriesChange={setEntriesFor('treasure-hoard')} campaignContext={campaignContext} onAddToCampaign={addFor('treasure-hoard')} />;
       case 'trinket':
-        return <TrinketGenerator entries={entriesFor('trinket')} onEntriesChange={setEntriesFor('trinket')} campaignContext={campaignContext} />;
+        return <TrinketGenerator entries={entriesFor('trinket')} onEntriesChange={setEntriesFor('trinket')} campaignContext={campaignContext} onAddToCampaign={addFor('trinket')} />;
       case 'mundane-shop':
-        return <MundaneShopGenerator entries={entriesFor('mundane-shop')} onEntriesChange={setEntriesFor('mundane-shop')} campaignContext={campaignContext} />;
+        return <MundaneShopGenerator entries={entriesFor('mundane-shop')} onEntriesChange={setEntriesFor('mundane-shop')} campaignContext={campaignContext} onAddToCampaign={addFor('mundane-shop')} />;
       case 'magic-shop':
-        return <MagicShopGenerator entries={entriesFor('magic-shop')} onEntriesChange={setEntriesFor('magic-shop')} campaignContext={campaignContext} />;
+        return <MagicShopGenerator entries={entriesFor('magic-shop')} onEntriesChange={setEntriesFor('magic-shop')} campaignContext={campaignContext} onAddToCampaign={addFor('magic-shop')} />;
       case 'tavern':
-        return <TavernGenerator entries={entriesFor('tavern')} onEntriesChange={setEntriesFor('tavern')} campaignContext={campaignContext} />;
+        return <TavernGenerator entries={entriesFor('tavern')} onEntriesChange={setEntriesFor('tavern')} campaignContext={campaignContext} onAddToCampaign={addFor('tavern')} />;
       case 'tavern-name':
-        return <TavernNameGenerator entries={entriesFor('tavern-name')} onEntriesChange={setEntriesFor('tavern-name')} />;
+        return <TavernNameGenerator entries={entriesFor('tavern-name')} onEntriesChange={setEntriesFor('tavern-name')} onAddToCampaign={addFor('tavern-name')} />;
       case 'dungeon':
-        return <DungeonGenerator entries={entriesFor('dungeon')} onEntriesChange={setEntriesFor('dungeon')} campaignContext={campaignContext} />;
+        return <DungeonGenerator entries={entriesFor('dungeon')} onEntriesChange={setEntriesFor('dungeon')} campaignContext={campaignContext} onAddToCampaign={addFor('dungeon')} />;
       case 'settlement':
-        return <SettlementGenerator entries={entriesFor('settlement')} onEntriesChange={setEntriesFor('settlement')} campaignContext={campaignContext} />;
+        return <SettlementGenerator entries={entriesFor('settlement')} onEntriesChange={setEntriesFor('settlement')} campaignContext={campaignContext} onAddToCampaign={addFor('settlement')} />;
       case 'names': return renderNames();
       case 'locations': return renderLocations();
       default: return null;
     }
-  }, [active, entriesFor, setEntriesFor, renderNames, renderLocations, campaignContext]);
+  }, [active, entriesFor, setEntriesFor, renderNames, renderLocations, campaignContext, addFor]);
 
   return (
     <div className="space-y-3">

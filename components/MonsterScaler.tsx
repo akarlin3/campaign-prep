@@ -5,7 +5,9 @@ import { Sparkles, Loader2, Copy, Check, Wand2, Save } from 'lucide-react';
 import { getFirebaseAuth } from '@/lib/firebase/client';
 import { CR_TO_XP } from '@/lib/encounterMath';
 import GeneratorLog from './generators/GeneratorLog';
+import AddToCampaignPicker from './generators/AddToCampaignPicker';
 import { appendToLog, makeLogEntry, type LogEntry } from '@/lib/generators/log';
+import type { CampaignDestKey, SelectableItem } from '@/lib/generators/addToCampaign';
 
 const CR_OPTIONS: string[] = [
   '0', '1/8', '1/4', '1/2', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
@@ -223,9 +225,11 @@ function ScaledStatBlock({ m }: { m: ScaledMonster }) {
 export default function MonsterScaler({
   logEntries,
   onLogEntriesChange,
+  onAddToCampaign,
 }: {
   logEntries: LogEntry[];
   onLogEntriesChange: (next: LogEntry[]) => void;
+  onAddToCampaign?: (dest: CampaignDestKey, items: SelectableItem[]) => void;
 }) {
   const [description, setDescription] = useState('');
   const [cr, setCr] = useState('5');
@@ -352,6 +356,13 @@ export default function MonsterScaler({
             </button>
           </div>
           <ScaledStatBlock m={monster} />
+          {onAddToCampaign && (
+            <AddToCampaignPicker
+              kind="monster-scale"
+              payload={monster}
+              onAdd={onAddToCampaign}
+            />
+          )}
         </div>
       )}
 
@@ -362,6 +373,7 @@ export default function MonsterScaler({
         renderPayload={(entry) => <ScaledStatBlock m={entry.payload as ScaledMonster} />}
         copyText={(e) => statblockToText(e.payload as ScaledMonster)}
         emptyHint="Scale a monster, then click 'Save to log' to keep it here."
+        onAddToCampaign={onAddToCampaign}
       />
     </div>
   );
