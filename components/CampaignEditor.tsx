@@ -1164,8 +1164,46 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
 
   return (
     <main className="min-h-screen p-3 sm:p-5 md:p-8">
-      <div className="max-w-3xl mx-auto">
-        <div className="bg-parchment-soft border border-rule rounded-lg shadow-page p-3 sm:p-5 md:p-8 space-y-4">
+      <div className="max-w-5xl mx-auto flex flex-col md:flex-row md:items-start gap-3 md:gap-4">
+        <aside className="md:w-44 md:flex-shrink-0 md:sticky md:top-3">
+          <nav
+            role="tablist"
+            aria-label="Campaign sections"
+            className="flex md:flex-col border border-rule rounded font-display uppercase tracking-wider text-xs bg-parchment-soft overflow-x-auto md:overflow-x-visible"
+          >
+            {([
+              ['prep', 'Prep Flow'],
+              ['ref', 'Reference'],
+              ['track', 'Tracking'],
+              ['down', 'Downtime'],
+              ['dice', 'Dice'],
+              ['spells', 'Spells'],
+              ['generators', 'Generators'],
+              ['names', 'Names'],
+              ['locations', 'Locations'],
+              ['monsters', 'Monsters'],
+              ['dmref', 'DM Ref'],
+            ] as const).map(([id, label], i) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={tab === id}
+                onClick={() => setTab(id)}
+                className={`px-3 py-2 text-left whitespace-nowrap transition-colors ${
+                  i > 0 ? 'border-l md:border-l-0 md:border-t border-rule' : ''
+                } ${
+                  tab === id
+                    ? 'bg-crimson text-parchment'
+                    : 'text-ink-soft hover:bg-parchment-deep'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </nav>
+        </aside>
+        <div className="flex-1 min-w-0 bg-parchment-soft border border-rule rounded-lg shadow-page p-3 sm:p-5 md:p-8 space-y-4">
           <header className="pb-4 border-b border-rule">
             <div className="flex items-center justify-between gap-2 mb-3">
               <Link href="/campaign" className="text-xs text-brass-deep hover:text-crimson font-display uppercase tracking-wider flex items-center gap-1">
@@ -1221,50 +1259,8 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               </div>
             </div>
 
-            <div className="mt-3 flex flex-wrap items-start gap-x-3 gap-y-2 justify-between">
-              <div className="flex flex-col gap-1" role="tablist" aria-label="Campaign sections">
-                {(() => {
-                  const allTabs = [
-                    ['prep', 'Prep Flow'] as const,
-                    ['ref', 'Reference'] as const,
-                    ['track', 'Tracking'] as const,
-                    ['down', 'Downtime'] as const,
-                    ['dice', 'Dice'] as const,
-                    ['spells', 'Spells'] as const,
-                    ['generators', 'Generators'] as const,
-                    ['names', 'Names'] as const,
-                    ['locations', 'Locations'] as const,
-                    ['monsters', 'Monsters'] as const,
-                    ['dmref', 'DM Ref'] as const,
-                  ];
-                  const half = Math.ceil(allTabs.length / 2);
-                  const rows = [allTabs.slice(0, half), allTabs.slice(half)];
-                  return rows.map((row, rowIdx) => (
-                    <div
-                      key={rowIdx}
-                      className="inline-flex border border-rule rounded overflow-hidden font-display uppercase tracking-wider text-xs whitespace-nowrap self-start"
-                    >
-                      {row.map(([id, label], i) => (
-                        <button
-                          key={id}
-                          type="button"
-                          role="tab"
-                          aria-selected={tab === id}
-                          onClick={() => setTab(id)}
-                          className={`px-3 py-1.5 transition-colors ${i > 0 ? 'border-l border-rule' : ''} ${
-                            tab === id
-                              ? 'bg-crimson text-parchment'
-                              : 'text-ink-soft hover:bg-parchment-deep'
-                          }`}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  ));
-                })()}
-              </div>
-              <div className="text-xs text-brass-deep font-display uppercase tracking-wider ml-auto">
+            <div className="mt-3 flex justify-end">
+              <div className="text-xs text-brass-deep font-display uppercase tracking-wider">
                 {completedCount} Steps Done
               </div>
             </div>
