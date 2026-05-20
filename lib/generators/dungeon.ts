@@ -2,13 +2,14 @@ import { rollOn } from '@/lib/tables/roll';
 import { makeRng, type SeededRng } from './rng';
 import {
   EXIT_TYPE_WEIGHTS,
-  HAZARD_TABLE,
+  HAZARD_TABLE_BY_CATEGORY,
   INHABITANTS_BY_THEME_TIER,
   ROOM_CONTENT_KINDS,
-  ROOM_DESCRIPTIONS_BY_KIND,
-  ROOM_DRESSING,
-  ROOM_NAME_NOUNS,
+  ROOM_DESCRIPTIONS_BY_CATEGORY,
+  ROOM_DRESSING_BY_CATEGORY,
+  ROOM_NAME_NOUNS_BY_THEME,
   SIZE_TO_ROOM_COUNT,
+  THEME_CATEGORY,
   THEME_NAME_PREFIXES,
   THEME_NAME_SUFFIXES,
   type DungeonChallengeTier,
@@ -67,7 +68,8 @@ function makeRoom(
   rng: SeededRng,
 ): DungeonRoom {
   const kind = pickKind(rng);
-  let contents = rollOn(ROOM_DESCRIPTIONS_BY_KIND[kind], rng);
+  const category = THEME_CATEGORY[theme];
+  let contents = rollOn(ROOM_DESCRIPTIONS_BY_CATEGORY[category][kind], rng);
   if (kind === 'monster') {
     const inhabitantPool = INHABITANTS_BY_THEME_TIER[theme][tier];
     if (inhabitantPool && inhabitantPool.length) {
@@ -76,9 +78,9 @@ function makeRoom(
   }
   return {
     index,
-    name: `${rollOn(ROOM_NAME_NOUNS, rng)} ${index}`,
+    name: `${rollOn(ROOM_NAME_NOUNS_BY_THEME[theme], rng)} ${index}`,
     contents,
-    dressing: rollOn(ROOM_DRESSING, rng),
+    dressing: rollOn(ROOM_DRESSING_BY_CATEGORY[category], rng),
     kind: kind as DungeonRoomKind,
   };
 }
@@ -219,6 +221,8 @@ export function generateDungeon(
   rng: SeededRng,
 ): DungeonResult {
   const count = SIZE_TO_ROOM_COUNT[inputs.size];
+  const category = THEME_CATEGORY[inputs.theme];
+  const hazardPool = HAZARD_TABLE_BY_CATEGORY[category];
 
   const rooms: DungeonRoom[] = [];
   for (let i = 1; i <= count; i++) {
@@ -226,12 +230,11 @@ export function generateDungeon(
   }
 
   layoutRooms(rooms, rng);
-
   const hazardCount = rng.int(2, 4);
   const hazards: string[] = [];
   const usedHaz = new Set<string>();
   while (hazards.length < hazardCount) {
-    const h = rollOn(HAZARD_TABLE, rng);
+    const h = rollOn(hazardPool, rng);
     if (usedHaz.has(h)) continue;
     usedHaz.add(h);
     hazards.push(h);

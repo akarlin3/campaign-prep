@@ -279,7 +279,22 @@ export type DungeonResult = {
   seed: number;
   inputs: {
     size: 'small' | 'medium' | 'large' | 'sprawling';
-    theme: 'ruin' | 'lair' | 'tomb' | 'stronghold' | 'temple' | 'cave' | 'sewer';
+    theme:
+      | 'ruin'
+      | 'lair'
+      | 'tomb'
+      | 'stronghold'
+      | 'temple'
+      | 'cave'
+      | 'sewer'
+      | 'manor'
+      | 'mine'
+      | 'ship'
+      | 'woods'
+      | 'swamp'
+      | 'mountain'
+      | 'frozen'
+      | 'city';
     challengeTier: '0-4' | '5-10' | '11-16' | '17+';
   };
   name: string;

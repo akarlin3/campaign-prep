@@ -38,6 +38,14 @@ const THEME_OPTIONS: { value: DungeonTheme; label: string }[] = [
   { value: 'temple', label: 'Temple' },
   { value: 'cave', label: 'Cave' },
   { value: 'sewer', label: 'Sewer' },
+  { value: 'manor', label: 'Manor / Mansion' },
+  { value: 'mine', label: 'Mine / Quarry' },
+  { value: 'ship', label: 'Ship / Wreck' },
+  { value: 'woods', label: 'Woods / Forest' },
+  { value: 'swamp', label: 'Swamp / Marsh' },
+  { value: 'mountain', label: 'Mountain Pass' },
+  { value: 'frozen', label: 'Frozen Wastes' },
+  { value: 'city', label: 'City Streets' },
 ];
 
 const TIER_OPTIONS: { value: DungeonChallengeTier; label: string }[] = [

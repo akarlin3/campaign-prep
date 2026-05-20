@@ -143,6 +143,25 @@ describe('generateDungeon', () => {
     });
   });
 
+  it('every theme + tier combination produces a valid dungeon', () => {
+    const themes = [
+      'ruin', 'lair', 'tomb', 'stronghold', 'temple', 'cave', 'sewer',
+      'manor', 'mine', 'ship', 'woods', 'swamp', 'mountain', 'frozen', 'city',
+    ] as const;
+    const tiers = ['0-4', '5-10', '11-16', '17+'] as const;
+    for (const theme of themes) {
+      for (const tier of tiers) {
+        const r = generateDungeon({ size: 'small', theme, challengeTier: tier }, makeRng(31));
+        assert.equal(r.details.rooms.length, 5, `${theme}/${tier} room count`);
+        assert.ok(r.name, `${theme}/${tier} missing name`);
+        assert.ok(r.details.hazards.length >= 2, `${theme}/${tier} hazards`);
+        assert.ok(r.details.inhabitants.length >= 1, `${theme}/${tier} inhabitants`);
+        for (const rm of r.details.rooms) {
+          assert.ok(rm.name && rm.contents && rm.dressing, `${theme}/${tier} room ${rm.index} fields`);
+        }
+      }
+    }
+  });
   it('placed rooms have unique, non-overlapping spatial footprints', () => {
     for (let seed = 0; seed < 20; seed++) {
       const r = generateDungeon({ size: 'medium', theme: 'cave', challengeTier: '5-10' }, makeRng(seed));
