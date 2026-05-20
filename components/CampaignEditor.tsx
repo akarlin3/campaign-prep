@@ -48,6 +48,7 @@ import {
   makeCharacterId,
   normalizeCharacter,
 } from '@/lib/character-schema';
+import { pushSnapshot, popSnapshot, type Snapshot } from '@/lib/undoStack';
 
 const M = {
   shea: { label: 'Lazy DM', color: 'border-moss/40 bg-moss/5 text-moss' },
@@ -1110,6 +1111,18 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const initialLoadRef = useRef(true);
 
+  const undoStackRef = useRef<Snapshot[]>([]);
+  const previousSnapRef = useRef<Snapshot | null>(null);
+  const skipNextSnapshotRef = useRef(false);
+  const [canUndo, setCanUndo] = useState(false);
+  const [undoToast, setUndoToast] = useState('');
+  const undoToastTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const showUndoToast = useCallback((msg: string, ms = 2000) => {
+    if (undoToastTimerRef.current) clearTimeout(undoToastTimerRef.current);
+    setUndoToast(msg);
+    undoToastTimerRef.current = setTimeout(() => setUndoToast(''), ms);
+  }, []);
+
   const saveToDB = useCallback(async (payload: { name: string; data: Record<string, any>; done: Record<string, boolean> }) => {
     setSyncState('saving');
     try {
@@ -1123,7 +1136,21 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
   }, [campaign.id]);
 
   useEffect(() => {
-    if (initialLoadRef.current) { initialLoadRef.current = false; return; }
+    if (initialLoadRef.current) {
+      initialLoadRef.current = false;
+      previousSnapRef.current = { state, done, name, ts: Date.now() };
+      return;
+    }
+    // Push the previous state as the snapshot the user would undo *to* —
+    // unless this change is itself an undo (we don't want to re-snapshot
+    // what we just restored).
+    if (!skipNextSnapshotRef.current && previousSnapRef.current) {
+      undoStackRef.current = pushSnapshot(undoStackRef.current, previousSnapRef.current);
+      setCanUndo(undoStackRef.current.length > 0);
+    }
+    skipNextSnapshotRef.current = false;
+    previousSnapRef.current = { state, done, name, ts: Date.now() };
+
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     setSyncState('pending');
     saveTimeoutRef.current = setTimeout(() => { saveToDB({ name, data: { ...state, __soloMode: soloMode }, done }); }, 1500);
@@ -1175,9 +1202,10 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
   };
   const removeSessionLog = (id: string) => {
     const log = sessionLogs.find(l => l.id === id);
-    if (log && (log.body || '').trim() && !confirm(`Delete "${log.title || 'this session log'}"? This cannot be undone.`)) return;
     setVal('sessionLogs', sessionLogs.filter(l => l.id !== id));
     setOpenLogs(o => { const next = { ...o }; delete next[id]; return next; });
+    const title = log?.title || 'session log';
+    showUndoToast(`Deleted "${title}" — Press ⌘Z to undo`, 5000);
   };
 
   const characters = (state.characters as Character[]) || [];
@@ -1191,10 +1219,10 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
   };
   const removeCharacter = (id: string) => {
     const c = characters.find(x => x.id === id);
-    const label = c?.name || 'this character';
-    if (!confirm(`Delete "${label}"? This cannot be undone.`)) return;
+    const label = c?.name || 'character';
     setVal('characters', characters.filter(x => x.id !== id));
     setOpenChars(o => { const next = { ...o }; delete next[id]; return next; });
+    showUndoToast(`Deleted "${label}" — Press ⌘Z to undo`, 5000);
   };
 
   const uploadCharacterSheet = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1420,6 +1448,24 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setPaletteOpen(p => !p);
+        return;
+      }
+      // Cmd/Ctrl+Z outside an editable element steps back through the in-memory
+      // snapshot stack. Inside inputs/textareas we let the browser's native
+      // undo handle the field instead.
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+        if (isTyping(e.target)) return;
+        const { snap, next } = popSnapshot(undoStackRef.current);
+        if (snap) {
+          skipNextSnapshotRef.current = true;
+          setState(snap.state);
+          setDone(snap.done);
+          setName(snap.name);
+          undoStackRef.current = next;
+          setCanUndo(next.length > 0);
+          showUndoToast(snap.description || 'Undid last change');
+        }
+        e.preventDefault();
         return;
       }
       if (isTyping(e.target)) return;
@@ -2623,9 +2669,9 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
           };
           const removeEntry = (id: string) => {
             const entry = downtime.find(e => e.id === id);
-            const typeLabel = DOWNTIME_TYPES.find(t => t.id === entry?.type)?.label || 'this entry';
-            if (!confirm(`Delete "${typeLabel}"? This cannot be undone.`)) return;
+            const typeLabel = DOWNTIME_TYPES.find(t => t.id === entry?.type)?.label || 'entry';
             setVal('downtime', downtime.filter(e => e.id !== id));
+            showUndoToast(`Deleted "${typeLabel}" — Press ⌘Z to undo`, 5000);
           };
 
           const groupedActive = DOWNTIME_TYPES
@@ -2888,6 +2934,15 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
       </button>
 
       <SyncPill />
+
+      {undoToast && (
+        <div
+          role="status"
+          className="fixed bottom-4 left-16 z-40 px-3 py-1.5 rounded-full shadow-page border border-brass-deep/70 bg-parchment text-brass-deep text-xs font-display uppercase tracking-wider flex items-center gap-2"
+        >
+          {undoToast}
+        </div>
+      )}
     </main>
   );
 }
