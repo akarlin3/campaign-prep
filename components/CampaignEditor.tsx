@@ -949,16 +949,20 @@ const EncounterHelper = ({
 };
 
 const RENOWN_RANKS: Array<{ min: number; label: string }> = [
-  { min: 50, label: 'Legend' },
-  { min: 25, label: 'Honored' },
-  { min: 10, label: 'Established' },
-  { min: 3,  label: 'Trusted' },
-  { min: 1,  label: 'Initiate' },
-  { min: 0,  label: 'Unknown' },
+  { min: 50,  label: 'Legend' },
+  { min: 25,  label: 'Honored' },
+  { min: 10,  label: 'Established' },
+  { min: 3,   label: 'Trusted' },
+  { min: 1,   label: 'Initiate' },
+  { min: 0,   label: 'Unknown' },
+  { min: -2,  label: 'Distrusted' },
+  { min: -9,  label: 'Disliked' },
+  { min: -24, label: 'Hostile' },
+  { min: -49, label: 'Despised' },
 ];
 
 function renownRank(value: number, custom?: string[]): string {
-  if (custom && custom.length === 6) {
+  if (custom && custom.length === 6 && value >= 0) {
     if (value >= 50) return custom[5];
     if (value >= 25) return custom[4];
     if (value >= 10) return custom[3];
@@ -969,7 +973,7 @@ function renownRank(value: number, custom?: string[]): string {
   for (const r of RENOWN_RANKS) {
     if (value >= r.min) return r.label;
   }
-  return 'Unknown';
+  return 'Enemy';
 }
 
 const Phase = ({ n, title, sub, methods, children, expanded, onToggle, icon: Icon }: any) => (
