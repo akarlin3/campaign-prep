@@ -1,13 +1,14 @@
 import { rollOn } from '@/lib/tables/roll';
 import type { SeededRng } from './rng';
 import {
-  HAZARD_TABLE,
+  HAZARD_TABLE_BY_CATEGORY,
   INHABITANTS_BY_THEME_TIER,
   ROOM_CONTENT_KINDS,
-  ROOM_DESCRIPTIONS_BY_KIND,
-  ROOM_DRESSING,
-  ROOM_NAME_NOUNS,
+  ROOM_DESCRIPTIONS_BY_CATEGORY,
+  ROOM_DRESSING_BY_CATEGORY,
+  ROOM_NAME_NOUNS_BY_THEME,
   SIZE_TO_ROOM_COUNT,
+  THEME_CATEGORY,
   THEME_NAME_PREFIXES,
   THEME_NAME_SUFFIXES,
   type DungeonChallengeTier,
@@ -25,6 +26,10 @@ function dungeonName(theme: DungeonTheme, rng: SeededRng): string {
 
 function generateRooms(count: number, theme: DungeonTheme, tier: DungeonChallengeTier, rng: SeededRng): DungeonRoom[] {
   const rooms: DungeonRoom[] = [];
+  const category = THEME_CATEGORY[theme];
+  const descriptions = ROOM_DESCRIPTIONS_BY_CATEGORY[category];
+  const dressingPool = ROOM_DRESSING_BY_CATEGORY[category];
+  const nameNouns = ROOM_NAME_NOUNS_BY_THEME[theme];
   const inhabitantPool = INHABITANTS_BY_THEME_TIER[theme][tier];
   for (let i = 1; i <= count; i++) {
     const totalWeight = ROOM_CONTENT_KINDS.reduce((s, k) => s + k.weight, 0);
@@ -34,15 +39,15 @@ function generateRooms(count: number, theme: DungeonTheme, tier: DungeonChalleng
       r -= k.weight;
       if (r < 0) { kind = k.value; break; }
     }
-    let contents = rollOn(ROOM_DESCRIPTIONS_BY_KIND[kind], rng);
+    let contents = rollOn(descriptions[kind], rng);
     if (kind === 'monster' && inhabitantPool && inhabitantPool.length) {
       contents = `${contents} (${rollOn(inhabitantPool, rng)})`;
     }
     rooms.push({
       index: i,
-      name: `${rollOn(ROOM_NAME_NOUNS, rng)} ${i}`,
+      name: `${rollOn(nameNouns, rng)} ${i}`,
       contents,
-      dressing: rollOn(ROOM_DRESSING, rng),
+      dressing: rollOn(dressingPool, rng),
     });
   }
   return rooms;
@@ -54,11 +59,13 @@ export function generateDungeon(
 ): DungeonResult {
   const count = SIZE_TO_ROOM_COUNT[inputs.size];
   const rooms = generateRooms(count, inputs.theme, inputs.challengeTier, rng);
+  const category = THEME_CATEGORY[inputs.theme];
+  const hazardPool = HAZARD_TABLE_BY_CATEGORY[category];
   const hazardCount = rng.int(2, 4);
   const hazards: string[] = [];
   const usedHaz = new Set<string>();
   while (hazards.length < hazardCount) {
-    const h = rollOn(HAZARD_TABLE, rng);
+    const h = rollOn(hazardPool, rng);
     if (usedHaz.has(h)) continue;
     usedHaz.add(h);
     hazards.push(h);
