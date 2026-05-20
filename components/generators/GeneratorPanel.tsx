@@ -17,6 +17,8 @@ import { useAuth } from '@/lib/firebase/auth-context';
 import { makeRng, type SeededRng } from '@/lib/generators/rng';
 import { hasCampaignContext, type CampaignContext, type GeneratorResult } from '@/lib/generators/types';
 import GeneratorLog from './GeneratorLog';
+import AddToCampaignPicker from './AddToCampaignPicker';
+import type { CampaignDestKey, SelectableItem } from '@/lib/generators/addToCampaign';
 import {
   appendToLog,
   makeLogEntry,
@@ -70,6 +72,10 @@ export type GeneratorPanelProps<Inputs extends Record<string, string | number>, 
     label?: string;
     onSave: (result: R) => void;
   };
+  // When present, the Add-to-Campaign picker is rendered under the live result
+  // and under each log row. Caller folds the (dest, items) selection into the
+  // campaign data via `buildPatch` from lib/generators/addToCampaign.
+  onAddToCampaign?: (dest: CampaignDestKey, items: SelectableItem[]) => void;
 };
 
 function deriveInputs<I extends Record<string, string | number>>(specs: InputSpec[], state: Record<string, string | number>): I {
@@ -89,7 +95,7 @@ function deriveInputs<I extends Record<string, string | number>>(specs: InputSpe
 export function GeneratorPanel<I extends Record<string, string | number>, R extends GeneratorResult>(
   props: GeneratorPanelProps<I, R>,
 ) {
-  const { title, description, inputs, generate, enhance, renderResult, onEnhanced, log, campaignContext, saveToCampaign } = props;
+  const { title, description, inputs, generate, enhance, renderResult, onEnhanced, log, campaignContext, saveToCampaign, onAddToCampaign } = props;
   const { isPro } = useAuth();
   const hasContext = hasCampaignContext(campaignContext);
 
@@ -308,6 +314,13 @@ export function GeneratorPanel<I extends Record<string, string | number>, R exte
               onUpdate: setResult,
             })}
           </div>
+          {onAddToCampaign && log && (
+            <AddToCampaignPicker
+              kind={log.kind}
+              payload={result}
+              onAdd={onAddToCampaign}
+            />
+          )}
         </div>
       )}
 
@@ -328,6 +341,7 @@ export function GeneratorPanel<I extends Record<string, string | number>, R exte
             </div>
           )}
           copyText={log.copyText ? (e) => log.copyText!(e.payload as R) : undefined}
+          onAddToCampaign={onAddToCampaign}
         />
       )}
     </div>

@@ -5,6 +5,7 @@ import { generateTreasureHoard } from '@/lib/generators/treasure-hoard';
 import type { CampaignContext, TreasureHoardResult } from '@/lib/generators/types';
 import type { CrTier, HoardType } from '@/lib/generators/tables/treasure-hoard-tables';
 import type { LogEntry } from '@/lib/generators/log';
+import type { CampaignDestKey, SelectableItem } from '@/lib/generators/addToCampaign';
 
 const INPUTS: InputSpec[] = [
   {
@@ -46,11 +47,13 @@ export default function TreasureHoardGenerator({
   onEntriesChange,
   campaignContext,
   saveToCampaign,
+  onAddToCampaign,
 }: {
   entries: LogEntry[];
   onEntriesChange: (next: LogEntry[]) => void;
   campaignContext?: CampaignContext;
   saveToCampaign?: { label?: string; onSave: (result: TreasureHoardResult) => void };
+  onAddToCampaign?: (dest: CampaignDestKey, items: SelectableItem[]) => void;
 }) {
   return (
     <GeneratorPanel<{ crTier: string; hoardType: string }, TreasureHoardResult>
@@ -61,6 +64,7 @@ export default function TreasureHoardGenerator({
       enhance={{ kind: 'treasure-hoard' }}
       campaignContext={campaignContext}
       saveToCampaign={saveToCampaign}
+      onAddToCampaign={onAddToCampaign}
       log={{
         kind: 'treasure-hoard',
         entries,

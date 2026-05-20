@@ -5,6 +5,7 @@ import { generateTavern } from '@/lib/generators/tavern';
 import type { TavernVibe } from '@/lib/generators/tables/tavern-tables';
 import type { CampaignContext, SettlementSizeClass, TavernResult } from '@/lib/generators/types';
 import type { LogEntry } from '@/lib/generators/log';
+import type { CampaignDestKey, SelectableItem } from '@/lib/generators/addToCampaign';
 
 const SETTLEMENT_OPTIONS: { value: SettlementSizeClass; label: string }[] = [
   { value: 'thorp', label: 'Thorp' },
@@ -51,11 +52,13 @@ export default function TavernGenerator({
   onEntriesChange,
   campaignContext,
   saveToCampaign,
+  onAddToCampaign,
 }: {
   entries: LogEntry[];
   onEntriesChange: (next: LogEntry[]) => void;
   campaignContext?: CampaignContext;
   saveToCampaign?: { label?: string; onSave: (result: TavernResult) => void };
+  onAddToCampaign?: (dest: CampaignDestKey, items: SelectableItem[]) => void;
 }) {
   return (
     <GeneratorPanel<{ vibe: string; settlementSize: string; themeKeyword: string }, TavernResult>
@@ -75,6 +78,7 @@ export default function TavernGenerator({
       enhance={{ kind: 'tavern' }}
       campaignContext={campaignContext}
       saveToCampaign={saveToCampaign}
+      onAddToCampaign={onAddToCampaign}
       log={{
         kind: 'tavern',
         entries,

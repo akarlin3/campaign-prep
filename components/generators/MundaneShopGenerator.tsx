@@ -5,6 +5,7 @@ import { generateMundaneShop } from '@/lib/generators/mundane-shop';
 import { SHOP_TYPES, type ShopType } from '@/lib/generators/tables/shop-tables';
 import type { CampaignContext, MundaneShopResult, SettlementSizeClass } from '@/lib/generators/types';
 import type { LogEntry } from '@/lib/generators/log';
+import type { CampaignDestKey, SelectableItem } from '@/lib/generators/addToCampaign';
 
 const SETTLEMENT_OPTIONS: { value: SettlementSizeClass; label: string }[] = [
   { value: 'thorp', label: 'Thorp (≤20)' },
@@ -44,11 +45,13 @@ export default function MundaneShopGenerator({
   onEntriesChange,
   campaignContext,
   saveToCampaign,
+  onAddToCampaign,
 }: {
   entries: LogEntry[];
   onEntriesChange: (next: LogEntry[]) => void;
   campaignContext?: CampaignContext;
   saveToCampaign?: { label?: string; onSave: (result: MundaneShopResult) => void };
+  onAddToCampaign?: (dest: CampaignDestKey, items: SelectableItem[]) => void;
 }) {
   return (
     <GeneratorPanel<{ shopType: string; settlementSize: string }, MundaneShopResult>
@@ -64,6 +67,7 @@ export default function MundaneShopGenerator({
       enhance={{ kind: 'mundane-shop' }}
       campaignContext={campaignContext}
       saveToCampaign={saveToCampaign}
+      onAddToCampaign={onAddToCampaign}
       log={{
         kind: 'mundane-shop',
         entries,

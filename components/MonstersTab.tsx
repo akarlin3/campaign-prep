@@ -21,6 +21,8 @@ import MonsterScaler from './MonsterScaler';
 import EncounterBuilder from './EncounterBuilder';
 import GeneratorLog from './generators/GeneratorLog';
 import { appendToLog, makeLogEntry, type LogEntry } from '@/lib/generators/log';
+import type { CampaignDestKey, SelectableItem } from '@/lib/generators/addToCampaign';
+import AddToCampaignPicker from './generators/AddToCampaignPicker';
 import type { Character } from '@/lib/character-schema';
 
 type Mode = 'roll' | 'scale' | 'build' | 'homebrew';
@@ -410,6 +412,8 @@ export default function MonstersTab({
   onRollLogEntriesChange,
   scaleLogEntries,
   onScaleLogEntriesChange,
+  onAddRollToCampaign,
+  onAddScaleToCampaign,
 }: {
   characters?: Character[];
   homebrewMonsters: HomebrewMonster[];
@@ -418,6 +422,8 @@ export default function MonstersTab({
   onRollLogEntriesChange: (next: LogEntry[]) => void;
   scaleLogEntries: LogEntry[];
   onScaleLogEntriesChange: (next: LogEntry[]) => void;
+  onAddRollToCampaign?: (dest: CampaignDestKey, items: SelectableItem[]) => void;
+  onAddScaleToCampaign?: (dest: CampaignDestKey, items: SelectableItem[]) => void;
 }) {
   const { isPro } = useAuth();
   const [mode, setMode] = useState<Mode>('roll');
@@ -580,6 +586,7 @@ export default function MonstersTab({
           <MonsterScaler
             logEntries={scaleLogEntries}
             onLogEntriesChange={onScaleLogEntriesChange}
+            onAddToCampaign={onAddScaleToCampaign}
           />
         ) : (
           <LockedPanel title="Scale a Monster to CR">
@@ -760,6 +767,14 @@ export default function MonstersTab({
         </div>
       )}
 
+      {picked && onAddRollToCampaign && (
+        <AddToCampaignPicker
+          kind="monster-roll"
+          payload={picked}
+          onAdd={onAddRollToCampaign}
+        />
+      )}
+
       <GeneratorLog
         kind="monster-roll"
         entries={rollLogEntries}
@@ -767,6 +782,7 @@ export default function MonstersTab({
         renderPayload={(entry) => <StatBlock m={entry.payload as Monster} />}
         copyText={(e) => monsterPlainText(e.payload as Monster)}
         emptyHint="Roll a monster, then click 'Save to log' to keep it here."
+        onAddToCampaign={onAddRollToCampaign}
       />
     </div>
   );

@@ -8,6 +8,8 @@ import { useState } from 'react';
 import { History, ChevronDown, ChevronRight, X, Trash2, Copy, Check } from 'lucide-react';
 import type { LogEntry, LogKind } from '@/lib/generators/log';
 import { removeFromLog, clearLog, timeAgo } from '@/lib/generators/log';
+import AddToCampaignPicker from './AddToCampaignPicker';
+import type { CampaignDestKey, SelectableItem } from '@/lib/generators/addToCampaign';
 
 export type GeneratorLogProps = {
   kind: LogKind;
@@ -16,14 +18,19 @@ export type GeneratorLogProps = {
   renderPayload: (entry: LogEntry) => React.ReactNode;
   emptyHint?: string;
   copyText?: (entry: LogEntry) => string;
+  // When provided, each expanded row shows a picker that hands the user's
+  // selection to this callback. The caller folds the result into campaign data.
+  onAddToCampaign?: (dest: CampaignDestKey, items: SelectableItem[]) => void;
 };
 
 export default function GeneratorLog({
+  kind,
   entries,
   onChange,
   renderPayload,
   emptyHint = "Click 'Save to log' on a result to keep it here.",
   copyText,
+  onAddToCampaign,
 }: GeneratorLogProps) {
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [copied, setCopied] = useState<string | null>(null);
@@ -124,8 +131,15 @@ export default function GeneratorLog({
                   </button>
                 </div>
                 {isOpen && (
-                  <div className="border-t border-rule px-2.5 py-2 bg-parchment">
+                  <div className="border-t border-rule px-2.5 py-2 bg-parchment space-y-2">
                     {renderPayload(e)}
+                    {onAddToCampaign && (
+                      <AddToCampaignPicker
+                        kind={kind}
+                        payload={e.payload}
+                        onAdd={onAddToCampaign}
+                      />
+                    )}
                   </div>
                 )}
               </li>

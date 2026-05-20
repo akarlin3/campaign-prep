@@ -5,7 +5,9 @@ import { Sparkles, Shuffle, Copy, Check, Save } from 'lucide-react';
 import { getFirebaseAuth } from '@/lib/firebase/client';
 import { CULTURE_GROUPS, ALL_CULTURES } from '@/lib/cultures';
 import GeneratorLog from './generators/GeneratorLog';
+import AddToCampaignPicker from './generators/AddToCampaignPicker';
 import { appendToLog, makeLogEntry, type LogEntry } from '@/lib/generators/log';
+import type { CampaignDestKey, SelectableItem } from '@/lib/generators/addToCampaign';
 
 const GENDERS = ['Any', 'Masculine', 'Feminine', 'Androgynous'] as const;
 
@@ -68,9 +70,11 @@ const CultureSelect = ({
 export default function NamesTab({
   logEntries,
   onLogEntriesChange,
+  onAddToCampaign,
 }: {
   logEntries: LogEntry[];
   onLogEntriesChange: (next: LogEntry[]) => void;
+  onAddToCampaign?: (dest: CampaignDestKey, items: SelectableItem[]) => void;
 }) {
   const [firstCulture, setFirstCulture] = useState('Random');
   const [lastCulture, setLastCulture] = useState('Random');
@@ -270,6 +274,13 @@ export default function NamesTab({
               );
             })}
           </div>
+          {onAddToCampaign && (
+            <AddToCampaignPicker
+              kind="names"
+              payload={{ firstCulture, lastCulture, gender, names } satisfies NameLogPayload}
+              onAdd={onAddToCampaign}
+            />
+          )}
         </div>
       )}
 
@@ -280,6 +291,7 @@ export default function NamesTab({
         renderPayload={renderPayload}
         copyText={(e) => namesCopyText(e.payload as NameLogPayload)}
         emptyHint="Generate names, then click 'Save to log' to keep a batch here."
+        onAddToCampaign={onAddToCampaign}
       />
     </div>
   );

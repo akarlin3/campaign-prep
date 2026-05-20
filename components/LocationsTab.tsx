@@ -6,7 +6,9 @@ import { getFirebaseAuth } from '@/lib/firebase/client';
 import { CULTURE_GROUPS, ALL_CULTURES } from '@/lib/cultures';
 import { LOCATION_TYPE_GROUPS, ALL_LOCATION_TYPES } from '@/lib/locations';
 import GeneratorLog from './generators/GeneratorLog';
+import AddToCampaignPicker from './generators/AddToCampaignPicker';
 import { appendToLog, makeLogEntry, type LogEntry } from '@/lib/generators/log';
+import type { CampaignDestKey, SelectableItem } from '@/lib/generators/addToCampaign';
 
 type GeneratedLocation = {
   name: string;
@@ -90,9 +92,11 @@ const CultureSelect = ({
 export default function LocationsTab({
   logEntries,
   onLogEntriesChange,
+  onAddToCampaign,
 }: {
   logEntries: LogEntry[];
   onLogEntriesChange: (next: LogEntry[]) => void;
+  onAddToCampaign?: (dest: CampaignDestKey, items: SelectableItem[]) => void;
 }) {
   const [locationType, setLocationType] = useState('Random');
   const [culture, setCulture] = useState('Random');
@@ -274,6 +278,13 @@ export default function LocationsTab({
               );
             })}
           </div>
+          {onAddToCampaign && (
+            <AddToCampaignPicker
+              kind="locations"
+              payload={{ locationType, culture, locations } satisfies LocationLogPayload}
+              onAdd={onAddToCampaign}
+            />
+          )}
         </div>
       )}
 
@@ -284,6 +295,7 @@ export default function LocationsTab({
         renderPayload={renderPayload}
         copyText={(e) => locationsCopyText(e.payload as LocationLogPayload)}
         emptyHint="Generate locations, then click 'Save to log' to keep a batch here."
+        onAddToCampaign={onAddToCampaign}
       />
     </div>
   );
