@@ -142,6 +142,37 @@ function getTarget(key: string, soloMode: boolean): number {
   return soloMode ? t.solo : t.standard;
 }
 
+// Map each prep target key (TARGETS) to the Section/anchor id it renders under.
+// Used by the Prep Flow's "Next Up" pill to scroll the lowest-progress section
+// into view. "clocks" has no <Section> wrapper, so it points to an id we
+// inject inside Phase 4.
+const SECTION_ID_BY_KEY: Record<string, string> = {
+  gWorld: 'g-world',
+  gFNL: 'g-fnl',
+  lines: 'g-lines',
+  facts: 'facts',
+  factions: 'factions',
+  conflicts: 'conflicts',
+  pcGoals: 'goals',
+  scenes: 's3-scenes',
+  secrets: 's4-secrets',
+  locations: 's5-loc',
+  npcs: 's6-npc',
+  monsters: 's7-mon',
+  items: 's8-rew',
+  clocks: 'clocks',
+};
+
+// Parent Phase id for each prep target — used to ensure the right Phase is
+// expanded before scrolling.
+const PHASE_ID_BY_KEY: Record<string, string> = {
+  gWorld: 'p0', gFNL: 'p0', lines: 'p0',
+  facts: 'p1', factions: 'p1', conflicts: 'p1',
+  pcGoals: 'p2',
+  scenes: 'p3', secrets: 'p3', locations: 'p3', npcs: 'p3', monsters: 'p3', items: 'p3',
+  clocks: 'p4',
+};
+
 const Tag = ({ m }: { m: keyof typeof M }) => (
   <span className={`text-[10px] px-1.5 py-0.5 rounded-sm border font-display uppercase tracking-wider ${M[m].color}`}>{M[m].label}</span>
 );
@@ -363,7 +394,7 @@ const ListField = ({
 };
 
 const Section = ({ id, title, methods, children, done, onToggle, open, onToggleOpen, icon: Icon }: any) => (
-  <div data-cp-anchor={`section:${id}`} className={`rounded border ${done ? 'border-brass/60 bg-brass/5' : 'border-rule bg-parchment-soft'} shadow-card`}>
+  <div id={`section-${id}`} data-cp-anchor={`section:${id}`} className={`rounded border ${done ? 'border-brass/60 bg-brass/5' : 'border-rule bg-parchment-soft'} shadow-card`}>
     <div className="flex items-center gap-2 p-2.5 sm:p-3">
       <button onClick={() => onToggle(id)} className={`w-4 h-4 rounded-sm border flex-shrink-0 flex items-center justify-center ${done ? 'bg-brass border-brass-deep text-parchment' : 'border-ink-mute bg-parchment'}`}>
         {done && <Check size={10} strokeWidth={3} />}
@@ -1188,6 +1219,47 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
   };
 
   const completedCount = Object.values(done).filter(Boolean).length;
+
+  // Lowest-progress prep target — drives the "Next Up" pill at the top of the
+  // Prep Flow tab. Picks the section with the largest gap to target, with
+  // ties broken toward the lower current count.
+  const nextUp = useMemo(() => {
+    type Candidate = { id: string; label: string; current: number; target: number; sectionId: string; phaseId: string };
+    const candidates: Candidate[] = [];
+    for (const [key, t] of Object.entries(TARGETS)) {
+      const target = soloMode ? t.solo : t.standard;
+      if (target === 0) continue;
+      const items = state[key];
+      const current = Array.isArray(items) ? items.length : 0;
+      if (current < target) {
+        candidates.push({
+          id: key,
+          label: t.label,
+          current,
+          target,
+          sectionId: SECTION_ID_BY_KEY[key] ?? key,
+          phaseId: PHASE_ID_BY_KEY[key] ?? 'p0',
+        });
+      }
+    }
+    candidates.sort((a, b) => {
+      const gapA = a.target - a.current;
+      const gapB = b.target - b.current;
+      if (gapA !== gapB) return gapB - gapA;
+      return a.current - b.current;
+    });
+    return candidates[0] ?? null;
+  }, [state, soloMode]);
+
+  const jumpToNextUp = useCallback(() => {
+    if (!nextUp) return;
+    setPhaseOpen(p => ({ ...p, [nextUp.phaseId]: true }));
+    setOpen(o => ({ ...o, [nextUp.sectionId]: true }));
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const el = document.getElementById(`section-${nextUp.sectionId}`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }));
+  }, [nextUp]);
 
   const sessionLogs = (state.sessionLogs as SessionLog[]) || [];
   const sortedSessionLogs = [...sessionLogs].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
@@ -2100,6 +2172,29 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
 
         {tab === 'prep' && (
           <div className="space-y-3">
+            {nextUp ? (
+              <div className="rounded border border-brass/40 bg-brass/5 p-3 flex items-center gap-3 shadow-card">
+                <div className="text-[10px] font-display uppercase tracking-wider text-brass-deep flex-shrink-0">
+                  Next Up
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-display text-ink text-sm">{nextUp.label}</div>
+                  <div className="text-xs text-ink-soft font-serif italic">
+                    {nextUp.current} of {nextUp.target} — {nextUp.target - nextUp.current} to go
+                  </div>
+                </div>
+                <button
+                  onClick={jumpToNextUp}
+                  className="text-xs px-3 py-1.5 rounded border border-brass-deep/60 text-brass-deep hover:bg-brass hover:text-parchment hover:border-brass font-display uppercase tracking-wider flex-shrink-0 transition-colors"
+                >
+                  Jump To
+                </button>
+              </div>
+            ) : completedCount > 0 ? (
+              <div className="rounded border border-moss/40 bg-moss/5 p-3 text-sm font-serif italic text-moss text-center">
+                All prep targets met. Ready to run.
+              </div>
+            ) : null}
             <Phase n="0" title="Givens & Pitch" sub="Decide What's Non-Negotiable" methods={['ccd']} icon={Layers} expanded={phaseOpen.p0} onToggle={() => togglePhase('p0')}>
               <BookQuote source="CCD ch. 1">Givens are a set of things your group agrees will feature regardless of how worldbuilding ends up.</BookQuote>
               <Section id="g-world" title="World Facts" methods={['ccd']} done={done['g-world']} onToggle={toggleDone} open={open['g-world']} onToggleOpen={toggleOpen}>
@@ -2424,6 +2519,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                   <p>16 — arc-defining</p>
                 </div>
               </div>
+              <div id="section-clocks" />
               <TargetBar current={(get('clocks', []) as any[]).length} target={getTarget('clocks', soloMode)} source={TARGETS.clocks.source} />
               {(get('clocks', []) as any[]).map((c: any, i: number) => (
                 <ClockCard key={i} data={c} onChange={(v: any) => {
