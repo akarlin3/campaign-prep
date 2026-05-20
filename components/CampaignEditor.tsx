@@ -9,7 +9,7 @@ import {
   ChevronDown, ChevronRight, Check, Plus, X, Quote,
   User, Users, Map, Swords, Gift, Layers, Calendar, Target, Trophy,
   Download, Upload, ScrollText, Trash2, ArrowLeft, Cloud, CloudOff,
-  FileUp, Sparkles, Play, Search, BookOpen, Dice5, Wand2, Skull, Footprints, Hash,
+  FileUp, Sparkles, Play, Search, BookOpen, Dice5, Wand2, Skull, Footprints, Hash, ClipboardList,
 } from 'lucide-react';
 import { TABLES, sampleTable } from '@/lib/inspirationTables';
 import { CR_TO_XP, encounterMultiplier, difficultyForSolo } from '@/lib/encounterMath';
@@ -31,6 +31,7 @@ import type { Trap } from '@/lib/trapTables';
 import InitiativePanel from './InitiativePanel';
 import type { InitiativeState } from '@/lib/initiative';
 import RunSessionView from './RunSessionView';
+import PrepWizardView from './PrepWizardView';
 import SessionLogTab from './SessionLogTab';
 import SessionLogFinalizer from './SessionLogFinalizer';
 import { type ChangeEvent, type ChangeEventKind, makeEvent } from '@/lib/sessionEvents';
@@ -1558,6 +1559,29 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
     );
   }
 
+  const closePrepWizard = () => {
+    setState(s => {
+      const next = { ...s };
+      delete next.__prepWizardOpen;
+      delete next.__prepWizardStep;
+      delete next.__prepWizardCompleted;
+      delete next.__prepWizardStepNotes;
+      return next;
+    });
+  };
+
+  if (get('__prepWizardOpen', false)) {
+    return (
+      <PrepWizardView
+        get={get}
+        setVal={setVal}
+        soloMode={soloMode}
+        onExit={closePrepWizard}
+        onFinish={closePrepWizard}
+      />
+    );
+  }
+
   return (
     <main className="min-h-screen p-3 sm:p-5 md:p-8">
       <div className="max-w-5xl mx-auto flex flex-col md:flex-row md:items-start gap-3 md:gap-4">
@@ -1635,6 +1659,18 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                 <ToolBtn onClick={handleDelete} danger><Trash2 size={12} /> Delete</ToolBtn>
               </div>
               <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVal('__prepWizardOpen', true);
+                    setVal('__prepWizardStep', 1);
+                  }}
+                  disabled={get('__runSessionOpen', false) as boolean}
+                  className="text-xs px-3 py-1.5 rounded border border-moss/60 bg-moss/10 text-moss hover:bg-moss hover:text-parchment font-display uppercase tracking-wider flex items-center gap-1.5 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-moss/10 disabled:hover:text-moss"
+                  title={get('__runSessionOpen', false) ? 'Finish your current session first' : 'Walk through Lazy DM\'s 8-step prep'}
+                >
+                  <ClipboardList size={12} /> Prep Next Session
+                </button>
                 <button
                   type="button"
                   onClick={() => {

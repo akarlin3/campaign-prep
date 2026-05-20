@@ -1,0 +1,182 @@
+'use client';
+
+import { useMemo } from 'react';
+import { X, ArrowLeft, ArrowRight, SkipForward, Check, Flag } from 'lucide-react';
+import type { SessionLogEntry } from '@/lib/sessionLog';
+import { nextSessionNumber } from '@/lib/sessionLog';
+import Step1ReviewCharacters from './prepWizard/Step1ReviewCharacters';
+import Step2StrongStart from './prepWizard/Step2StrongStart';
+import Step3Scenes from './prepWizard/Step3Scenes';
+
+type Get = (k: string, fb: any) => any;
+type SetVal = (k: string, v: any) => void;
+
+type Props = {
+  get: Get;
+  setVal: SetVal;
+  soloMode: boolean;
+  onExit: () => void;
+  onFinish: () => void;
+};
+
+const TOTAL_STEPS = 8;
+
+const SCENE_TARGETS = { standard: 5, solo: 4 };
+
+export default function PrepWizardView({ get, setVal, soloMode, onExit, onFinish }: Props) {
+  const step = (get('__prepWizardStep', 1) as number) || 1;
+  const completed = (get('__prepWizardCompleted', []) as number[]) || [];
+  const notes = (get('__prepWizardStepNotes', {}) as Record<string, string>) || {};
+
+  const logs = (get('sessionLogV2', []) as SessionLogEntry[]) || [];
+  const sessionNumber = useMemo(() => nextSessionNumber(logs), [logs]);
+
+  const setStep = (n: number) => setVal('__prepWizardStep', Math.max(1, Math.min(TOTAL_STEPS, n)));
+  const markCompleted = (n: number) => {
+    if (completed.includes(n)) return;
+    setVal('__prepWizardCompleted', [...completed, n].sort((a, b) => a - b));
+  };
+
+  const hasEdits = Object.values(notes).some(v => v && v.trim().length > 0) || completed.length > 0;
+
+  const tryExit = () => {
+    if (hasEdits && !confirm('Exit without finishing? Your notes will stay saved but the wizard will close.')) return;
+    onExit();
+  };
+
+  const onNext = () => {
+    if (step >= TOTAL_STEPS) {
+      onFinish();
+      return;
+    }
+    markCompleted(step);
+    setStep(step + 1);
+  };
+
+  const onSkip = () => {
+    if (step >= TOTAL_STEPS) {
+      onFinish();
+      return;
+    }
+    setStep(step + 1);
+  };
+
+  const onBack = () => setStep(step - 1);
+
+  const isLast = step === TOTAL_STEPS;
+
+  return (
+    <main className="min-h-screen p-3 sm:p-5 md:p-6">
+      <div className="max-w-3xl mx-auto space-y-4">
+        <header className="space-y-3 pb-3 border-b border-rule">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-3">
+              <h1 className="font-display text-lg sm:text-xl tracking-wide text-ink">
+                Prep Session {sessionNumber}
+              </h1>
+              <span className="text-xs text-ink-mute font-serif italic">
+                Step {step} of {TOTAL_STEPS}
+              </span>
+            </div>
+            <button
+              onClick={tryExit}
+              className="text-ink-mute hover:text-crimson p-1"
+              title="Exit wizard"
+            >
+              <X size={18} />
+            </button>
+          </div>
+          <ProgressStrip step={step} completed={completed} onJump={setStep} />
+        </header>
+
+        <div className="bg-parchment-soft border border-rule rounded-lg shadow-page p-4 sm:p-6">
+          <StepBody step={step} get={get} setVal={setVal} soloMode={soloMode} />
+        </div>
+
+        <footer className="flex items-center justify-between gap-2 pt-2">
+          <button
+            onClick={onBack}
+            disabled={step === 1}
+            className="text-xs px-3 py-1.5 rounded border border-rule text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <ArrowLeft size={12} /> Back
+          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onSkip}
+              className="text-xs px-3 py-1.5 rounded border border-rule text-ink-mute hover:text-ink hover:bg-parchment-deep font-display uppercase tracking-wider flex items-center gap-1.5"
+              title="Skip without marking completed"
+            >
+              <SkipForward size={12} /> Skip
+            </button>
+            <button
+              onClick={onNext}
+              className="text-xs px-3 py-1.5 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment font-display uppercase tracking-wider flex items-center gap-1.5"
+            >
+              {isLast ? <><Flag size={12} /> Finish Prep</> : <>Next <ArrowRight size={12} /></>}
+            </button>
+          </div>
+        </footer>
+      </div>
+    </main>
+  );
+}
+
+function ProgressStrip({ step, completed, onJump }: { step: number; completed: number[]; onJump: (n: number) => void }) {
+  return (
+    <ol className="flex items-center gap-1.5">
+      {Array.from({ length: TOTAL_STEPS }).map((_, i) => {
+        const n = i + 1;
+        const isCurrent = n === step;
+        const isDone = completed.includes(n);
+        return (
+          <li key={n} className="flex-1">
+            <button
+              type="button"
+              onClick={() => onJump(n)}
+              className={`w-full h-2 rounded-full transition-colors ${
+                isCurrent
+                  ? 'bg-crimson'
+                  : isDone
+                    ? 'bg-moss'
+                    : 'bg-parchment-deep hover:bg-rule'
+              }`}
+              title={`Step ${n}${isDone ? ' (completed)' : ''}`}
+            />
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+function StepBody({
+  step, get, setVal, soloMode,
+}: {
+  step: number;
+  get: Get;
+  setVal: SetVal;
+  soloMode: boolean;
+}) {
+  switch (step) {
+    case 1: return <Step1ReviewCharacters get={get} setVal={setVal} />;
+    case 2: return <Step2StrongStart get={get} setVal={setVal} />;
+    case 3: return (
+      <Step3Scenes
+        get={get}
+        setVal={setVal}
+        soloMode={soloMode}
+        standardTarget={SCENE_TARGETS.standard}
+        soloTarget={SCENE_TARGETS.solo}
+      />
+    );
+    default:
+      return (
+        <div className="text-center py-12 space-y-2">
+          <Check size={32} className="mx-auto text-brass-deep" />
+          <p className="font-serif text-ink-soft italic">Step {step} is coming in a later batch.</p>
+          <p className="text-xs text-ink-mute">Hit Next to continue or Skip to advance.</p>
+        </div>
+      );
+  }
+}
