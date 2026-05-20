@@ -9,8 +9,15 @@ export type CommandGroup =
   | 'NPCs'
   | 'Locations'
   | 'Factions'
+  | 'Faction clocks'
   | 'Scenes'
   | 'Secrets'
+  | 'Goals'
+  | 'Magic items'
+  | 'Monsters'
+  | 'Traps'
+  | 'Chases'
+  | 'Downtime'
   | 'Sidekicks'
   | 'Characters'
   | 'Sessions'
@@ -34,10 +41,17 @@ const GROUP_ORDER: CommandGroup[] = [
   'NPCs',
   'Locations',
   'Factions',
+  'Faction clocks',
   'Sidekicks',
   'Characters',
   'Scenes',
   'Secrets',
+  'Goals',
+  'Magic items',
+  'Monsters',
+  'Traps',
+  'Chases',
+  'Downtime',
   'Sessions',
   'Generator log',
 ];

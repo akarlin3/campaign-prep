@@ -1582,6 +1582,121 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
       });
     });
 
+    // PC goals — track progress in the 'track' tab where the goal-progress
+    // card lives, but expose the same prep-tab anchor as a sublabel hint.
+    const goals = (get('pcGoals', []) as Array<{ text?: string; timeframe?: string; status?: string }>);
+    goals.forEach((g, i) => {
+      const text = (g.text || '').trim();
+      if (!text) return;
+      const sub = [g.status, g.timeframe].filter(Boolean).join(' · ');
+      items.push({
+        id: `goal:${i}`,
+        label: text.length > 80 ? `${text.slice(0, 77)}…` : text,
+        sublabel: sub || `PC Goal ${i + 1}`,
+        group: 'Goals',
+        icon: Target,
+        run: () => navigateTo({ tab: 'prep', sectionId: 'goals', anchor: 'section:goals' }),
+      });
+    });
+
+    // Magic items live in the Phase 3 / step 8 prep section as a string list.
+    const magicItems = (get('items', []) as string[]);
+    magicItems.forEach((m, i) => {
+      const text = (m || '').trim();
+      if (!text) return;
+      items.push({
+        id: `magic:${i}`,
+        label: text.length > 80 ? `${text.slice(0, 77)}…` : text,
+        sublabel: `Magic Item ${i + 1}`,
+        group: 'Magic items',
+        icon: Gift,
+        run: () => navigateTo({ tab: 'prep', sectionId: 's8-rew', anchor: 'section:s8-rew' }),
+      });
+    });
+
+    // Faction clocks (Phase 4). No per-card anchor — clock cards aren't
+    // individually addressable today; landing on the tab is the goal.
+    const clocks = (get('clocks', []) as Array<{ text?: string; faction?: string; filled?: number; max?: number }>);
+    clocks.forEach((c, i) => {
+      const text = (c.text || '').trim();
+      const faction = (c.faction || '').trim();
+      const label = text || faction || `Clock ${i + 1}`;
+      const sub = [faction && text ? faction : null, typeof c.filled === 'number' && typeof c.max === 'number' ? `${c.filled}/${c.max}` : null].filter(Boolean).join(' · ');
+      items.push({
+        id: `clock:${i}`,
+        label: label.length > 80 ? `${label.slice(0, 77)}…` : label,
+        sublabel: sub || undefined,
+        group: 'Faction clocks',
+        keywords: [faction],
+        icon: Target,
+        run: () => { setPhaseOpen(p => ({ ...p, p4: true })); navigateTo({ tab: 'prep' }); },
+      });
+    });
+
+    // Homebrew monsters live in their own tab; no in-tab anchor today.
+    const homebrew = (get('homebrewMonsters', []) as Array<{ slug?: string; name?: string; challenge_rating?: string; type?: string }>);
+    homebrew.forEach((m, i) => {
+      const name = (m.name || '').trim() || `Monster ${i + 1}`;
+      const sub = [m.challenge_rating ? `CR ${m.challenge_rating}` : null, m.type].filter(Boolean).join(' · ');
+      items.push({
+        id: `mon:${m.slug || i}`,
+        label: name,
+        sublabel: sub || undefined,
+        group: 'Monsters',
+        keywords: [m.type || ''],
+        icon: Skull,
+        run: () => navigateTo({ tab: 'monsters' }),
+      });
+    });
+
+    const traps = (get('traps', []) as Array<{ id?: string; name?: string; tier?: string; severity?: string }>);
+    traps.forEach((t, i) => {
+      const name = (t.name || '').trim() || `Trap ${i + 1}`;
+      const sub = [t.tier, t.severity].filter(Boolean).join(' · ');
+      items.push({
+        id: `trap:${t.id || i}`,
+        label: name,
+        sublabel: sub || undefined,
+        group: 'Traps',
+        icon: Hash,
+        run: () => navigateTo({ tab: 'traps' }),
+      });
+    });
+
+    const chases = (get('chases', []) as Array<{ id?: string; name?: string; terrain?: string; resolved?: string }>);
+    chases.forEach((c, i) => {
+      const name = (c.name || '').trim() || `Chase ${i + 1}`;
+      const sub = [c.terrain, c.resolved && c.resolved !== 'ongoing' ? c.resolved : null].filter(Boolean).join(' · ');
+      items.push({
+        id: `chase:${c.id || i}`,
+        label: name,
+        sublabel: sub || undefined,
+        group: 'Chases',
+        keywords: [c.terrain || ''],
+        icon: Footprints,
+        run: () => navigateTo({ tab: 'chase' }),
+      });
+    });
+
+    const downtime = (get('downtime', []) as Array<DowntimeEntry>);
+    downtime.forEach((d) => {
+      const typeDef = DOWNTIME_TYPES.find(t => t.id === d.type);
+      const typeLabel = typeDef?.label || d.type || 'Downtime';
+      const firstField = typeDef?.fields?.[0];
+      const summary = firstField ? (d.fields?.[firstField.key] || '').trim() : '';
+      const label = summary || typeLabel;
+      const sub = summary ? typeLabel : (d.archived ? 'Archived' : undefined);
+      items.push({
+        id: `down:${d.id}`,
+        label: label.length > 80 ? `${label.slice(0, 77)}…` : label,
+        sublabel: sub,
+        group: 'Downtime',
+        keywords: [typeLabel],
+        icon: Calendar,
+        run: () => navigateTo({ tab: 'down' }),
+      });
+    });
+
     // Generator log: surface the most recent few per kind. Title is whatever
     // the generator stored — usually a name or one-line summary.
     const LOG_LABEL: Record<string, string> = {
