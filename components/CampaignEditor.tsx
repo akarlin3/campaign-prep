@@ -8,7 +8,7 @@ import { getFirebaseAuth } from '@/lib/firebase/client';
 import {
   ChevronDown, ChevronRight, Check, Plus, X, Quote,
   User, Users, Map, Swords, Gift, Layers, Calendar, Target, Trophy,
-  Download, Upload, ScrollText, Trash2, ArrowLeft, Cloud, CloudOff,
+  Download, Upload, ScrollText, ArrowLeft, Cloud, CloudOff,
   FileUp, Sparkles, Play, Search, BookOpen, Dice5, Wand2, Skull, Footprints, Hash, ClipboardList,
 } from 'lucide-react';
 import { TABLES, sampleTable } from '@/lib/inspirationTables';
@@ -91,10 +91,6 @@ function getTarget(key: string, soloMode: boolean): number {
 
 const Tag = ({ m }: { m: keyof typeof M }) => (
   <span className={`text-[10px] px-1.5 py-0.5 rounded-sm border font-display uppercase tracking-wider ${M[m].color}`}>{M[m].label}</span>
-);
-
-const Flourish = () => (
-  <div className="flourish my-2"><span>❦</span></div>
 );
 
 const BookQuote = ({ source, children }: { source: string; children: React.ReactNode }) => (
@@ -1654,72 +1650,29 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
           </nav>
         </aside>
         <div className="flex-1 min-w-0 bg-parchment-soft border border-rule rounded-lg shadow-page p-3 sm:p-5 md:p-8 space-y-4">
-          <header className="pb-4 border-b border-rule">
-            <div className="flex items-center justify-between gap-2 mb-3">
+          <header className="pb-3 border-b border-rule">
+            <div className="flex items-center justify-between gap-2 mb-2">
               <Link href="/campaign" className="text-xs text-brass-deep hover:text-crimson font-display uppercase tracking-wider flex items-center gap-1">
                 <ArrowLeft size={12} /> All Campaigns
               </Link>
               <div className="flex items-center gap-2">
                 <SyncIndicator />
-                <AccountMenu />
+                <AccountMenu
+                  onExport={exportJSON}
+                  onImport={() => fileInputRef.current?.click()}
+                  onDelete={handleDelete}
+                />
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <ScrollText size={20} className="text-crimson flex-shrink-0" />
               <textarea rows={1} value={name} onChange={(e) => setName(e.target.value)} placeholder="Campaign Name"
-                className="flex-1 min-w-0 bg-transparent border-b border-rule font-display text-xl sm:text-2xl tracking-wide text-ink placeholder:text-ink-faint focus:border-crimson focus:outline-none pb-1 resize-none whitespace-pre-wrap break-words [field-sizing:content]" />
-            </div>
-            <p className="text-sm text-ink-soft italic font-serif mt-1.5">Lazy DM · Collaborative Campaign Design · Proactive Roleplaying</p>
-
-            <Flourish />
-
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 justify-between">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <ToolBtn onClick={() => setPaletteOpen(true)} title="Open command palette (⌘K)">
-                  <Search size={12} /> Search
-                  <kbd className="ml-1 text-[10px] font-display uppercase tracking-wider border border-rule rounded px-1 py-px text-ink-mute">⌘K</kbd>
-                </ToolBtn>
-                <ToolBtn onClick={exportJSON}><Download size={12} /> Export</ToolBtn>
-                <ToolBtn onClick={() => fileInputRef.current?.click()}><Upload size={12} /> Import</ToolBtn>
-                <input ref={fileInputRef} type="file" accept=".json,application/json" onChange={importJSON} className="hidden" />
-                <ToolBtn onClick={handleDelete} danger><Trash2 size={12} /> Delete</ToolBtn>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setVal('__prepWizardOpen', true);
-                    setVal('__prepWizardStep', 1);
-                  }}
-                  disabled={get('__runSessionOpen', false) as boolean}
-                  className="text-xs px-3 py-1.5 rounded border border-moss/60 bg-moss/10 text-moss hover:bg-moss hover:text-parchment font-display uppercase tracking-wider flex items-center gap-1.5 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-moss/10 disabled:hover:text-moss"
-                  title={get('__runSessionOpen', false) ? 'Finish your current session first' : 'Walk through Lazy DM\'s 8-step prep'}
-                >
-                  <ClipboardList size={12} /> Prep Next Session
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const sessionId = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-                    setState(s => ({
-                      ...s,
-                      __activeSessionId: sessionId,
-                      __sessionStartedAt: Date.now(),
-                      __sessionChangeEvents: [],
-                      __sessionUsedScenes: [],
-                      __runSessionOpen: true,
-                    }));
-                  }}
-                  className="text-xs px-3 py-1.5 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment font-display uppercase tracking-wider flex items-center gap-1.5 shadow-sm"
-                  title="Enter Run Session mode for live play"
-                >
-                  <Play size={12} /> Run Session
-                </button>
+                className="flex-1 min-w-[12rem] bg-transparent border-b border-rule font-display text-xl sm:text-2xl tracking-wide text-ink placeholder:text-ink-faint focus:border-crimson focus:outline-none pb-1 resize-none whitespace-pre-wrap break-words [field-sizing:content]" />
               <div
                 role="group"
                 aria-label="Prep target mode"
                 title="Switch prep item targets between solo and group scale"
-                className="inline-flex rounded border border-rule overflow-hidden text-xs font-display uppercase tracking-wider"
+                className="inline-flex rounded border border-rule overflow-hidden text-xs font-display uppercase tracking-wider flex-shrink-0"
               >
                 <button
                   type="button"
@@ -1742,10 +1695,46 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                   <Users size={12} /> Group
                 </button>
               </div>
-              </div>
             </div>
+            <input ref={fileInputRef} type="file" accept=".json,application/json" onChange={importJSON} className="hidden" />
 
-            <div className="mt-3 flex justify-end">
+            <div className="mt-2.5 flex flex-wrap items-center gap-1.5 justify-between">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <ToolBtn onClick={() => setPaletteOpen(true)} title="Open command palette (⌘K)">
+                  <Search size={12} /> Search
+                  <kbd className="ml-1 text-[10px] font-display uppercase tracking-wider border border-rule rounded px-1 py-px text-ink-mute">⌘K</kbd>
+                </ToolBtn>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVal('__prepWizardOpen', true);
+                    setVal('__prepWizardStep', 1);
+                  }}
+                  disabled={get('__runSessionOpen', false) as boolean}
+                  className="text-xs px-3 py-1 rounded border border-moss/60 bg-moss/10 text-moss hover:bg-moss hover:text-parchment font-display uppercase tracking-wider flex items-center gap-1.5 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-moss/10 disabled:hover:text-moss"
+                  title={get('__runSessionOpen', false) ? 'Finish your current session first' : 'Walk through Lazy DM\'s 8-step prep'}
+                >
+                  <ClipboardList size={12} /> Prep Next Session
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const sessionId = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+                    setState(s => ({
+                      ...s,
+                      __activeSessionId: sessionId,
+                      __sessionStartedAt: Date.now(),
+                      __sessionChangeEvents: [],
+                      __sessionUsedScenes: [],
+                      __runSessionOpen: true,
+                    }));
+                  }}
+                  className="text-xs px-3 py-1 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment font-display uppercase tracking-wider flex items-center gap-1.5 shadow-sm"
+                  title="Enter Run Session mode for live play"
+                >
+                  <Play size={12} /> Run Session
+                </button>
+              </div>
               <div className="text-xs text-brass-deep font-display uppercase tracking-wider">
                 {completedCount} Steps Done
               </div>
