@@ -9,7 +9,7 @@ import {
   ChevronDown, ChevronRight, Check, Plus, X, Quote,
   User, Users, Map, Swords, Gift, Layers, Calendar, Target, Trophy,
   Download, Upload, ScrollText, Trash2, ArrowLeft, Cloud, CloudOff,
-  FileUp, Sparkles, Search, BookOpen, Dice5, Wand2, Skull, Footprints, Hash,
+  FileUp, Sparkles, Play, Search, BookOpen, Dice5, Wand2, Skull, Footprints, Hash,
 } from 'lucide-react';
 import { TABLES, sampleTable } from '@/lib/inspirationTables';
 import { CR_TO_XP, encounterMultiplier, difficultyForSolo } from '@/lib/encounterMath';
@@ -27,6 +27,13 @@ import ChaseTracker from './ChaseTracker';
 import type { Chase } from '@/lib/chaseTables';
 import TrapBuilder from './TrapBuilder';
 import type { Trap } from '@/lib/trapTables';
+import InitiativePanel from './InitiativePanel';
+import type { InitiativeState } from '@/lib/initiative';
+import RunSessionView from './RunSessionView';
+import SessionLogTab from './SessionLogTab';
+import SessionLogFinalizer from './SessionLogFinalizer';
+import { type ChangeEvent, type ChangeEventKind, makeEvent } from '@/lib/sessionEvents';
+import type { SessionLogEntry } from '@/lib/sessionLog';
 import type { GeneratorLogs, LogEntry, LogKind } from '@/lib/generators/log';
 import { AccountMenu } from './AccountMenu';
 import { LockedInline, LockedPanel } from './LockedFeature';
@@ -1007,7 +1014,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
   );
   const [openChars, setOpenChars] = useState<Record<string, boolean>>({});
   const [phaseOpen, setPhaseOpen] = useState<Record<string, boolean>>({ p0: true });
-  const [tab, setTab] = useState<'prep' | 'ref' | 'track' | 'down' | 'dice' | 'spells' | 'generators' | 'names' | 'locations' | 'monsters' | 'vivify' | 'dmref' | 'traps' | 'chase'>('prep');
+  const [tab, setTab] = useState<'prep' | 'ref' | 'track' | 'down' | 'log' | 'dice' | 'spells' | 'generators' | 'names' | 'locations' | 'monsters' | 'vivify' | 'dmref' | 'traps' | 'chase'>('prep');
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [soloMode, setSoloMode] = useState<boolean>(campaign.data?.__soloMode ?? true);
   const [syncState, setSyncState] = useState<'synced' | 'pending' | 'saving' | 'error'>('synced');
@@ -1041,6 +1048,13 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
 
   const get = (k: string, fb: any) => state[k] !== undefined ? state[k] : fb;
   const setVal = (k: string, v: any) => setState(s => ({ ...s, [k]: v }));
+  const trackEvent = useCallback((kind: ChangeEventKind, summary: string, before?: unknown, after?: unknown) => {
+    setState(s => {
+      if (!s.__runSessionOpen) return s;
+      const events = (s.__sessionChangeEvents as ChangeEvent[]) || [];
+      return { ...s, __sessionChangeEvents: [...events, makeEvent(kind, summary, before, after)] };
+    });
+  }, []);
   const toggleDone = (id: string) => setDone(d => ({ ...d, [id]: !d[id] }));
   const toggleOpen = (id: string) => setOpen(o => ({ ...o, [id]: !o[id] }));
   const togglePhase = (id: string) => setPhaseOpen(p => ({ ...p, [id]: !p[id] }));
@@ -1470,6 +1484,58 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, soloMode, sortedSessionLogs, characters, generatorLogs]);
 
+  const sessionEndedAt = get('__sessionEndedAt', 0) as number;
+  const finalizerOpen = sessionEndedAt > 0;
+  const clearSessionState = () => {
+    setState(s => {
+      const next = { ...s };
+      delete next.__activeSessionId;
+      delete next.__sessionStartedAt;
+      delete next.__sessionEndedAt;
+      delete next.__sessionChangeEvents;
+      delete next.__sessionScratchpad;
+      delete next.__sessionUsedScenes;
+      next.__runSessionOpen = false;
+      return next;
+    });
+  };
+  const saveSessionLog = (entry: SessionLogEntry) => {
+    const existing = (state.sessionLogV2 as SessionLogEntry[]) || [];
+    setVal('sessionLogV2', [...existing, entry]);
+    clearSessionState();
+  };
+  const discardSession = () => {
+    clearSessionState();
+  };
+
+  const finalizerModal = finalizerOpen ? (
+    <SessionLogFinalizer
+      sessionId={(get('__activeSessionId', `session_${Date.now()}`) as string)}
+      startedAt={(get('__sessionStartedAt', sessionEndedAt) as number)}
+      endedAt={sessionEndedAt}
+      scratchpad={(get('__sessionScratchpad', '') as string)}
+      events={(get('__sessionChangeEvents', []) as ChangeEvent[])}
+      existingEntries={(get('sessionLogV2', []) as SessionLogEntry[])}
+      onSave={saveSessionLog}
+      onDiscard={discardSession}
+    />
+  ) : null;
+
+  if (get('__runSessionOpen', false)) {
+    return (
+      <>
+        <RunSessionView
+          get={get}
+          setVal={setVal}
+          characters={characters}
+          onEndSession={() => setVal('__sessionEndedAt', Date.now())}
+          onExitWithoutEnding={() => setVal('__runSessionOpen', false)}
+        />
+        {finalizerModal}
+      </>
+    );
+  }
+
   return (
     <main className="min-h-screen p-3 sm:p-5 md:p-8">
       <div className="max-w-5xl mx-auto flex flex-col md:flex-row md:items-start gap-3 md:gap-4">
@@ -1484,6 +1550,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               ['ref', 'Reference'],
               ['track', 'Tracking'],
               ['down', 'Downtime'],
+              ['log', 'Sessions'],
               ['dice', 'Dice'],
               ['spells', 'Spells'],
               ['generators', 'Generators'],
@@ -1545,6 +1612,25 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                 <input ref={fileInputRef} type="file" accept=".json,application/json" onChange={importJSON} className="hidden" />
                 <ToolBtn onClick={handleDelete} danger><Trash2 size={12} /> Delete</ToolBtn>
               </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const sessionId = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+                    setState(s => ({
+                      ...s,
+                      __activeSessionId: sessionId,
+                      __sessionStartedAt: Date.now(),
+                      __sessionChangeEvents: [],
+                      __sessionUsedScenes: [],
+                      __runSessionOpen: true,
+                    }));
+                  }}
+                  className="text-xs px-3 py-1.5 rounded border border-crimson/60 bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment font-display uppercase tracking-wider flex items-center gap-1.5 shadow-sm"
+                  title="Enter Run Session mode for live play"
+                >
+                  <Play size={12} /> Run Session
+                </button>
               <div
                 role="group"
                 aria-label="Prep target mode"
@@ -1571,6 +1657,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                 >
                   <Users size={12} /> Group
                 </button>
+              </div>
               </div>
             </div>
 
@@ -1640,6 +1727,15 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                   <div key={i} data-cp-anchor={`faction:${i}`}>
                     <FactionCard data={f} onChange={(v: any) => {
                       const next = [...(get('factions', []) as any[])]; next[i] = v; setVal('factions', next);
+                      const fromR = typeof f.renown === 'number' ? f.renown : 0;
+                      const toR = typeof v.renown === 'number' ? v.renown : 0;
+                      if (fromR !== toR) {
+                        trackEvent(
+                          'renown_changed',
+                          `${v.name || f.name || `Faction ${i + 1}`} renown: ${fromR} → ${toR}`,
+                          fromR, toR,
+                        );
+                      }
                     }} onRemove={() => setVal('factions', (get('factions', []) as any[]).filter((_: any, j: number) => j !== i))} />
                   </div>
                 ))}
@@ -1829,7 +1925,10 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                     }} onRemove={() => setVal('locations', (get('locations', []) as any[]).filter((_: any, j: number) => j !== i))} />
                   </div>
                 ))}
-                <button onClick={() => setVal('locations', [...(get('locations', []) as any[]), { name: '', type: '', aspects: ['', '', ''], factions: '' }])} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
+                <button onClick={() => {
+                  setVal('locations', [...(get('locations', []) as any[]), { name: '', type: '', aspects: ['', '', ''], factions: '' }]);
+                  trackEvent('location_added', 'Added a new location');
+                }} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
                   <Plus size={12} /> Add Location
                 </button>
               </Section>
@@ -1858,7 +1957,10 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                 <p className="text-[10px] text-ink-mute italic font-serif -mt-1">
                   Trait inspirations (mannerism, talent, ideal, bond, etc.) live inside each NPC card under &quot;Show Details&quot;.
                 </p>
-                <button onClick={() => setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: '', faction: '', archetype: '', goal: '', method: '' }])} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
+                <button onClick={() => {
+                  setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: '', faction: '', archetype: '', goal: '', method: '' }]);
+                  trackEvent('npc_added', 'Added a new NPC');
+                }} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
                   <Plus size={12} /> Add NPC
                 </button>
               </Section>
@@ -1891,6 +1993,13 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               {(get('clocks', []) as any[]).map((c: any, i: number) => (
                 <ClockCard key={i} data={c} onChange={(v: any) => {
                   const next = [...(get('clocks', []) as any[])]; next[i] = v; setVal('clocks', next);
+                  if ((c.filled || 0) !== (v.filled || 0)) {
+                    trackEvent(
+                      'faction_clock_ticked',
+                      `${v.faction || c.faction || 'Faction'}: ${v.text || c.text || 'clock'} ${c.filled || 0} → ${v.filled || 0} / ${v.max || c.max || 6}`,
+                      c.filled || 0, v.filled || 0,
+                    );
+                  }
                 }} onRemove={() => setVal('clocks', (get('clocks', []) as any[]).filter((_: any, j: number) => j !== i))} />
               ))}
               <button onClick={() => setVal('clocks', [...(get('clocks', []) as any[]), { text: '', faction: '', max: 6, filled: 0 }])} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
@@ -2054,7 +2163,9 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                 {(get('secrets', []) as string[]).map((s: string, i: number) => (
                   <label key={i} className="flex items-start gap-2 text-sm cursor-pointer font-serif">
                     <input type="checkbox" checked={(get('revSec', {}) as Record<number, boolean>)[i] || false} onChange={(e) => {
+                      const wasRevealed = !!(get('revSec', {}) as Record<number, boolean>)[i];
                       const r = { ...(get('revSec', {}) as Record<number, boolean>) }; r[i] = e.target.checked; setVal('revSec', r);
+                      if (!wasRevealed && e.target.checked) trackEvent('secret_revealed', s);
                     }} className="mt-1 accent-crimson" />
                     <span className={((get('revSec', {}) as Record<number, boolean>)[i]) ? 'text-ink-mute line-through' : 'text-ink-soft'}>{s}</span>
                   </label>
@@ -2071,9 +2182,12 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                     <div className="flex gap-1 mt-1.5">
                       {['Active', 'Progressed', 'Completed', 'Failed'].map(s => (
                         <button key={s} onClick={() => {
+                          const from = g.status || 'Active';
+                          if (from === s) return;
                           const next = [...(get('pcGoals', []) as any[])];
                           next[i] = { ...g, status: s };
                           setVal('pcGoals', next);
+                          trackEvent('goal_status', `${g.text || `Goal ${i + 1}`}: ${from} → ${s}`, from, s);
                         }} className={`text-[10px] px-2 py-0.5 rounded-sm border font-display uppercase tracking-wider ${g.status === s ? 'bg-crimson border-crimson text-parchment' : 'border-rule text-ink-mute'}`}>{s}</button>
                       ))}
                     </div>
@@ -2103,6 +2217,8 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               createdAt: new Date().toISOString(),
             };
             setVal('downtime', [...downtime, next]);
+            const label = DOWNTIME_TYPES.find(t => t.id === typeId)?.label || typeId;
+            trackEvent('downtime_added', `Started downtime: ${label}`);
           };
           const updateEntry = (id: string, patch: DowntimeEntry) => {
             setVal('downtime', downtime.map(e => e.id === id ? patch : e));
@@ -2197,6 +2313,13 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
           );
         })()}
 
+        {tab === 'log' && (
+          <SessionLogTab
+            entries={(get('sessionLogV2', []) as SessionLogEntry[])}
+            onChange={(v) => setVal('sessionLogV2', v)}
+          />
+        )}
+
         {tab === 'dice' && (
           <DiceRoller
             macros={get('macros', []) as Macro[]}
@@ -2271,7 +2394,14 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
           <MonstersTab
             characters={characters}
             homebrewMonsters={get('homebrewMonsters', []) as HomebrewMonster[]}
-            onHomebrewMonstersChange={(v) => setVal('homebrewMonsters', v)}
+            onHomebrewMonstersChange={(v) => {
+              const prev = (get('homebrewMonsters', []) as HomebrewMonster[]);
+              setVal('homebrewMonsters', v);
+              if (v.length > prev.length) {
+                const added = v[v.length - 1];
+                trackEvent('monster_added', `Added monster: ${added?.name || 'unnamed'}`);
+              }
+            }}
             rollLogEntries={logEntriesFor('monster-roll')}
             onRollLogEntriesChange={setLogEntriesFor('monster-roll')}
             scaleLogEntries={logEntriesFor('monster-scale')}
@@ -2320,6 +2450,29 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
         </footer>
         </div>
       </div>
+
+      {get('__runSessionOpen', false) && !get('__initiativeOpen', false) && (
+        <button
+          onClick={() => setVal('__initiativeOpen', true)}
+          className="fixed bottom-3 right-3 z-20 flex items-center gap-1.5 px-3 py-2 rounded-full border border-crimson/60 bg-parchment shadow-page text-crimson hover:bg-crimson hover:text-parchment font-display uppercase tracking-wider text-xs"
+          title="Open initiative tracker"
+        >
+          <Swords size={14} /> Initiative
+        </button>
+      )}
+
+      {get('__runSessionOpen', false) && get('__initiativeOpen', false) && (
+        <InitiativePanel
+          state={(get('__initiative', null) as InitiativeState | null)}
+          onChange={(next) => setVal('__initiative', next)}
+          monsters={get('homebrewMonsters', []) as HomebrewMonster[]}
+          pcs={characters}
+          onClose={() => setVal('__initiativeOpen', false)}
+        />
+      )}
+
+      {finalizerModal}
+
       <CommandPalette
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}
