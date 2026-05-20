@@ -23,6 +23,8 @@ import LocationsTab from './LocationsTab';
 import MonstersTab, { type HomebrewMonster } from './MonstersTab';
 import GeneratorsTab from './generators/GeneratorsTab';
 import VivifyPanel, { type VivifyHistoryEntry } from './VivifyPanel';
+import ChaseTracker from './ChaseTracker';
+import type { Chase } from '@/lib/chaseTables';
 import TrapBuilder from './TrapBuilder';
 import type { Trap } from '@/lib/trapTables';
 import type { GeneratorLogs, LogEntry, LogKind } from '@/lib/generators/log';
@@ -1000,7 +1002,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
   );
   const [openChars, setOpenChars] = useState<Record<string, boolean>>({});
   const [phaseOpen, setPhaseOpen] = useState<Record<string, boolean>>({ p0: true });
-  const [tab, setTab] = useState<'prep' | 'ref' | 'track' | 'down' | 'dice' | 'spells' | 'generators' | 'names' | 'locations' | 'monsters' | 'vivify' | 'dmref' | 'traps'>('prep');
+  const [tab, setTab] = useState<'prep' | 'ref' | 'track' | 'down' | 'dice' | 'spells' | 'generators' | 'names' | 'locations' | 'monsters' | 'vivify' | 'dmref' | 'traps' | 'chase'>('prep');
   const [soloMode, setSoloMode] = useState<boolean>(campaign.data?.__soloMode ?? true);
   const [syncState, setSyncState] = useState<'synced' | 'pending' | 'saving' | 'error'>('synced');
   const [syncError, setSyncError] = useState<string>('');
@@ -1199,6 +1201,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
               ['vivify', 'Vivify'],
               ['traps', 'Traps'],
               ['dmref', 'DM Ref'],
+              ['chase', 'Chase'],
             ] as const).map(([id, label], i) => (
               <button
                 key={id}
@@ -1994,6 +1997,13 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
         )}
 
         {tab === 'dmref' && <DMRefTab />}
+
+        {tab === 'chase' && (
+          <ChaseTracker
+            chases={(get('chases', []) as Chase[])}
+            onChange={(chases) => setVal('chases', chases)}
+          />
+        )}
 
         <footer className="pt-3 mt-4 border-t border-rule text-xs text-ink-mute italic font-serif text-center">
           {userEmail}
