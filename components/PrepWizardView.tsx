@@ -7,6 +7,10 @@ import { nextSessionNumber } from '@/lib/sessionLog';
 import Step1ReviewCharacters from './prepWizard/Step1ReviewCharacters';
 import Step2StrongStart from './prepWizard/Step2StrongStart';
 import Step3Scenes from './prepWizard/Step3Scenes';
+import Step4Secrets from './prepWizard/Step4Secrets';
+import Step5Locations from './prepWizard/Step5Locations';
+import Step6NPCs from './prepWizard/Step6NPCs';
+import Step7Monsters from './prepWizard/Step7Monsters';
 
 type Get = (k: string, fb: any) => any;
 type SetVal = (k: string, v: any) => void;
@@ -21,7 +25,11 @@ type Props = {
 
 const TOTAL_STEPS = 8;
 
-const SCENE_TARGETS = { standard: 5, solo: 4 };
+const SCENE_TARGETS    = { standard: 5,  solo: 4 };
+const SECRET_TARGETS   = { standard: 10, solo: 8 };
+const LOCATION_TARGETS = { standard: 4,  solo: 3 };
+const NPC_TARGETS      = { standard: 4,  solo: 3 };
+const MONSTER_TARGETS  = { standard: 4,  solo: 3 };
 
 export default function PrepWizardView({ get, setVal, soloMode, onExit, onFinish }: Props) {
   const step = (get('__prepWizardStep', 1) as number) || 1;
@@ -168,6 +176,42 @@ function StepBody({
         soloMode={soloMode}
         standardTarget={SCENE_TARGETS.standard}
         soloTarget={SCENE_TARGETS.solo}
+      />
+    );
+    case 4: return (
+      <Step4Secrets
+        get={get}
+        setVal={setVal}
+        soloMode={soloMode}
+        standardTarget={SECRET_TARGETS.standard}
+        soloTarget={SECRET_TARGETS.solo}
+      />
+    );
+    case 5: return (
+      <Step5Locations
+        get={get}
+        setVal={setVal}
+        soloMode={soloMode}
+        standardTarget={LOCATION_TARGETS.standard}
+        soloTarget={LOCATION_TARGETS.solo}
+      />
+    );
+    case 6: return (
+      <Step6NPCs
+        get={get}
+        setVal={setVal}
+        soloMode={soloMode}
+        standardTarget={NPC_TARGETS.standard}
+        soloTarget={NPC_TARGETS.solo}
+      />
+    );
+    case 7: return (
+      <Step7Monsters
+        get={get}
+        setVal={setVal}
+        soloMode={soloMode}
+        standardTarget={MONSTER_TARGETS.standard}
+        soloTarget={MONSTER_TARGETS.solo}
       />
     );
     default:
