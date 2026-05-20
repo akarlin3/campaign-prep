@@ -9,7 +9,7 @@ import {
   ChevronDown, ChevronRight, Check, Plus, X, Quote,
   User, Users, Map, Swords, Gift, Layers, Calendar, Target, Trophy,
   Download, Upload, ScrollText, Trash2, ArrowLeft, Cloud, CloudOff,
-  FileUp, Sparkles, Play, Search, BookOpen, Dice5, Wand2, Skull, Footprints, Hash,
+  FileUp, Sparkles, Play, Search, BookOpen, Dice5, Wand2, Skull, Footprints, Hash, ClipboardList,
 } from 'lucide-react';
 import { TABLES, sampleTable } from '@/lib/inspirationTables';
 import { CR_TO_XP, encounterMultiplier, difficultyForSolo } from '@/lib/encounterMath';
@@ -31,10 +31,13 @@ import type { Trap } from '@/lib/trapTables';
 import InitiativePanel from './InitiativePanel';
 import type { InitiativeState } from '@/lib/initiative';
 import RunSessionView from './RunSessionView';
+import PrepWizardView from './PrepWizardView';
 import SessionLogTab from './SessionLogTab';
 import SessionLogFinalizer from './SessionLogFinalizer';
 import { type ChangeEvent, type ChangeEventKind, makeEvent } from '@/lib/sessionEvents';
 import type { SessionLogEntry } from '@/lib/sessionLog';
+import { nextSessionNumber } from '@/lib/sessionLog';
+import type { PrepWizardRun } from '@/lib/prepWizard';
 import type { GeneratorLogs, LogEntry, LogKind } from '@/lib/generators/log';
 import { AccountMenu } from './AccountMenu';
 import { LockedInline, LockedPanel } from './LockedFeature';
@@ -1530,18 +1533,25 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
     clearSessionState();
   };
 
-  const finalizerModal = finalizerOpen ? (
-    <SessionLogFinalizer
-      sessionId={(get('__activeSessionId', `session_${Date.now()}`) as string)}
-      startedAt={(get('__sessionStartedAt', sessionEndedAt) as number)}
-      endedAt={sessionEndedAt}
-      scratchpad={(get('__sessionScratchpad', '') as string)}
-      events={(get('__sessionChangeEvents', []) as ChangeEvent[])}
-      existingEntries={(get('sessionLogV2', []) as SessionLogEntry[])}
-      onSave={saveSessionLog}
-      onDiscard={discardSession}
-    />
-  ) : null;
+  const finalizerModal = finalizerOpen ? (() => {
+    const existingEntries = (get('sessionLogV2', []) as SessionLogEntry[]);
+    const nextNumber = nextSessionNumber(existingEntries);
+    const runs = (get('prepWizardRuns', []) as PrepWizardRun[]) || [];
+    const matchingRun = runs.find(r => r.forSessionNumber === nextNumber) || null;
+    return (
+      <SessionLogFinalizer
+        sessionId={(get('__activeSessionId', `session_${Date.now()}`) as string)}
+        startedAt={(get('__sessionStartedAt', sessionEndedAt) as number)}
+        endedAt={sessionEndedAt}
+        scratchpad={(get('__sessionScratchpad', '') as string)}
+        events={(get('__sessionChangeEvents', []) as ChangeEvent[])}
+        existingEntries={existingEntries}
+        hasPrepWizardRun={!!matchingRun}
+        onSave={saveSessionLog}
+        onDiscard={discardSession}
+      />
+    );
+  })() : null;
 
   if (get('__runSessionOpen', false)) {
     return (
@@ -1555,6 +1565,46 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
         />
         {finalizerModal}
       </>
+    );
+  }
+
+  const closePrepWizard = () => {
+    setState(s => {
+      const next = { ...s };
+      delete next.__prepWizardOpen;
+      delete next.__prepWizardStep;
+      delete next.__prepWizardCompleted;
+      delete next.__prepWizardStepNotes;
+      return next;
+    });
+  };
+  const startSessionFromPrep = () => {
+    const sessionId = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    setState(s => {
+      const next = { ...s };
+      delete next.__prepWizardOpen;
+      delete next.__prepWizardStep;
+      delete next.__prepWizardCompleted;
+      delete next.__prepWizardStepNotes;
+      next.__activeSessionId = sessionId;
+      next.__sessionStartedAt = Date.now();
+      next.__sessionChangeEvents = [];
+      next.__sessionUsedScenes = [];
+      next.__runSessionOpen = true;
+      return next;
+    });
+  };
+
+  if (get('__prepWizardOpen', false)) {
+    return (
+      <PrepWizardView
+        get={get}
+        setVal={setVal}
+        soloMode={soloMode}
+        onExit={closePrepWizard}
+        onClose={closePrepWizard}
+        onStartSession={startSessionFromPrep}
+      />
     );
   }
 
@@ -1635,6 +1685,18 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                 <ToolBtn onClick={handleDelete} danger><Trash2 size={12} /> Delete</ToolBtn>
               </div>
               <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVal('__prepWizardOpen', true);
+                    setVal('__prepWizardStep', 1);
+                  }}
+                  disabled={get('__runSessionOpen', false) as boolean}
+                  className="text-xs px-3 py-1.5 rounded border border-moss/60 bg-moss/10 text-moss hover:bg-moss hover:text-parchment font-display uppercase tracking-wider flex items-center gap-1.5 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-moss/10 disabled:hover:text-moss"
+                  title={get('__runSessionOpen', false) ? 'Finish your current session first' : 'Walk through Lazy DM\'s 8-step prep'}
+                >
+                  <ClipboardList size={12} /> Prep Next Session
+                </button>
                 <button
                   type="button"
                   onClick={() => {
