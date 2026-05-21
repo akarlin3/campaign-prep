@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
   ChevronDown, LogOut, Sparkles, Settings, ExternalLink, MailCheck,
   Download, Upload, Trash2, Info, X, Archive, ArchiveRestore, RotateCcw,
-  SlidersHorizontal, Copy,
+  SlidersHorizontal, Copy, Cloud, UploadCloud,
 } from 'lucide-react';
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { useAuth } from '@/lib/firebase/auth-context';
@@ -200,6 +200,32 @@ export function AccountMenu({ onExport, onImport, onArchive, isArchived, onDelet
             )}
 
             {error && <p className="text-[11px] text-crimson font-serif italic">{error}</p>}
+
+            <div className="pt-1 border-t border-rule space-y-1">
+              <div className="text-[10px] font-display uppercase tracking-wider text-brass-deep px-1">
+                Cloud Backups
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  router.push('/account?action=backup');
+                }}
+                className="w-full text-xs px-2 py-1.5 rounded text-left text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider flex items-center gap-2"
+              >
+                <UploadCloud size={12} className="text-brass-deep" /> Backup to Google Drive
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  router.push('/account');
+                }}
+                className="w-full text-xs px-2 py-1.5 rounded text-left text-ink-soft hover:bg-parchment-deep font-display uppercase tracking-wider flex items-center gap-2"
+              >
+                <Cloud size={12} className="text-brass-deep" /> Manage Cloud Backups
+              </button>
+            </div>
 
             {(onExport || onImport || onArchive || onDelete || onRerunSession0 || onOpenPrepTargets || onCopy) && (
               <div className="pt-1 border-t border-rule space-y-1">
