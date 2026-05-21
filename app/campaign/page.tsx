@@ -7,9 +7,10 @@ import { useAuth } from '@/lib/firebase/auth-context';
 import {
   subscribeToUserCampaigns, createCampaign, updateCampaign,
   archiveCampaign, unarchiveCampaign, deleteCampaign,
+  copyCampaign,
   type Campaign,
 } from '@/lib/firebase/campaigns';
-import { Plus, ScrollText, Pin, Archive, ArchiveRestore, Trash2, ChevronDown, ChevronRight, MoreHorizontal, ExternalLink } from 'lucide-react';
+import { Plus, ScrollText, Pin, Archive, ArchiveRestore, Trash2, ChevronDown, ChevronRight, MoreHorizontal, ExternalLink, Copy } from 'lucide-react';
 import { AccountMenu } from '@/components/AccountMenu';
 import { relativeTime } from '@/lib/relativeTime';
 
@@ -150,6 +151,15 @@ export default function CampaignListPage() {
     if (!confirm(`Delete "${c.name}"? This cannot be undone.`)) return;
     try { await deleteCampaign(c.id); } catch (e: any) { setError(e?.message || 'Delete failed'); }
   };
+  const handleCopy = async (c: Campaign) => {
+    if (!confirm(`Create a copy of "${c.name}"?`)) return;
+    try {
+      const id = await copyCampaign(c.id);
+      router.push(`/campaign/${id}`);
+    } catch (e: any) {
+      setError(e?.message || 'Failed to copy campaign');
+    }
+  };
   const togglePin = async (e: Enriched) => {
     const nextData = { ...(e.raw.data ?? {}), __pinned: !e.pinned };
     try { await updateCampaign(e.raw.id, { data: nextData }); } catch (err: any) { setError(err?.message || 'Pin failed'); }
@@ -242,6 +252,14 @@ export default function CampaignListPage() {
                   <ExternalLink size={12} className="text-brass-deep" />
                   Open in new tab
                 </a>
+                <button
+                  type="button"
+                  onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); handleCopy(c); setMenuOpen(null); }}
+                  className="w-full text-left px-3 py-1.5 hover:bg-parchment-deep flex items-center gap-2 text-ink"
+                >
+                  <Copy size={12} className="text-brass-deep" />
+                  Make a copy
+                </button>
                 <div className="my-1 border-t border-rule" />
                 <button
                   type="button"

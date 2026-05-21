@@ -2,13 +2,13 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo, Fragment } from 'react';
 import { useRouter } from 'next/navigation';
-import { updateCampaign, deleteCampaign as deleteCampaignDoc, archiveCampaign, unarchiveCampaign, type Campaign } from '@/lib/firebase/campaigns';
+import { updateCampaign, deleteCampaign as deleteCampaignDoc, archiveCampaign, unarchiveCampaign, copyCampaign, type Campaign } from '@/lib/firebase/campaigns';
 import { getFirebaseAuth } from '@/lib/firebase/client';
 import {
   ChevronDown, ChevronRight, Check, Plus, X, Quote,
   User, Users, Map, Swords, Gift, Layers, Calendar, Target, Trophy,
   Download, Upload, ScrollText, ArrowLeft, Cloud, CloudOff,
-  FileUp, Sparkles, Play, Search, BookOpen, Dice5, Wand2, Skull, Footprints, Hash, ClipboardList, Wrench, SlidersHorizontal,
+  FileUp, Sparkles, Play, Search, BookOpen, Dice5, Wand2, Skull, Footprints, Hash, ClipboardList, Wrench, SlidersHorizontal, Copy,
 } from 'lucide-react';
 import { TABLES, sampleTable } from '@/lib/inspirationTables';
 import { CR_TO_XP, encounterMultiplier, difficultyForSolo } from '@/lib/encounterMath';
@@ -1519,6 +1519,16 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
     }
   };
 
+  const handleCopy = async () => {
+    if (!confirm(`Create a copy of "${name}"?`)) return;
+    try {
+      const newId = await copyCampaign(campaign.id);
+      router.push(`/campaign/${newId}`);
+    } catch (err: any) {
+      alert(`Copy failed: ${err?.message || err}`);
+    }
+  };
+
   const SyncIndicator = () => {
     if (syncState === 'saving') return <span className="text-xs text-ink-soft flex items-center gap-1 font-display uppercase tracking-wider"><Cloud size={12} className="animate-pulse" /> Saving…</span>;
     if (syncState === 'pending') return <span className="text-xs text-ink-mute flex items-center gap-1 font-display uppercase tracking-wider"><Cloud size={12} /> Pending</span>;
@@ -2274,6 +2284,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
                   onDelete={handleDelete}
                   onRerunSession0={() => setSession0Open(true)}
                   onOpenPrepTargets={() => setPrepTargetsOpen(true)}
+                  onCopy={handleCopy}
                 />
               </div>
             </div>

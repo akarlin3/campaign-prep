@@ -2,7 +2,7 @@
 
 import {
   collection, doc, query, where, orderBy, onSnapshot, addDoc,
-  updateDoc, deleteDoc, serverTimestamp, getDoc, Timestamp
+  updateDoc, deleteDoc, serverTimestamp, getDoc, getDocs, Timestamp
 } from 'firebase/firestore';
 import { getDb } from './client';
 
@@ -91,3 +91,47 @@ export async function getCampaignOnce(campaignId: string) {
   if (!snap.exists()) return null;
   return { id: snap.id, ...(snap.data() as Omit<Campaign, 'id'>) };
 }
+
+export async function getUserCampaignsOnce(userId: string): Promise<Campaign[]> {
+  const q = query(
+    campaignsCol(),
+    where('userId', '==', userId),
+    orderBy('updatedAt', 'desc')
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Campaign, 'id'>) }));
+}
+
+export async function importCampaign(
+  userId: string,
+  name: string,
+  data: Record<string, any>,
+  done: Record<string, boolean>
+) {
+  const ref = await addDoc(campaignsCol(), {
+    userId,
+    name,
+    data,
+    done,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  return ref.id;
+}
+
+export async function copyCampaign(campaignId: string, newName?: string) {
+  const original = await getCampaignOnce(campaignId);
+  if (!original) throw new Error('Campaign not found');
+
+  const name = newName || `${original.name} (Copy)`;
+  const ref = await addDoc(campaignsCol(), {
+    userId: original.userId,
+    name,
+    data: original.data || {},
+    done: original.done || {},
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  return ref.id;
+}
+
