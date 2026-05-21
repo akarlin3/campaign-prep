@@ -55,6 +55,7 @@ import type { GeneratorLogs, LogEntry, LogKind } from '@/lib/generators/log';
 import { buildPatch as buildCampaignPatch, type CampaignDestKey, type SelectableItem } from '@/lib/generators/addToCampaign';
 import { AccountMenu } from './AccountMenu';
 import { LockedInline, LockedPanel } from './LockedFeature';
+import { useConfirm } from '@/components/ConfirmDialog';
 import CommandPalette, { type CommandItem } from './CommandPalette';
 import KeyboardShortcuts from './KeyboardShortcuts';
 import {
@@ -386,7 +387,13 @@ const Section = ({ id, title, methods, children, done, onToggle, open, onToggleO
         <span className="text-ink-mute flex-shrink-0">{open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</span>
       </button>
     </div>
-    {open && <div className="px-2.5 sm:px-3 pb-3 border-t border-rule pt-3 space-y-3">{children}</div>}
+    <div className={`gm-collapse ${open ? 'gm-collapse-open' : ''}`}>
+      <div className="gm-collapse-content">
+        <div className="px-2.5 sm:px-3 pb-3 border-t border-rule pt-3 space-y-3">
+          {children}
+        </div>
+      </div>
+    </div>
   </div>
 );
 
@@ -1088,6 +1095,7 @@ const Phase = ({ n, title, sub, methods, children, expanded, onToggle, icon: Ico
 
 export default function CampaignEditor({ campaign, userEmail, isPro = false }: { campaign: Campaign; userEmail: string; isPro?: boolean }) {
   const router = useRouter();
+  const confirmModal = useConfirm();
   const [name, setName] = useState(campaign.name);
   const [initialMigration] = useState(() => migrateSessionLogs(campaign.data || {}));
   const [state, setState] = useState<Record<string, any>>(() => migrateCharacters(initialMigration.initialState));
@@ -1111,6 +1119,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
   useEffect(() => {
     const g = groupForTab(tab);
     setOpenGroups(o => (o[g] === true ? o : { ...o, [g]: true }));
+    window.scrollTo(0, 0);
   }, [tab]);
   const [soloMode, setSoloMode] = useState<boolean>(campaign.data?.__soloMode ?? true);
   const [prepTargetsOpen, setPrepTargetsOpen] = useState(false);
@@ -1446,6 +1455,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
     a.href = url; a.download = `${safe || 'campaign'}_prep.json`;
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    showUndoToast('Campaign exported as JSON', 4000);
   };
 
   const importJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1455,18 +1465,30 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
     reader.onload = (ev) => {
       try {
         const data = JSON.parse(ev.target?.result as string);
-        if (data._format !== 'campaign_prep_v1') return;
+        if (data._format !== 'campaign_prep_v1') {
+          showUndoToast('Import failed: unsupported file format', 4000);
+          return;
+        }
         if (data.campaignName) setName(data.campaignName);
         setState(data.state || {});
         setDone(data.done || {});
-      } catch {}
+        showUndoToast('Campaign imported successfully', 4000);
+      } catch {
+        showUndoToast('Import failed: invalid JSON file', 4000);
+      }
     };
     reader.readAsText(file);
     e.target.value = '';
   };
 
   const handleDelete = async () => {
-    if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
+    const ok = await confirmModal({
+      title: 'Delete Campaign',
+      message: `Delete "${name}"? This cannot be undone.`,
+      confirmText: 'Delete',
+      isDestructive: true,
+    });
+    if (!ok) return;
     try {
       await deleteCampaignDoc(campaign.id);
       router.push('/campaign');
@@ -1482,7 +1504,13 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
       if (isArchived) {
         await unarchiveCampaign(campaign.id);
       } else {
-        if (!confirm(`Archive "${name}"? It will be hidden from your main list — you can restore it from the Archived section.`)) return;
+        const ok = await confirmModal({
+          title: 'Archive Campaign',
+          message: `Archive "${name}"? It will be hidden from your main list — you can restore it from the Archived section.`,
+          confirmText: 'Archive',
+          isDestructive: true,
+        });
+        if (!ok) return;
         await archiveCampaign(campaign.id);
         router.push('/campaign');
       }
@@ -2334,7 +2362,8 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
             </div>
           </header>
 
-        {tab === 'prep' && (
+        <div key={tab} className="gm-tab-enter space-y-4">
+          {tab === 'prep' && (
           <div className="space-y-3">
             {nextUp ? (
               <div className="rounded border border-brass/40 bg-brass/5 p-3 flex items-center gap-3 shadow-card">
@@ -3258,6 +3287,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
             onChangeCharacter={updateCharacter}
           />
         )}
+        </div>
 
         <footer className="pt-3 mt-4 border-t border-rule text-xs text-ink-mute italic font-serif text-center">
           {userEmail}
@@ -3322,7 +3352,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
       {undoToast && (
         <div
           role="status"
-          className="fixed bottom-4 left-16 z-40 px-3 py-1.5 rounded-full shadow-page border border-brass-deep/70 bg-parchment text-brass-deep text-xs font-display uppercase tracking-wider flex items-center gap-2"
+          className="fixed bottom-4 left-16 z-40 px-3 py-1.5 rounded-full shadow-page border border-brass-deep/70 bg-parchment text-brass-deep text-xs font-display uppercase tracking-wider flex items-center gap-2 gm-toast"
         >
           {undoToast}
         </div>

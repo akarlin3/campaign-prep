@@ -471,15 +471,19 @@ export default function DiceRoller({
                 </button>
                 <button
                   onClick={() => beginEditMacro(m)}
-                  className="text-ink-mute hover:text-brass-deep flex-shrink-0"
+                  className="text-ink-mute hover:text-brass-deep flex-shrink-0 gm-tooltip"
+                  data-tooltip="Edit Macro"
                   title="Edit"
+                  aria-label="Edit Macro"
                 >
                   <Pencil size={13} />
                 </button>
                 <button
                   onClick={() => deleteMacro(m.id)}
-                  className="text-ink-mute hover:text-crimson flex-shrink-0"
+                  className="text-ink-mute hover:text-crimson flex-shrink-0 gm-tooltip"
+                  data-tooltip="Delete Macro"
                   title="Delete"
+                  aria-label="Delete Macro"
                 >
                   <X size={14} />
                 </button>
@@ -528,7 +532,8 @@ export default function DiceRoller({
                   )}
                   <span className="text-xs text-ink-mute italic font-serif truncate flex-1 min-w-0">{r.formula}</span>
                   <span
-                    className="font-display text-2xl text-crimson leading-none flex-shrink-0"
+                    key={r.id}
+                    className="font-display text-2xl text-crimson leading-none flex-shrink-0 gm-roll-total"
                     style={{ fontVariantNumeric: 'tabular-nums' }}
                   >
                     {r.total}
@@ -576,7 +581,8 @@ export default function DiceRoller({
                   e.stopPropagation();
                   saveRollToLog(r);
                 }}
-                className="absolute top-1.5 right-1.5 p-1 rounded text-ink-mute hover:text-brass-deep hover:bg-parchment-deep/60"
+                className="absolute top-1.5 right-1.5 p-1 rounded text-ink-mute hover:text-brass-deep hover:bg-parchment-deep/60 gm-tooltip"
+                data-tooltip="Save to Log"
                 title="Save this roll to log"
                 aria-label="Save to log"
               >

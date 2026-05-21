@@ -26,7 +26,7 @@ export function LockedPanel({ title, children }: { title: string; children: Reac
       <p className="text-sm font-serif italic text-ink-soft max-w-md mx-auto">{children}</p>
       <Link
         href="/account"
-        className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded bg-crimson hover:bg-wine text-parchment font-display uppercase tracking-wider"
+        className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded bg-crimson hover:bg-wine text-parchment font-display uppercase tracking-wider gm-shimmer"
       >
         <Sparkles size={12} /> Join the Pro waitlist — $2.99 / month at launch
       </Link>
