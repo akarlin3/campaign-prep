@@ -67,3 +67,11 @@ non-pro UI no longer surfaces the checkout link.
   add middleware that consumes the body before it reaches the handler.
 - Required env vars (server-side only): `STRIPE_SECRET_KEY`,
   `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID`, `FIREBASE_SERVICE_ACCOUNT_JSON`.
+
+## Automatic Task Completion and Git Workflow
+
+When a coding assistant or agent completes a task, it MUST automatically stage, commit, and push the changes to the remote repository:
+1. **Stage**: Stage only the files specifically modified or created for the task (e.g., `git add <files>`). Do NOT stage unrelated untracked files (such as `.claude/` or scratch files) unless explicitly requested.
+2. **Commit**: Commit the changes with a clear, concise conventional commit message (e.g. `feat: ...`, `fix: ...`).
+3. **Push**: Push the committed changes immediately to the remote branch (`git push`).
+4. **Report**: Summarize the commit hash, branch name, and committed files in the final response to the user.
