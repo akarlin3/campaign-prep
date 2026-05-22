@@ -1,103 +1,169 @@
-import { describe, it } from 'node:test';
-import { strict as assert } from 'node:assert';
-import { partyThresholds, PartyMember } from '../encounterMath';
+import { test, describe } from "node:test";
+import assert from "node:assert";
+import { difficultyForSolo, encounterMultiplier, partyThresholds, suggestCombosForBand, parseLevelFromClassLevel } from "../encounterMath.js";
 
-describe('partyThresholds', () => {
-  it('returns zeros for empty party', () => {
-    const res = partyThresholds([]);
-    assert.deepEqual(res, { easy: 0, medium: 0, hard: 0, deadly: 0 });
-  });
+describe("encounterMath", () => {
+  describe("difficultyForSolo", () => {
+    test("returns correct difficulty for solo player (level 1)", () => {
+      // Level 1 threshold: { easy: 25, medium: 50, hard: 75, deadly: 100 }
+      // Solo thresholds (x0.75): easy: 19, medium: 38, hard: 56, deadly: 75
 
-  it('calculates for a basic 4-person party at level 1', () => {
-    // level 1 thresholds: easy 25, medium 50, hard 75, deadly 100
-    // for 4 players, multiply by 4
-    const party: PartyMember[] = [
-      { level: 1, weight: 1, gestalt: false },
-      { level: 1, weight: 1, gestalt: false },
-      { level: 1, weight: 1, gestalt: false },
-      { level: 1, weight: 1, gestalt: false },
-    ];
-    const res = partyThresholds(party);
-    assert.deepEqual(res, { easy: 100, medium: 200, hard: 300, deadly: 400 });
-  });
+      assert.deepStrictEqual(difficultyForSolo(10, 1, false).rating, "Trivial");
+      assert.deepStrictEqual(difficultyForSolo(19, 1, false).rating, "Easy");
+      assert.deepStrictEqual(difficultyForSolo(37, 1, false).rating, "Easy");
+      assert.deepStrictEqual(difficultyForSolo(38, 1, false).rating, "Medium");
+      assert.deepStrictEqual(difficultyForSolo(55, 1, false).rating, "Medium");
+      assert.deepStrictEqual(difficultyForSolo(56, 1, false).rating, "Hard");
+      assert.deepStrictEqual(difficultyForSolo(74, 1, false).rating, "Hard");
+      assert.deepStrictEqual(difficultyForSolo(75, 1, false).rating, "Deadly");
+      assert.deepStrictEqual(difficultyForSolo(112, 1, false).rating, "Deadly");
+      assert.deepStrictEqual(difficultyForSolo(113, 1, false).rating, "Lethal");
+    });
 
-  it('applies solo penalty (0.75x) for a solo non-gestalt PC', () => {
-    // level 1 thresholds: easy 25, medium 50, hard 75, deadly 100
-    // solo penalty 0.75x
-    const party: PartyMember[] = [
-      { level: 1, weight: 1, gestalt: false },
-    ];
-    const res = partyThresholds(party);
-    assert.deepEqual(res, {
-      easy: Math.round(25 * 0.75),
-      medium: Math.round(50 * 0.75),
-      hard: Math.round(75 * 0.75),
-      deadly: Math.round(100 * 0.75),
+    test("returns correct difficulty for gestalt player (level 1)", () => {
+      // Level 1 threshold: { easy: 25, medium: 50, hard: 75, deadly: 100 }
+      // Gestalt thresholds (x1.0): easy: 25, medium: 50, hard: 75, deadly: 100
+
+      assert.deepStrictEqual(difficultyForSolo(24, 1, true).rating, "Trivial");
+      assert.deepStrictEqual(difficultyForSolo(25, 1, true).rating, "Easy");
+      assert.deepStrictEqual(difficultyForSolo(49, 1, true).rating, "Easy");
+      assert.deepStrictEqual(difficultyForSolo(50, 1, true).rating, "Medium");
+      assert.deepStrictEqual(difficultyForSolo(74, 1, true).rating, "Medium");
+      assert.deepStrictEqual(difficultyForSolo(75, 1, true).rating, "Hard");
+      assert.deepStrictEqual(difficultyForSolo(99, 1, true).rating, "Hard");
+      assert.deepStrictEqual(difficultyForSolo(100, 1, true).rating, "Deadly");
+      assert.deepStrictEqual(difficultyForSolo(149, 1, true).rating, "Deadly");
+      assert.deepStrictEqual(difficultyForSolo(150, 1, true).rating, "Lethal");
+    });
+
+    test("defaults to level 1 if missing from threshold table", () => {
+      const res1 = difficultyForSolo(50, -5, false);
+      const res2 = difficultyForSolo(50, 1, false);
+      assert.deepStrictEqual(res1, res2);
     });
   });
 
-  it('does not apply solo penalty to a solo gestalt PC', () => {
-    // level 1 thresholds: easy 25, medium 50, hard 75, deadly 100
-    const party: PartyMember[] = [
-      { level: 1, weight: 1, gestalt: true },
-    ];
-    const res = partyThresholds(party);
-    assert.deepEqual(res, { easy: 25, medium: 50, hard: 75, deadly: 100 });
-  });
-
-  it('calculates correctly for mixed weights (e.g. sidekicks)', () => {
-    // level 2 thresholds: easy 50, medium 100, hard 150, deadly 200
-    // 1 PC (weight 1), 1 Sidekick (weight 0.5) => Total weight 1.5 (no solo penalty)
-    const party: PartyMember[] = [
-      { level: 2, weight: 1, gestalt: false },
-      { level: 2, weight: 0.5, gestalt: false },
-    ];
-    const res = partyThresholds(party);
-    assert.deepEqual(res, {
-      easy: Math.round(50 * 1 + 50 * 0.5),
-      medium: Math.round(100 * 1 + 100 * 0.5),
-      hard: Math.round(150 * 1 + 150 * 0.5),
-      deadly: Math.round(200 * 1 + 200 * 0.5),
+  describe("encounterMultiplier", () => {
+    test("returns standard DMG encounter multipliers based on monster count", () => {
+      assert.strictEqual(encounterMultiplier(1), 1);
+      assert.strictEqual(encounterMultiplier(2), 1.5);
+      assert.strictEqual(encounterMultiplier(3), 2);
+      assert.strictEqual(encounterMultiplier(6), 2);
+      assert.strictEqual(encounterMultiplier(7), 2.5);
+      assert.strictEqual(encounterMultiplier(10), 2.5);
+      assert.strictEqual(encounterMultiplier(11), 3);
+      assert.strictEqual(encounterMultiplier(14), 3);
+      assert.strictEqual(encounterMultiplier(15), 4);
+      assert.strictEqual(encounterMultiplier(20), 4);
     });
   });
 
-  it('clamps level below 1 to 1', () => {
-    const party: PartyMember[] = [
-      { level: -5, weight: 1, gestalt: false },
-      { level: 0, weight: 1, gestalt: false },
-    ];
-    // Treats them as level 1. Total weight 2.
-    // Level 1: 25, 50, 75, 100 -> for 2 players: 50, 100, 150, 200
-    const res = partyThresholds(party);
-    assert.deepEqual(res, { easy: 50, medium: 100, hard: 150, deadly: 200 });
+  describe("partyThresholds", () => {
+    test("calculates sum of member thresholds for standard party", () => {
+      const party = [
+        { level: 1, weight: 1, gestalt: false }, // 25/50/75/100
+        { level: 1, weight: 1, gestalt: false }, // 25/50/75/100
+      ];
+      assert.deepStrictEqual(partyThresholds(party), {
+        easy: 50, medium: 100, hard: 150, deadly: 200
+      });
+    });
+
+    test("applies solo penalty ONLY when party total weight <= 1", () => {
+      const party = [
+        { level: 1, weight: 1, gestalt: false }, // 25/50/75/100 -> x0.75 -> 18.75/37.5/56.25/75
+      ];
+      assert.deepStrictEqual(partyThresholds(party), {
+        easy: 19, medium: 38, hard: 56, deadly: 75
+      });
+    });
+
+    test("gestalt PCs avoid solo penalty", () => {
+      const party = [
+        { level: 1, weight: 1, gestalt: true },
+      ];
+      assert.deepStrictEqual(partyThresholds(party), {
+        easy: 25, medium: 50, hard: 75, deadly: 100
+      });
+    });
+
+    test("sidekicks scale properly by weight", () => {
+      const party = [
+        { level: 1, weight: 1, gestalt: false },
+        { level: 1, weight: 0.5, gestalt: false }, // sidekick
+      ];
+      // total weight 1.5 -> not solo. Thresholds:
+      // PC: 25/50/75/100
+      // Sidekick: 12.5/25/37.5/50
+      // Total: 37.5/75/112.5/150 -> rounded -> 38/75/113/150
+      assert.deepStrictEqual(partyThresholds(party), {
+        easy: 38, medium: 75, hard: 113, deadly: 150
+      });
+    });
+
+    test("handles out of bounds levels", () => {
+      const party = [
+        { level: 25, weight: 1, gestalt: false }, // clamps to 20
+        { level: 0, weight: 1, gestalt: false }, // clamps to 1
+      ];
+      // Level 20: 2800/5700/8500/12700
+      // Level 1: 25/50/75/100
+      assert.deepStrictEqual(partyThresholds(party), {
+        easy: 2825, medium: 5750, hard: 8575, deadly: 12800
+      });
+    });
   });
 
-  it('clamps level above 20 to 20', () => {
-    const party: PartyMember[] = [
-      { level: 25, weight: 1, gestalt: false },
-      { level: 99, weight: 1, gestalt: false },
-    ];
-    // Treats them as level 20. Total weight 2.
-    // Level 20 thresholds: easy: 2800, medium: 5700, hard: 8500, deadly: 12700
-    // For 2 players: easy: 5600, medium: 11400, hard: 17000, deadly: 25400
-    const res = partyThresholds(party);
-    assert.deepEqual(res, { easy: 5600, medium: 11400, hard: 17000, deadly: 25400 });
+  describe("suggestCombosForBand", () => {
+    test("returns empty array for invalid band", () => {
+      assert.deepStrictEqual(suggestCombosForBand(100, 50), []);
+      assert.deepStrictEqual(suggestCombosForBand(100, 100), []);
+    });
+
+    test("suggests appropriate encounters", () => {
+      // Band 100-200. Target is 150.
+      const combos = suggestCombosForBand(100, 200);
+      assert(combos.length > 0);
+      for (const combo of combos) {
+        assert(combo.adjustedXP >= 100 && combo.adjustedXP < 200);
+      }
+    });
+
+    test("limits count to maxCount", () => {
+      const combos = suggestCombosForBand(500, 1000, { maxCount: 3 });
+      assert(combos.length > 0);
+      for (const combo of combos) {
+        assert(combo.count <= 3);
+      }
+    });
   });
 
-  it('rounds floating point levels to nearest int', () => {
-    const party: PartyMember[] = [
-      { level: 1.4, weight: 1, gestalt: false }, // rounds to 1
-      { level: 1.6, weight: 1, gestalt: false }, // rounds to 2
-    ];
-    // Level 1: 25, 50, 75, 100
-    // Level 2: 50, 100, 150, 200
-    // Total weight 2 (no solo penalty).
-    const res = partyThresholds(party);
-    assert.deepEqual(res, {
-      easy: 25 + 50,
-      medium: 50 + 100,
-      hard: 75 + 150,
-      deadly: 100 + 200,
+  describe("parseLevelFromClassLevel", () => {
+    test("parses single class", () => {
+      assert.strictEqual(parseLevelFromClassLevel("Wizard 5"), 5);
+      assert.strictEqual(parseLevelFromClassLevel("Fighter 12"), 12);
+    });
+
+    test("parses multiclass", () => {
+      assert.strictEqual(parseLevelFromClassLevel("Fighter 3 / Rogue 2"), 5);
+      assert.strictEqual(parseLevelFromClassLevel("Wizard 2/Cleric 1/Fighter 2"), 5);
+    });
+
+    test("handles non-standard formats gracefully", () => {
+      // If there is a slash, it sums all numbers.
+      assert.strictEqual(parseLevelFromClassLevel("Level 5 / Some other 2"), 7);
+      // If no slash, it takes max number.
+      assert.strictEqual(parseLevelFromClassLevel("Level 5 some 2"), 5);
+    });
+
+    test("returns null for no numbers", () => {
+      assert.strictEqual(parseLevelFromClassLevel("Fighter"), null);
+      assert.strictEqual(parseLevelFromClassLevel(""), null);
+    });
+
+    test("clamps to 20", () => {
+      assert.strictEqual(parseLevelFromClassLevel("Fighter 25"), 20);
+      assert.strictEqual(parseLevelFromClassLevel("Wizard 15 / Cleric 10"), 20);
     });
   });
 });
