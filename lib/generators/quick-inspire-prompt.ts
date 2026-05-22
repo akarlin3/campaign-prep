@@ -3,13 +3,13 @@ import type { CampaignContext } from './types';
 import { hasCampaignContext } from './types';
 
 const MODEL = 'claude-haiku-4-5-20251001';
-const MAX_TOKENS = 600;
+const MAX_TOKENS = 100;
 
 const SYSTEM = `You are a TTRPG game master. You must generate a single, evocative random table entry for a given category.
 
 You receive: { tableTitle, campaignContext? }.
 Generate exactly 1 entry.
-It should be 1-3 sentences, imaginative, and fit the category.
+It must be extremely short, punchy, and quick to read: a single short phrase or one brief sentence (ideally under 15 words). Avoid multiple sentences, wordy descriptions, or preamble.
 Do not include trailing punctuation if it is a short phrase, but full sentences are fine.
 
 Lean into campaignContext (genre, tone, pitch, world facts, setting facts) when present — but never invent named NPCs, factions, or locations the campaign does not already mention.`;

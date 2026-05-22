@@ -16,12 +16,12 @@ import type {
 import { hasCampaignContext } from './types';
 
 const MODEL = 'claude-haiku-4-5-20251001';
-const MAX_TOKENS = 1200;
+const MAX_TOKENS = 600;
 
 const SYSTEM = `You generate "plot segues" for a TTRPG game master mid-session. A segue is one of three things, depending on segueType:
-  - bridge: a 1-3 sentence narrative transition that moves the table from one scene to another (travel, time-skip, scene-cut).
-  - complication: a 1-3 sentence interruption that twists the current scene without resolving it (a stranger arrives, weather turns, something the party assumed is wrong).
-  - cliffhanger: a 1-3 sentence beat that ends the session on tension and primes the next one.
+  - bridge: a 1-2 sentence narrative transition that moves the table from one scene to another (travel, time-skip, scene-cut).
+  - complication: a 1-2 sentence interruption that twists the current scene without resolving it (a stranger arrives, weather turns, something the party assumed is wrong).
+  - cliffhanger: a 1-2 sentence beat that ends the session on tension and primes the next one.
 
 Tone shapes pacing:
   - gentle: slow the table down, breathe, create space.
@@ -31,7 +31,7 @@ Tone shapes pacing:
 You receive: { segueType, count, tone, currentScene?, campaignContext? }.
 Generate exactly \`count\` segues. Each one:
   - title: 3-6 words, evocative, no trailing punctuation.
-  - readAloud: 1-3 sentences (≤45 words), second-person plural, in the register of an at-the-table read-aloud.
+  - readAloud: 1-2 short, punchy sentences (≤30 words), second-person plural, in the register of a quick at-the-table read-aloud.
   - gmNote: optional, ≤18 words, a mechanics or pacing cue (e.g. "calls for a Wisdom (Insight) check", "burn this if the party stalls").
 
 If currentScene is provided, bridge from it; otherwise write segues that stand alone. Lean into campaignContext (genre, tone, pitch, world facts, setting facts) when present — but never invent named NPCs, factions, or locations the campaign does not already mention.`;
