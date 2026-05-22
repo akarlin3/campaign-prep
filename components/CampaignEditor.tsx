@@ -2442,7 +2442,8 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
   // or has failed. Hidden once we're back to 'synced'.
   const SyncPill = () => {
     if (syncState === 'synced') return null;
-    const base = 'fixed bottom-4 left-1/2 -translate-x-1/2 z-40 px-3 py-1.5 rounded-full shadow-page border text-xs font-display uppercase tracking-wider flex items-center gap-2 transition-opacity';
+    const isRun = get('__runSessionOpen', false);
+    const base = `fixed ${isRun ? 'bottom-[88px]' : 'bottom-4'} left-1/2 -translate-x-1/2 z-40 px-3 py-1.5 rounded-full shadow-page border text-xs font-display uppercase tracking-wider flex items-center gap-2 transition-all`;
     if (syncState === 'pending') {
       return (
         <div className={`${base} border-brass-deep/60 bg-parchment text-brass-deep`}>
@@ -4330,7 +4331,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
       {get('__runSessionOpen', false) && !get('__initiativeOpen', false) && (
         <button
           onClick={() => setVal('__initiativeOpen', true)}
-          className="fixed bottom-3 right-3 z-20 flex items-center gap-1.5 px-3 py-2 rounded-full border border-crimson/60 bg-parchment shadow-page text-crimson hover:bg-crimson hover:text-parchment font-display uppercase tracking-wider text-xs"
+          className="fixed bottom-[88px] right-4 z-20 flex items-center gap-1.5 px-3 py-2 rounded-full border border-crimson/60 bg-parchment shadow-page text-crimson hover:bg-crimson hover:text-parchment font-display uppercase tracking-wider text-xs"
           title="Open initiative tracker"
         >
           <Swords size={14} /> Initiative
@@ -4368,7 +4369,9 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
         onClick={() => setShortcutsOpen(true)}
         title="Keyboard shortcuts (press ?)"
         aria-label="Keyboard shortcuts"
-        className="fixed bottom-4 left-4 z-30 w-8 h-8 rounded-full border border-rule bg-parchment-soft text-brass-deep hover:bg-brass hover:text-parchment shadow-page font-display text-sm leading-none flex items-center justify-center"
+        className={`fixed left-4 z-30 w-8 h-8 rounded-full border border-rule bg-parchment-soft text-brass-deep hover:bg-brass hover:text-parchment shadow-page font-display text-sm leading-none flex items-center justify-center transition-all ${
+          get('__runSessionOpen', false) ? 'bottom-[88px]' : 'bottom-4'
+        }`}
       >
         ?
       </button>
@@ -4378,7 +4381,9 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
       {undoToast && (
         <div
           role="status"
-          className="fixed bottom-4 left-16 z-40 px-3 py-1.5 rounded-full shadow-page border border-brass-deep/70 bg-parchment text-brass-deep text-xs font-display uppercase tracking-wider flex items-center gap-2 gm-toast"
+          className={`fixed left-16 z-40 px-3 py-1.5 rounded-full shadow-page border border-brass-deep/70 bg-parchment text-brass-deep text-xs font-display uppercase tracking-wider flex items-center gap-2 gm-toast transition-all ${
+            get('__runSessionOpen', false) ? 'bottom-[88px]' : 'bottom-4'
+          }`}
         >
           {undoToast}
         </div>
@@ -4391,7 +4396,9 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
             scrollToEntity(summonToast.primaryEntityId);
             flashHighlight(summonToast.primaryEntityId);
           }}
-          className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 px-3 py-1.5 rounded-full shadow-page border border-brass-deep/70 bg-parchment text-brass-deep text-xs font-display uppercase tracking-wider flex items-center gap-2 hover:bg-brass hover:text-parchment"
+          className={`fixed left-1/2 -translate-x-1/2 z-40 px-3 py-1.5 rounded-full shadow-page border border-brass-deep/70 bg-parchment text-brass-deep text-xs font-display uppercase tracking-wider flex items-center gap-2 hover:bg-brass hover:text-parchment transition-all ${
+            get('__runSessionOpen', false) ? 'bottom-[88px]' : 'bottom-4'
+          }`}
           title="Click to re-scroll"
         >
           <Check size={12} /> {summonToast.text}

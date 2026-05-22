@@ -200,7 +200,7 @@ export default function InitiativePanel({
   }, [monsters, search]);
 
   const containerCls = variant === 'floating'
-    ? 'fixed bottom-3 right-3 left-3 md:left-auto md:w-[360px] max-h-[80vh] md:max-h-[85vh] flex flex-col rounded-lg border border-rule bg-parchment-soft shadow-page z-30'
+    ? 'fixed bottom-[88px] right-3 left-3 md:left-auto md:w-[360px] max-h-[70vh] md:max-h-[75vh] flex flex-col rounded-lg border border-rule bg-parchment-soft shadow-page z-30'
     : 'flex flex-col rounded border border-rule bg-parchment-soft';
 
   return (
