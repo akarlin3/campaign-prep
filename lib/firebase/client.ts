@@ -24,12 +24,16 @@ let _db: Firestore | null = null;
 
 export function getFirebaseApp(): FirebaseApp {
   if (_app) return _app;
-  console.log('[getFirebaseApp] Initializing with config:', {
-    apiKey: firebaseConfig.apiKey ? `${firebaseConfig.apiKey.slice(0, 8)}...` : 'undefined',
-    projectId: firebaseConfig.projectId,
-    authDomain: firebaseConfig.authDomain,
-  });
-  _app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+  
+  const APP_NAME = 'gmbuilder-app';
+  const existingApp = getApps().find(app => app.name === APP_NAME);
+  
+  if (existingApp) {
+    _app = existingApp;
+  } else {
+    _app = initializeApp(firebaseConfig, APP_NAME);
+  }
+  
   return _app;
 }
 
