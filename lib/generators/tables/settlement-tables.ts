@@ -31,6 +31,20 @@ export const GOVERNMENT_TYPES: readonly string[] = [
   'a foreign-installed governor and a local magistrate who actually runs things',
   'guild monopoly; the chartered guild rules in all but name',
   'no formal government; old custom holds the peace',
+  'military dictatorship led by a retired general',
+  'plutocracy where votes are bought and sold openly',
+  'gerontocracy of the eldest from each founding family',
+  'vassal state paying heavy tribute to a distant empire',
+  'anarchic commune with no laws, only community consensus',
+  'puppet ruler controlled by a hidden criminal syndicate',
+  'diarchy ruled by twin monarchs who constantly bicker',
+  'cryptocracy managed by a secretive order of knights',
+  'technocratic council of engineers and alchemists',
+  'nomadic leadership that only visits the settlement twice a year',
+  'rule by a lottery system where a random citizen serves for a year',
+  'bureaucracy so complex that no one knows who is actually in charge',
+  'rule by the champion of an annual gladiatorial tournament',
+  'a council of ghosts channeled through local mediums',
 ];
 
 export const ECONOMIES: readonly string[] = [
@@ -54,6 +68,26 @@ export const ECONOMIES: readonly string[] = [
   'mercenary recruiting; the army comes here to find soldiers',
   'pilgrimage — the chapel draws coin from outside the valley',
   'no notable export; the place subsists on itself',
+  'exotic spices grown in specialized greenhouses',
+  'ice harvesting from the nearby glaciers',
+  'breeding and training of exceptional hunting hounds',
+  'fine pottery made from distinctively colored local clay',
+  'smuggling and fencing of illicit goods',
+  'paper milling along a fast-flowing stream',
+  'harvesting of rare medicinal herbs from the surrounding swamp',
+  'mining of magical crystals used in spellcasting',
+  'production of high-quality siege engines',
+  'whaling and the processing of blubber and bone',
+  'cultivation of rare silk-spinning worms',
+  'manufacturing of complex clockwork mechanisms',
+  'harvesting of giant mushrooms from underground caves',
+  'breeding of exotic riding beasts',
+  'salvaging operations from nearby ancient ruins',
+  'production of a unique and highly addictive cheese',
+  'gathering of pearls from treacherous offshore reefs',
+  'crafting of fine musical instruments',
+  'brewing of a famously potent ale',
+  'a bustling black market for stolen art',
 ];
 
 export const NOTABLE_ROLES: readonly string[] = [
@@ -65,6 +99,14 @@ export const NOTABLE_ROLES: readonly string[] = [
   'master mason', 'old woman who lives by the gate and is consulted on all questions',
   'foreign merchant who has been here too long to leave', 'master cooper',
   'guild treasurer', 'retired admiral come to die here',
+  'master of the local thieves\' guild', 'head librarian', 'captain of the militia',
+  'chief engineer', 'harbormaster', 'master brewer', 'lead investigator',
+  'archivist of town records', 'keeper of the local asylum', 'master of hounds',
+  'chief diplomat', 'head of the merchants\' consortium', 'master shipwright',
+  'local historian', 'keeper of the toll bridge', 'master glassblower',
+  'chief astronomer', 'head of the local orphanage', 'master falconer',
+  'keeper of the royal gardens', 'chief executioner', 'head of the local miner\'s union',
+  'master jeweler', 'keeper of the sacred flame', 'chief negotiator', 'head of the local smuggler ring',
 ];
 
 export const HOOKS: readonly string[] = [
@@ -88,6 +130,26 @@ export const HOOKS: readonly string[] = [
   'A merchant convoy returned with a covered wagon they will not open in the marketplace.',
   'The road north has been closed for a month; the steward calls it bandits, but no traveller arrives from that direction either.',
   'The wells have a faint salt taste they did not have last year.',
+  'A sudden frost in mid-summer has killed half the crops, and people are blaming a local hermit.',
+  'A swarm of harmless but unnerving insects has covered the town square for three days.',
+  'Every dog in town began howling at precisely midnight, and hasn\'t stopped since.',
+  'A merchant is selling flawless, identical diamonds for copper pieces, claiming they fell from the sky.',
+  'The statues in the town square have all been turned to face the east.',
+  'A group of travelers arrived yesterday, speaking a language no one understands, and they refuse to leave the inn.',
+  'The town\'s oldest oak tree withered and died overnight.',
+  'Someone has been leaving small piles of silver coins on the doorsteps of the poorest families.',
+  'A strange, glowing fungus has started growing on the walls of the local tavern.',
+  'The mayor has suddenly decreed that no one may wear the color red.',
+  'A flock of ravens has taken up residence in the church belfry, driving the priests out.',
+  'The town\'s only bridge collapsed, but the wreckage looks like it was chewed through.',
+  'A series of identical, perfectly round holes have appeared in the ground around the town.',
+  'The local baker\'s bread has started tasting like ash, but only for certain people.',
+  'A mysterious stranger is offering to buy people\'s memories for gold.',
+  'The town clock has started running backwards, but keeps perfect time.',
+  'A thick fog has rolled in and hasn\'t lifted for a week; people are getting lost in their own streets.',
+  'The blacksmith\'s forge fire turned bright blue and refuses to be put out.',
+  'A traveling circus arrived, but the performers are completely silent and wear masks.',
+  'The water in the local fountain has turned to wine, but it makes anyone who drinks it weep uncontrollably.',
 ];
 
 export const NAME_PREFIXES: readonly string[] = [
@@ -97,6 +159,12 @@ export const NAME_PREFIXES: readonly string[] = [
   'Marsh', 'Moss', 'New', 'North', 'Oak', 'Old', 'Over', 'Pine', 'Quiet',
   'Red', 'Salt', 'Sharp', 'Short', 'Sil', 'South', 'Steep', 'Stone', 'Three',
   'Tin', 'Under', 'West', 'White', 'Wild', 'Wood',
+  'Apple', 'Arrow', 'Badger', 'Bare', 'Bleak', 'Blue', 'Boar', 'Bramble', 'Broad',
+  'Brown', 'Cold', 'Copper', 'Crow', 'Dark', 'Dead', 'Deer', 'Dry', 'Dull', 'Eel',
+  'Fall', 'Fat', 'Flat', 'Foul', 'Fox', 'Frost', 'Glad', 'Gold', 'Good', 'Grim',
+  'Hard', 'Hare', 'Hart', 'High', 'Horn', 'Ice', 'Little', 'Lone', 'Long', 'Lost',
+  'Mad', 'Mud', 'Odd', 'Pale', 'Pike', 'Plum', 'Proud', 'Rain', 'Raven', 'Rock',
+  'Rose', 'Silver', 'Snow', 'Sour', 'Star', 'Sun', 'Sweet', 'Swift', 'Tall',
 ];
 
 export const NAME_SUFFIXES: readonly string[] = [
@@ -105,4 +173,9 @@ export const NAME_SUFFIXES: readonly string[] = [
   'holm', 'hope', 'keep', 'lake', 'march', 'mere', 'mill', 'minster', 'moor',
   'mouth', 'pool', 'reach', 'rest', 'ridge', 'shore', 'side', 'spire', 'stead',
   'stone', 'thorpe', 'ton', 'water', 'well', 'wood', 'wych',
+  'bay', 'bend', 'bluff', 'bog', 'bottom', 'camp', 'cliff', 'crag', 'crest',
+  'drift', 'end', 'fen', 'flat', 'fork', 'gap', 'garth', 'grove', 'haven',
+  'head', 'hold', 'hollow', 'horn', 'knoll', 'landing', 'mead', 'meadow',
+  'mount', 'pass', 'peak', 'point', 'port', 'post', 'run', 'shade', 'shelf',
+  'spring', 'stand', 'town', 'vale', 'valley', 'view', 'wall', 'way', 'weir',
 ];

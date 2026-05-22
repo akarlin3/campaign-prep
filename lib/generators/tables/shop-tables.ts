@@ -74,6 +74,14 @@ export const MUNDANE_INVENTORY: readonly MundaneItem[] = [
   { name: 'cotton sack, large', shop: 'general store', category: 'gear', basePriceCp: 10, availability: 0 },
   { name: 'short pole of ash, ten feet', shop: 'general store', category: 'gear', basePriceCp: 5, availability: 0 },
   { name: 'iron grappling hook', shop: 'general store', category: 'gear', basePriceCp: 200, availability: 1 },
+  { name: 'canvas tent, two-person', shop: 'general store', category: 'gear', basePriceCp: 200, availability: 1 },
+  { name: 'fishing tackle (line, hooks, sinkers)', shop: 'general store', category: 'gear', basePriceCp: 100, availability: 0 },
+  { name: 'block and tackle', shop: 'general store', category: 'gear', basePriceCp: 100, availability: 1 },
+  { name: 'brass bell, hand-sized', shop: 'general store', category: 'gear', basePriceCp: 100, availability: 1 },
+  { name: 'soap, lye block', shop: 'general store', category: 'gear', basePriceCp: 2, availability: 0 },
+  { name: 'chalk, bundle of ten sticks', shop: 'general store', category: 'gear', basePriceCp: 1, availability: 0 },
+  { name: 'iron padlock and key', shop: 'general store', category: 'gear', basePriceCp: 500, availability: 1 },
+  { name: 'steel hunting trap', shop: 'general store', category: 'gear', basePriceCp: 500, availability: 1 },
   // ── smith ──
   { name: 'short sword, plain hilt', shop: 'smith', category: 'weapon', basePriceCp: 1000, availability: 1 },
   { name: 'long sword, ash-handled', shop: 'smith', category: 'weapon', basePriceCp: 1500, availability: 2 },
@@ -87,6 +95,13 @@ export const MUNDANE_INVENTORY: readonly MundaneItem[] = [
   { name: 'horseshoes, set of four', shop: 'smith', category: 'gear', basePriceCp: 200, availability: 1 },
   { name: 'crowbar, hammered iron', shop: 'smith', category: 'tool', basePriceCp: 200, availability: 0 },
   { name: 'hammer, blacksmith\'s', shop: 'smith', category: 'tool', basePriceCp: 100, availability: 0 },
+  { name: 'mace, flanged iron', shop: 'smith', category: 'weapon', basePriceCp: 500, availability: 1 },
+  { name: 'battleaxe, double-bitted', shop: 'smith', category: 'weapon', basePriceCp: 1000, availability: 1 },
+  { name: 'breastplate, steel', shop: 'smith', category: 'armor', basePriceCp: 40000, availability: 3 },
+  { name: 'iron pot helm', shop: 'smith', category: 'armor', basePriceCp: 500, availability: 1 },
+  { name: 'bag of iron caltrops', shop: 'smith', category: 'weapon', basePriceCp: 100, availability: 1 },
+  { name: 'chisel and punch set', shop: 'smith', category: 'tool', basePriceCp: 500, availability: 1 },
+  { name: 'heavy iron chain, ten feet', shop: 'smith', category: 'gear', basePriceCp: 500, availability: 1 },
   // ── alchemist ──
   { name: 'flask of lamp oil', shop: 'alchemist', category: 'gear', basePriceCp: 10, availability: 0 },
   { name: 'flask of acid', shop: 'alchemist', category: 'potion', basePriceCp: 2500, availability: 2 },
@@ -96,6 +111,13 @@ export const MUNDANE_INVENTORY: readonly MundaneItem[] = [
   { name: 'pinch of phosphorus', shop: 'alchemist', category: 'gear', basePriceCp: 200, availability: 2 },
   { name: 'jar of slow-burning powder', shop: 'alchemist', category: 'gear', basePriceCp: 500, availability: 2 },
   { name: 'reagent bottle (saltpetre)', shop: 'alchemist', category: 'gear', basePriceCp: 100, availability: 1 },
+  { name: 'smokepowder packet', shop: 'alchemist', category: 'gear', basePriceCp: 1000, availability: 3 },
+  { name: 'bottle of clear solvent', shop: 'alchemist', category: 'gear', basePriceCp: 200, availability: 2 },
+  { name: 'vial of basic poison', shop: 'alchemist', category: 'potion', basePriceCp: 10000, availability: 3 },
+  { name: 'box of sulfur matches', shop: 'alchemist', category: 'gear', basePriceCp: 50, availability: 1 },
+  { name: 'jar of quicklime', shop: 'alchemist', category: 'gear', basePriceCp: 150, availability: 2 },
+  { name: 'tincture of smelling salts', shop: 'alchemist', category: 'potion', basePriceCp: 250, availability: 2 },
+  { name: 'phosphorescent ink (glows in dark)', shop: 'alchemist', category: 'gear', basePriceCp: 500, availability: 3 },
   // ── fletcher ──
   { name: 'arrows, bundle of twenty', shop: 'fletcher', category: 'gear', basePriceCp: 100, availability: 0 },
   { name: 'crossbow bolts, bundle of twenty', shop: 'fletcher', category: 'gear', basePriceCp: 100, availability: 1 },
@@ -103,6 +125,12 @@ export const MUNDANE_INVENTORY: readonly MundaneItem[] = [
   { name: 'longbow, ash with horn nocks', shop: 'fletcher', category: 'weapon', basePriceCp: 5000, availability: 2 },
   { name: 'light crossbow', shop: 'fletcher', category: 'weapon', basePriceCp: 2500, availability: 2 },
   { name: 'leather quiver, twenty-arrow', shop: 'fletcher', category: 'gear', basePriceCp: 100, availability: 0 },
+  { name: 'heavy crossbow', shop: 'fletcher', category: 'weapon', basePriceCp: 5000, availability: 2 },
+  { name: 'silver-tipped arrows, three', shop: 'fletcher', category: 'weapon', basePriceCp: 300, availability: 2 },
+  { name: 'broadhead hunting arrows, ten', shop: 'fletcher', category: 'weapon', basePriceCp: 100, availability: 1 },
+  { name: 'replacement bowstring, silk', shop: 'fletcher', category: 'gear', basePriceCp: 100, availability: 1 },
+  { name: 'quiver, bolt case', shop: 'fletcher', category: 'gear', basePriceCp: 100, availability: 1 },
+  { name: 'bundle of unworked arrow shafts', shop: 'fletcher', category: 'gear', basePriceCp: 25, availability: 0 },
   // ── herbalist ──
   { name: 'bundle of dried sage', shop: 'herbalist', category: 'gear', basePriceCp: 10, availability: 0 },
   { name: 'pouch of dried willow bark', shop: 'herbalist', category: 'gear', basePriceCp: 25, availability: 0 },
@@ -112,6 +140,12 @@ export const MUNDANE_INVENTORY: readonly MundaneItem[] = [
   { name: 'vial of moonflower honey', shop: 'herbalist', category: 'potion', basePriceCp: 500, availability: 1 },
   { name: 'small jar of soothing balm', shop: 'herbalist', category: 'potion', basePriceCp: 100, availability: 0 },
   { name: 'pressed bundle of stinging nettles', shop: 'herbalist', category: 'gear', basePriceCp: 25, availability: 1 },
+  { name: 'packet of smelling salts', shop: 'herbalist', category: 'gear', basePriceCp: 50, availability: 1 },
+  { name: 'poultice of crushed comfrey', shop: 'herbalist', category: 'potion', basePriceCp: 100, availability: 1 },
+  { name: 'vial of eucalyptus oil', shop: 'herbalist', category: 'gear', basePriceCp: 200, availability: 1 },
+  { name: 'dried nightshade berries', shop: 'herbalist', category: 'gear', basePriceCp: 500, availability: 2 },
+  { name: 'bundle of garlic braids', shop: 'herbalist', category: 'gear', basePriceCp: 10, availability: 0 },
+  { name: 'healer\'s kit (bandages, splints)', shop: 'herbalist', category: 'tool', basePriceCp: 500, availability: 1 },
   // ── scribe ──
   { name: 'sheet of fine vellum', shop: 'scribe', category: 'gear', basePriceCp: 100, availability: 1 },
   { name: 'roll of parchment, ten sheets', shop: 'scribe', category: 'gear', basePriceCp: 200, availability: 1 },
@@ -121,6 +155,12 @@ export const MUNDANE_INVENTORY: readonly MundaneItem[] = [
   { name: 'wax stick, red', shop: 'scribe', category: 'gear', basePriceCp: 10, availability: 1 },
   { name: 'sealing-stick, dark green wax', shop: 'scribe', category: 'gear', basePriceCp: 25, availability: 2 },
   { name: 'pocket-book of ruled paper', shop: 'scribe', category: 'gear', basePriceCp: 500, availability: 2 },
+  { name: 'leather-bound ledger, blank', shop: 'scribe', category: 'gear', basePriceCp: 1000, availability: 2 },
+  { name: 'brass signet ring (blank)', shop: 'scribe', category: 'gear', basePriceCp: 500, availability: 2 },
+  { name: 'mapmaker\'s drafting compass', shop: 'scribe', category: 'tool', basePriceCp: 1500, availability: 2 },
+  { name: 'pot of gold-leaf ink', shop: 'scribe', category: 'gear', basePriceCp: 2500, availability: 3 },
+  { name: 'waterproof map case, leather', shop: 'scribe', category: 'gear', basePriceCp: 100, availability: 1 },
+  { name: 'magnifying glass, brass rim', shop: 'scribe', category: 'tool', basePriceCp: 5000, availability: 3 },
   // ── tailor ──
   { name: 'plain wool tunic', shop: 'tailor', category: 'gear', basePriceCp: 500, availability: 1 },
   { name: 'travelling cloak, oiled wool', shop: 'tailor', category: 'gear', basePriceCp: 1000, availability: 1 },
@@ -129,6 +169,12 @@ export const MUNDANE_INVENTORY: readonly MundaneItem[] = [
   { name: 'kid-leather gloves, pair', shop: 'tailor', category: 'gear', basePriceCp: 500, availability: 2 },
   { name: 'embroidered sash', shop: 'tailor', category: 'gear', basePriceCp: 1500, availability: 3 },
   { name: 'pair of stout walking boots', shop: 'tailor', category: 'gear', basePriceCp: 2000, availability: 2 },
+  { name: 'silk scarf, brightly dyed', shop: 'tailor', category: 'gear', basePriceCp: 1000, availability: 2 },
+  { name: 'heavy winter coat, fur-lined', shop: 'tailor', category: 'gear', basePriceCp: 5000, availability: 2 },
+  { name: 'wide-brimmed felt hat', shop: 'tailor', category: 'gear', basePriceCp: 200, availability: 1 },
+  { name: 'nobleman\'s doublet, velvet', shop: 'tailor', category: 'gear', basePriceCp: 15000, availability: 3 },
+  { name: 'merchant\'s robe, thick weave', shop: 'tailor', category: 'gear', basePriceCp: 5000, availability: 2 },
+  { name: 'leather apron, thick', shop: 'tailor', category: 'gear', basePriceCp: 500, availability: 1 },
   // ── stable ──
   { name: 'sturdy mule', shop: 'stable', category: 'gear', basePriceCp: 800, availability: 1 },
   { name: 'riding horse, four-year-old', shop: 'stable', category: 'gear', basePriceCp: 7500, availability: 2 },
@@ -137,6 +183,12 @@ export const MUNDANE_INVENTORY: readonly MundaneItem[] = [
   { name: 'saddle, pack', shop: 'stable', category: 'gear', basePriceCp: 500, availability: 1 },
   { name: 'feed bag with three-day ration', shop: 'stable', category: 'gear', basePriceCp: 50, availability: 1 },
   { name: 'horsewhip', shop: 'stable', category: 'gear', basePriceCp: 100, availability: 1 },
+  { name: 'pony, shaggy and sure-footed', shop: 'stable', category: 'gear', basePriceCp: 3000, availability: 1 },
+  { name: 'warhorse, trained for battle', shop: 'stable', category: 'gear', basePriceCp: 40000, availability: 3 },
+  { name: 'cart, two-wheeled wooden', shop: 'stable', category: 'gear', basePriceCp: 1500, availability: 1 },
+  { name: 'wagon, four-wheeled covered', shop: 'stable', category: 'gear', basePriceCp: 3500, availability: 2 },
+  { name: 'stabling for one night', shop: 'stable', category: 'gear', basePriceCp: 50, availability: 1 },
+  { name: 'grooming brush and currycomb', shop: 'stable', category: 'tool', basePriceCp: 200, availability: 1 },
 ];
 
 // Format a copper price into the largest reasonable denomination.
@@ -150,36 +202,36 @@ export function formatPrice(cp: number): string {
 // Shop name parts. Original prose, generic across cultures.
 export const SHOP_NAME_PARTS: Record<ShopType, { prefix: readonly string[]; suffix: readonly string[] }> = {
   'general store': {
-    prefix: ['The Cracked', 'The Honest', 'The Wandering', 'The Patient', 'The Quiet', 'The Threadbare', 'Old', 'New'],
-    suffix: ['Lantern', 'Doorstep', 'Bell', 'Crate', 'Tinderbox', 'Sack', 'Hearth', 'Mug'],
+    prefix: ['The Cracked', 'The Honest', 'The Wandering', 'The Patient', 'The Quiet', 'The Threadbare', 'Old', 'New', 'The Dusty', 'The Cluttered', 'The Trusty', 'The Welcome', 'The Stuffed', 'The Good', 'The Crowded', 'The Steady'],
+    suffix: ['Lantern', 'Doorstep', 'Bell', 'Crate', 'Tinderbox', 'Sack', 'Hearth', 'Mug', 'Barrel', 'Wagon', 'Shelf', 'Counter', 'Pocket', 'Satchel', 'Penny', 'Chest'],
   },
   smith: {
-    prefix: ['The Hammered', 'The Folded', 'The Bright', 'The Stout', 'The Anvil', 'Iron-Heart', 'Black-Lung'],
-    suffix: ['Anvil', 'Forge', 'Hearth', 'Quench', 'Bellows', 'Heat', 'Edge'],
+    prefix: ['The Hammered', 'The Folded', 'The Bright', 'The Stout', 'The Anvil', 'Iron-Heart', 'Black-Lung', 'The Red', 'The Sooty', 'The Roaring', 'The Ringing', 'The Battered', 'The Heavy', 'The Smoking'],
+    suffix: ['Anvil', 'Forge', 'Hearth', 'Quench', 'Bellows', 'Heat', 'Edge', 'Hammer', 'Spike', 'Tongs', 'Blade', 'Shield', 'Iron', 'Steel'],
   },
   alchemist: {
-    prefix: ['The Brittle', 'The Steeping', 'The Long', 'The Patient', 'The Greening', 'The Salted'],
-    suffix: ['Crucible', 'Beaker', 'Retort', 'Vapour', 'Pot', 'Distillate'],
+    prefix: ['The Brittle', 'The Steeping', 'The Long', 'The Patient', 'The Greening', 'The Salted', 'The Bubbling', 'The Fuming', 'The Clouded', 'The Glass', 'The Silver', 'The Hidden', 'The Boiling', 'The Mystic'],
+    suffix: ['Crucible', 'Beaker', 'Retort', 'Vapour', 'Pot', 'Distillate', 'Flask', 'Mortar', 'Phial', 'Flame', 'Spark', 'Cask', 'Stone', 'Ash'],
   },
   fletcher: {
-    prefix: ['The Long', 'The Straight', 'The Clean', 'The Patient', 'The Goose', 'The Yew'],
-    suffix: ['Arrow', 'Nock', 'Quiver', 'Bowstring', 'Fletch', 'Shaft'],
+    prefix: ['The Long', 'The Straight', 'The Clean', 'The Patient', 'The Goose', 'The Yew', 'The Bent', 'The Flying', 'The True', 'The White', 'The Swift', 'The Silent', 'The Feathered', 'The Taut'],
+    suffix: ['Arrow', 'Nock', 'Quiver', 'Bowstring', 'Fletch', 'Shaft', 'Bow', 'Target', 'Flight', 'Tip', 'Barb', 'String', 'Wood', 'Feather'],
   },
   herbalist: {
-    prefix: ['The Green', 'The Hedgerow', 'The Crooked', 'The Salted', 'The Mossy', 'The Bitter'],
-    suffix: ['Petal', 'Sprig', 'Mortar', 'Garden', 'Pestle', 'Bough'],
+    prefix: ['The Green', 'The Hedgerow', 'The Crooked', 'The Salted', 'The Mossy', 'The Bitter', 'The Sweet', 'The Wild', 'The Rooted', 'The Tangled', 'The Leafy', 'The Healing', 'The Thriving', 'The Shaded'],
+    suffix: ['Petal', 'Sprig', 'Mortar', 'Garden', 'Pestle', 'Bough', 'Root', 'Leaf', 'Stem', 'Seed', 'Flower', 'Vine', 'Thorn', 'Berry'],
   },
   scribe: {
-    prefix: ['The Quiet', 'The Hooded', 'The Slow', 'The Careful', 'The Borrowed', 'The Black'],
-    suffix: ['Quill', 'Paragraph', 'Margin', 'Page', 'Ledger', 'Inkpot'],
+    prefix: ['The Quiet', 'The Hooded', 'The Slow', 'The Careful', 'The Borrowed', 'The Black', 'The Ink-Stained', 'The Blind', 'The Learned', 'The Dusty', 'The Golden', 'The Sealed', 'The Whispering', 'The Bound'],
+    suffix: ['Quill', 'Paragraph', 'Margin', 'Page', 'Ledger', 'Inkpot', 'Scroll', 'Tome', 'Parchment', 'Letter', 'Book', 'Seal', 'Wax', 'Binding'],
   },
   tailor: {
-    prefix: ['The Stitched', 'The Patient', 'The Folded', 'The Black-Thread', 'The Honest'],
-    suffix: ['Seam', 'Loom', 'Shears', 'Cuff', 'Lapel', 'Sleeve'],
+    prefix: ['The Stitched', 'The Patient', 'The Folded', 'The Black-Thread', 'The Honest', 'The Frayed', 'The Woven', 'The Velvet', 'The Golden', 'The Needy', 'The Nimble', 'The Silver', 'The Silk', 'The Spun'],
+    suffix: ['Seam', 'Loom', 'Shears', 'Cuff', 'Lapel', 'Sleeve', 'Needle', 'Thread', 'Spool', 'Button', 'Thimble', 'Cloth', 'Cloak', 'Hem'],
   },
   stable: {
-    prefix: ['The Long', 'The Quiet', 'The Old', 'The Honest', 'The Heavy', 'The Steady'],
-    suffix: ['Stride', 'Bridle', 'Halter', 'Pasture', 'Hoof', 'Stall'],
+    prefix: ['The Long', 'The Quiet', 'The Old', 'The Honest', 'The Heavy', 'The Steady', 'The Tired', 'The Rested', 'The Prancing', 'The Running', 'The Spotted', 'The Bay', 'The Black', 'The White'],
+    suffix: ['Stride', 'Bridle', 'Halter', 'Pasture', 'Hoof', 'Stall', 'Spur', 'Saddle', 'Whip', 'Cart', 'Mane', 'Bit', 'Trough', 'Harness'],
   },
 };
 
@@ -188,12 +240,17 @@ export const OWNER_FIRSTNAMES = [
   'Bram', 'Cole', 'Dara', 'Edda', 'Fern', 'Gar', 'Hen', 'Ivar', 'Joss', 'Kell',
   'Lin', 'Mer', 'Nell', 'Ord', 'Pell', 'Quel', 'Rin', 'Sera', 'Tor', 'Una',
   'Var', 'Wen', 'Yel', 'Zara', 'Aslin', 'Bryn', 'Cori', 'Doss', 'Emry', 'Frey',
+  'Gael', 'Hess', 'Iden', 'Jael', 'Kass', 'Lior', 'Mael', 'Nial', 'Oris', 'Pryce',
+  'Quin', 'Roan', 'Syl', 'Tess', 'Uri', 'Vael', 'Wren', 'Xan', 'Yris', 'Zev',
 ];
 
 export const OWNER_SURNAMES = [
   'Ash', 'Belt', 'Crowfoot', 'Drape', 'Elm', 'Frost', 'Gull', 'Hammer', 'Iron',
   'Jott', 'Kale', 'Lock', 'Marsh', 'Nail', 'Oat', 'Pine', 'Quern', 'Ringer',
   'Slate', 'Thorn', 'Under', 'Verg', 'Wick', 'Yare',
+  'Anvil', 'Bark', 'Cooper', 'Drake', 'Ember', 'Flint', 'Gage', 'Hearth', 'Ingot',
+  'Jewel', 'Kettle', 'Loom', 'Mead', 'North', 'Owl', 'Pike', 'Quill', 'Root',
+  'Stone', 'Tallow', 'Umber', 'Vane', 'Weaver', 'Yew',
 ];
 
 export const OWNER_DESCRIPTORS = [
@@ -207,6 +264,16 @@ export const OWNER_DESCRIPTORS = [
   'apprenticed late in life, eager to prove competence',
   'a former soldier; keeps a polished blade behind the counter and does not need to draw it',
   'short, broad, plain-spoken, and disinclined to haggle',
+  'constantly polishing a seemingly clean pair of spectacles',
+  'chews on a piece of sweetgrass while listening to customers',
+  'wears a heavy apron that smells of burnt herbs and ozone',
+  'has a nervous habit of tapping a copper coin on the counter',
+  'speaks in a rapid, clipping accent that is hard to follow',
+  'always surrounded by three or four lazy, well-fed cats',
+  'has a booming laugh that shakes the dust from the rafters',
+  'meticulously arranges every item in the shop at perfect right angles',
+  'sweats profusely, constantly mopping their brow with a silk handkerchief',
+  'seems to know exactly what a customer wants before they ask',
 ];
 
 // Owner trait shorthand keyed off shop archetype, for the AI enhance prompt.
@@ -225,20 +292,20 @@ export type MagicShopArchetype = 'curio shop' | 'hedge wizard' | 'black market' 
 
 export const MAGIC_SHOP_NAME_PARTS: Record<MagicShopArchetype, { prefix: readonly string[]; suffix: readonly string[] }> = {
   'curio shop': {
-    prefix: ['The Wandering', 'The Bell-Jar', 'The Inverted', 'The Quiet', 'The Borrowed', 'The Patient'],
-    suffix: ['Curio', 'Cabinet', 'Vitrine', 'Reliquary', 'Shelf', 'Drawer'],
+    prefix: ['The Wandering', 'The Bell-Jar', 'The Inverted', 'The Quiet', 'The Borrowed', 'The Patient', 'The Odd', 'The Peculiar', 'The Antique', 'The Forgotten', 'The Dusty', 'The Glass'],
+    suffix: ['Curio', 'Cabinet', 'Vitrine', 'Reliquary', 'Shelf', 'Drawer', 'Collection', 'Oddity', 'Bazaar', 'Emporium', 'Vault', 'Treasury'],
   },
   'hedge wizard': {
-    prefix: ['The Crooked', 'The Threshold', 'The Far-Field', 'The Bramble', 'The Salt-Marsh'],
-    suffix: ['Charm', 'Hex', 'Knot', 'Ward', 'Sigil', 'Lantern'],
+    prefix: ['The Crooked', 'The Threshold', 'The Far-Field', 'The Bramble', 'The Salt-Marsh', 'The Whispering', 'The Hidden', 'The Wise', 'The Old', 'The Mossy', 'The Toad\'s', 'The Moonlit'],
+    suffix: ['Charm', 'Hex', 'Knot', 'Ward', 'Sigil', 'Lantern', 'Root', 'Stone', 'Brew', 'Hut', 'Cauldron', 'Wand'],
   },
   'black market': {
-    prefix: ['The Tin-Roof', 'The Folded', 'The After-Hour', 'The Inside-Door', 'The Coin-Bitten'],
-    suffix: ['Stall', 'Crate', 'Pocket', 'Sleeve', 'Marker', 'Tally'],
+    prefix: ['The Tin-Roof', 'The Folded', 'The After-Hour', 'The Inside-Door', 'The Coin-Bitten', 'The Shadow', 'The Smuggler\'s', 'The Midnight', 'The Blind', 'The Silent', 'The Crooked', 'The Bloody'],
+    suffix: ['Stall', 'Crate', 'Pocket', 'Sleeve', 'Marker', 'Tally', 'Alley', 'Exchange', 'Market', 'Den', 'Vault', 'Purse'],
   },
   temple: {
-    prefix: ['The Lesser', 'The Outer', 'The Mended', 'The Wayfarer\'s', 'The Lamp-Lit', 'The Last'],
-    suffix: ['Chapel', 'Vestry', 'Cloister', 'Altar', 'Pilgrim', 'Vow'],
+    prefix: ['The Lesser', 'The Outer', 'The Mended', 'The Wayfarer\'s', 'The Lamp-Lit', 'The Last', 'The Holy', 'The Sacred', 'The Blessed', 'The Divine', 'The Radiant', 'The Peaceful'],
+    suffix: ['Chapel', 'Vestry', 'Cloister', 'Altar', 'Pilgrim', 'Vow', 'Shrine', 'Sanctuary', 'Font', 'Relic', 'Prayer', 'Light'],
   },
 };
 
