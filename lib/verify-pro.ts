@@ -17,7 +17,9 @@ function getJwks() {
 }
 
 function getProjectId(): string | null {
-  return process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || null;
+  const id = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+  if (!id || id === 'undefined' || id.trim() === '') return 'campaign-prep-fc9ed';
+  return id;
 }
 
 export async function verifyPro(idToken: string): Promise<VerifyProResult> {
