@@ -1,6 +1,30 @@
 import { describe, it } from 'node:test';
 import { strict as assert } from 'node:assert';
-import { normalizePointBuy, POINT_BUY_MIN, POINT_BUY_MAX, emptyPointBuy } from '../pointBuy';
+import { totalCost, emptyAbilityScores, normalizePointBuy, POINT_BUY_MIN, POINT_BUY_MAX, emptyPointBuy } from '../pointBuy';
+
+describe('totalCost', () => {
+  it('returns 0 for all 8s (minimum possible scores)', () => {
+    const scores = emptyAbilityScores(8);
+    assert.equal(totalCost(scores), 0);
+  });
+
+  it('returns 54 for all 15s (maximum possible scores)', () => {
+    const scores = emptyAbilityScores(15);
+    assert.equal(totalCost(scores), 54);
+  });
+
+  it('returns 27 for a standard player ability array (15, 14, 13, 12, 10, 8)', () => {
+    const scores = {
+      str: 15,
+      dex: 14,
+      con: 13,
+      int: 12,
+      wis: 10,
+      cha: 8,
+    };
+    assert.equal(totalCost(scores), 27);
+  });
+});
 
 describe('normalizePointBuy', () => {
   it('returns empty point buy for null/undefined input', () => {
@@ -62,7 +86,7 @@ describe('normalizePointBuy', () => {
     assert.equal(result.racial.dex, 1);
   });
 
-  it('rounds float numbers to integers for base stats and leaves racial stats unrounded but validated', () => {
+  it('rounds float numbers to integers for base stats and racial stats', () => {
     const input = {
       base: { str: 10.4, dex: 12.6 },
       racial: { str: 1.1, dex: 0.9 }
@@ -70,8 +94,6 @@ describe('normalizePointBuy', () => {
     const result = normalizePointBuy(input);
     assert.equal(result.base.str, 10);
     assert.equal(result.base.dex, 13);
-
-    // In normalizePointBuy -> asInt uses Math.round(v) for finite numbers for both base and racial.
     assert.equal(result.racial.str, 1);
     assert.equal(result.racial.dex, 1);
   });
