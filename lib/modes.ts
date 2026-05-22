@@ -79,6 +79,10 @@ export const MODES: Record<Mode, ModeDef> = {
       { id: 'traps',      label: 'Traps',      description: 'Trap builder' },
       { id: 'vivify',     label: 'Vivify',     description: 'AI prose for prep elements' },
       { id: 'pointbuy',   label: 'Point-Buy',  description: 'D&D 5e ability-score calculator' },
+      { id: 'hazards',    label: 'Hazards',    description: 'Physics-grounded environmental damage & structural calculator' },
+      { id: 'logistics',  label: 'Logistics',  description: 'Strict encumbrance, containers, and currency tracking' },
+      { id: 'web',        label: 'NPC Web',    description: 'Visual relationship graph of NPCs and the party' },
+      { id: 'factions',   label: 'Living World', description: 'Tick-based faction simulation between sessions' },
     ],
   },
 };
