@@ -56,6 +56,13 @@ const RunSessionView = dynamic(() => import('./RunSessionView'));
 const PrepWizardView = dynamic(() => import('./PrepWizardView'));
 const Session0Wizard = dynamic(() => import('./Session0Wizard'));
 const SessionLogTab = dynamic(() => import('./SessionLogTab'));
+const HazardCalculator = dynamic(() => import('./HazardCalculator'));
+const LogisticsTab = dynamic(() => import('./LogisticsTab'));
+const NPCRelationshipWeb = dynamic(() => import('./NPCRelationshipWeb'));
+const FactionEngineTab = dynamic(() => import('./FactionEngineTab'));
+import { emptyLogistics, type LogisticsState } from './LogisticsTab';
+import { emptyGraph, type RelationshipGraphState } from './NPCRelationshipWeb';
+import { emptyWorld, type FactionWorld } from '@/lib/factionEngine';
 import type { SessionLogEntry } from '@/lib/sessionLog';
 import { nextSessionNumber } from '@/lib/sessionLog';
 import type { PrepWizardRun } from '@/lib/prepWizard';
@@ -4319,6 +4326,35 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
           <ToolsTab
             characters={characters}
             onChangeCharacter={updateCharacter}
+          />
+        )}
+
+        {mode === 'library' && subview === 'hazards' && (
+          <HazardCalculator />
+        )}
+
+        {mode === 'library' && subview === 'logistics' && (
+          <LogisticsTab
+            characters={characters}
+            state={(get('logistics', emptyLogistics()) as LogisticsState)}
+            onChange={(s) => setVal('logistics', s)}
+          />
+        )}
+
+        {mode === 'library' && subview === 'web' && (
+          <NPCRelationshipWeb
+            npcs={get('npcs', []) as any[]}
+            characters={characters}
+            graph={(get('relationshipGraph', emptyGraph()) as RelationshipGraphState)}
+            onChange={(g) => setVal('relationshipGraph', g)}
+          />
+        )}
+
+        {mode === 'library' && subview === 'factions' && (
+          <FactionEngineTab
+            campaignId={campaign.id}
+            world={(get('factionWorld', emptyWorld()) as FactionWorld)}
+            onChange={(w) => setVal('factionWorld', w)}
           />
         )}
         </div>
