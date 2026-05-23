@@ -9,7 +9,7 @@ export default function PlayersManager({ campaign }: { campaign: Campaign }) {
 
   const handleCopyLink = () => {
     if (typeof window === 'undefined') return;
-    const link = `${window.location.origin}/invite/${campaign.id}`;
+    const link = `${window.location.origin}/invite/${campaign.id}?name=${encodeURIComponent(campaign.name)}`;
     navigator.clipboard.writeText(link);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);

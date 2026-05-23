@@ -1,7 +1,7 @@
 'use client';
 
 import { use, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/firebase/auth-context';
 import { getCampaignOnce, requestJoinCampaign } from '@/lib/firebase/campaigns';
 import { Shield } from 'lucide-react';
@@ -10,6 +10,7 @@ export default function InvitePage({ params }: { params: Promise<{ id: string }>
   const { id } = use(params);
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [campaignName, setCampaignName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +39,12 @@ export default function InvitePage({ params }: { params: Promise<{ id: string }>
           }
         }
       } catch (err: any) {
-        setError(err.message || 'Failed to load campaign info.');
+        // If they get a permission error, it means they are not the GM and not yet a player.
+        // We fallback to showing the campaign name from the URL so they can request to join.
+        const urlName = searchParams.get('name');
+        setCampaignName(urlName || 'the campaign');
+        // We don't know if they are pending yet since they can't read the campaign, 
+        // but if they try to join again, the Firestore arrayUnion is idempotent.
       } finally {
         setLoading(false);
       }
@@ -47,7 +53,7 @@ export default function InvitePage({ params }: { params: Promise<{ id: string }>
     if (user && id) {
       fetchCampaign();
     }
-  }, [id, user, router]);
+  }, [id, user, router, searchParams]);
 
   const handleJoin = async () => {
     if (!user) return;
