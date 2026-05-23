@@ -3041,6 +3041,9 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, soloMode, sortedSessionLogs, characters, generatorLogs]);
 
+  if (get('__runSessionOpen', false)) {
+    return (
+      <>
         <RunSessionView
           get={get}
           setVal={setVal}
@@ -4454,7 +4457,7 @@ export default function CampaignEditor({ campaign, userEmail, isPro = false }: {
         />
       )}
 
-      {finalizerModal}
+      {/* finalizerModal removed */}
 
       <CommandPalette
         open={paletteOpen}
