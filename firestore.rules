@@ -6,8 +6,8 @@ service cloud.firestore {
     match /worlds/{worldId} {
       allow get: if request.auth != null;
       allow list: if request.auth != null && (resource.data.userId == request.auth.uid);
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid && request.resource.data.id == worldId;
-      allow update: if request.auth != null && resource.data.userId == request.auth.uid && request.resource.data.userId == resource.data.userId && request.resource.data.id == resource.data.id;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null && resource.data.userId == request.auth.uid && request.resource.data.userId == resource.data.userId;
       allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
     }
 

@@ -3335,6 +3335,7 @@ export default function CampaignEditor({
                 </button>
               ) : (
                 <button
+                  type="button"
                   onClick={handleConvertToWorld}
                   className="text-[10px] not-italic px-2 py-0.5 rounded border border-brass-deep/60 bg-brass/5 text-brass-deep font-display uppercase tracking-wider flex-shrink-0 hover:bg-brass/10 transition-colors"
                 >
