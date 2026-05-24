@@ -24,7 +24,7 @@ export default function ModeNav({ mode, subview, onModeChange, onSubviewChange, 
   const mutedModes = worldOnlyMode ? [] : MODE_ORDER.filter(m => MODES[m].emphasis === 'muted');
   let activeSubviews = MODES[mode].subviews;
   if (worldOnlyMode && mode === 'plan') {
-    activeSubviews = activeSubviews.filter(s => s.id === 'pitch' || s.id === 'world');
+    activeSubviews = activeSubviews.filter(s => s.id === 'pitch' || s.id === 'worldbuild');
   }
 
   return (

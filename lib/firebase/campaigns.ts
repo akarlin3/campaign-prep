@@ -75,7 +75,7 @@ export async function createCampaign(userId: string, name = 'Untitled Campaign',
 
 export async function updateCampaign(
   campaignId: string,
-  patch: { name?: string; data?: Record<string, any>; done?: Record<string, boolean> }
+  patch: { name?: string; data?: Record<string, any>; done?: Record<string, boolean>; worldId?: string; }
 ) {
   const ref = doc(getDb(), 'campaigns', campaignId);
   await updateDoc(ref, { ...patch, updatedAt: serverTimestamp() });

@@ -11,7 +11,7 @@ import {
   User, Users, Map, Swords, Gift, Layers, Calendar, Target, Trophy,
   Download, Upload, ScrollText, ArrowLeft, ArrowRight, Cloud, CloudOff,
   FileUp, Sparkles, Play, Search, BookOpen, Dice5, Wand2, Skull, Footprints, Hash, ClipboardList, Wrench, SlidersHorizontal, Copy,
-  Compass, NotebookPen, Zap, Gem,
+  Compass, NotebookPen, Zap, Gem, Globe,
 } from 'lucide-react';
 import { TABLES, sampleTable } from '@/lib/inspirationTables';
 import { CR_TO_XP, encounterMultiplier, difficultyForSolo, parseLevelFromClassLevel } from '@/lib/encounterMath';
@@ -2198,30 +2198,30 @@ export default function CampaignEditor({
 
   const handleConvertToWorld = async () => {
     if (campaign.worldId) return;
-    confirmModal({
+    const ok = await confirmModal({
       title: 'Convert to Shared World?',
-      body: 'This moves all static lore (NPCs, locations, items, factions, etc.) into a central World that other campaigns can share. This cannot be undone.',
-      confirmLabel: 'Convert to World',
-      onConfirm: async () => {
-        try {
-          setSyncState('saving');
-          const worldData: Record<string, any> = {};
-          const newCampaignData = { ...state };
-          for (const key of WORLD_KEYS) {
-            if (newCampaignData[key] !== undefined) {
-              worldData[key] = newCampaignData[key];
-              delete newCampaignData[key];
-            }
-          }
-          const newWorldId = await createWorld(campaign.userId, `${campaign.name} (World)`, worldData);
-          await updateCampaign(campaign.id, { worldId: newWorldId, data: newCampaignData });
-          setSyncState('synced');
-        } catch (err: any) {
-          setSyncError(err.message);
-          setSyncState('error');
+      message: 'This moves all static lore (NPCs, locations, items, factions, etc.) into a central World that other campaigns can share. This cannot be undone.',
+      confirmText: 'Convert to World',
+    });
+    if (!ok) return;
+
+    try {
+      setSyncState('saving');
+      const worldData: Record<string, any> = {};
+      const newCampaignData = { ...state };
+      for (const key of WORLD_KEYS) {
+        if (newCampaignData[key] !== undefined) {
+          worldData[key] = newCampaignData[key];
+          delete newCampaignData[key];
         }
       }
-    });
+      const newWorldId = await createWorld(campaign.userId, `${campaign.name} (World)`, worldData);
+      await updateCampaign(campaign.id, { worldId: newWorldId, data: newCampaignData });
+      setSyncState('synced');
+    } catch (err: any) {
+      setSyncError(err.message);
+      setSyncState('error');
+    }
   };
 
   useEffect(() => {

@@ -39,7 +39,7 @@ export const MODES: Record<Mode, ModeDef> = {
     emphasis: 'primary',
     subviews: [
       { id: 'pitch',  label: 'Premise',    description: 'Hook, givens, and six truths',                         audience: 'solo' },
-      { id: 'world',  label: 'World',      description: 'Session −1 collaborative worldbuilding with players',  audience: 'together' },
+      { id: 'worldbuild',  label: 'Worldbuild',      description: 'Session −1 collaborative worldbuilding with players',  audience: 'together' },
       { id: 'pcs',    label: 'Characters', description: 'Session 0 character creation with players',            audience: 'together' },
       { id: 'fronts', label: 'Fronts',     description: 'Faction clocks, audits, threads, ending',              audience: 'solo' },
     ],
@@ -93,9 +93,9 @@ export const MODE_ORDER: readonly Mode[] = ['plan', 'prep', 'run', 'library'];
 // — map them to the new (mode, subview) pair so users land somewhere sensible.
 export const LEGACY_TAB_MAP: Record<string, { mode: Mode; subview: string }> = {
   prep:        { mode: 'prep',    subview: 'flow' },
-  ref:         { mode: 'plan',    subview: 'world' },
+  ref:         { mode: 'plan',    subview: 'worldbuild' },
   track:       { mode: 'plan',    subview: 'fronts' },
-  down:        { mode: 'plan',    subview: 'world' },
+  down:        { mode: 'plan',    subview: 'worldbuild' },
   dice:        { mode: 'run',     subview: 'dice' },
   spells:      { mode: 'run',     subview: 'spells' },
   generators:  { mode: 'library', subview: 'generators' },
