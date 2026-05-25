@@ -31,13 +31,13 @@ let _db: Firestore | null = null;
 export function getFirebaseApp(): FirebaseApp {
   if (_app) return _app;
   
-  const APP_NAME = 'gmbuilder-app';
-  const existingApp = getApps().find(app => app.name === APP_NAME);
+  // Use the standard default app to ensure federated Auth (popup/redirects) works correctly
+  const existingApp = getApps().find(app => app.name === '[DEFAULT]');
   
   if (existingApp) {
     _app = existingApp;
   } else {
-    _app = initializeApp(firebaseConfig, APP_NAME);
+    _app = initializeApp(firebaseConfig);
   }
   
   return _app;
