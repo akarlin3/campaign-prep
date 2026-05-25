@@ -71,14 +71,42 @@ export function getDb(): Firestore {
     try {
       _db = initializeFirestore(app, {
         localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+        ignoreUndefinedProperties: true,
       });
     } catch {
       _db = getFirestore(app);
     }
   } else {
-    _db = getFirestore(app);
+    try {
+      _db = initializeFirestore(app, {
+        ignoreUndefinedProperties: true,
+      });
+    } catch {
+      _db = getFirestore(app);
+    }
   }
   return _db;
 }
 
 export const googleProvider = new GoogleAuthProvider();
+
+export function stripUndefined<T>(obj: T): T {
+  if (obj === undefined) return undefined as any;
+  if (Array.isArray(obj)) {
+    return obj.map(item => stripUndefined(item)) as any;
+  }
+  if (obj !== null && typeof obj === 'object') {
+    const proto = Object.getPrototypeOf(obj);
+    if (proto === null || proto === Object.prototype) {
+      const result: any = {};
+      for (const key of Object.keys(obj)) {
+        const val = (obj as any)[key];
+        if (val !== undefined) {
+          result[key] = stripUndefined(val);
+        }
+      }
+      return result;
+    }
+  }
+  return obj;
+}

@@ -5,7 +5,7 @@ import {
   updateDoc, deleteDoc, serverTimestamp, getDoc, getDocs, Timestamp,
   or, arrayUnion
 } from 'firebase/firestore';
-import { getDb } from './client';
+import { getDb, stripUndefined } from './client';
 import { initPlayerMode } from '@/lib/playerMode/migration';
 
 export type Campaign = {
@@ -101,7 +101,7 @@ export async function updateCampaign(
   patch: { name?: string; data?: Record<string, any>; done?: Record<string, boolean>; worldId?: string; }
 ) {
   const ref = doc(getDb(), 'campaigns', campaignId);
-  await updateDoc(ref, { ...patch, updatedAt: serverTimestamp() });
+  await updateDoc(ref, stripUndefined({ ...patch, updatedAt: serverTimestamp() }));
 }
 
 export async function deleteCampaign(campaignId: string) {

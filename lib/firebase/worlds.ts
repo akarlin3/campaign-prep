@@ -2,7 +2,7 @@ import {
   collection, doc, query, where, orderBy, onSnapshot, addDoc,
   updateDoc, deleteDoc, serverTimestamp, getDoc, getDocs, Timestamp
 } from 'firebase/firestore';
-import { getDb } from './client';
+import { getDb, stripUndefined } from './client';
 
 export type World = {
   id: string;
@@ -67,7 +67,7 @@ export async function updateWorld(
   patch: { name?: string; data?: Record<string, any> }
 ) {
   const ref = doc(getDb(), 'worlds', worldId);
-  await updateDoc(ref, { ...patch, updatedAt: serverTimestamp() });
+  await updateDoc(ref, stripUndefined({ ...patch, updatedAt: serverTimestamp() }));
 }
 
 export async function deleteWorld(worldId: string) {

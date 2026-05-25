@@ -8,7 +8,7 @@
 import {
   collection, doc, getDocs, writeBatch, setDoc, updateDoc, serverTimestamp,
 } from 'firebase/firestore';
-import { getDb } from '@/lib/firebase/client';
+import { getDb, stripUndefined } from '@/lib/firebase/client';
 import { buildShareMeta, buildSlotProjection } from './projection';
 import { makeShareToken } from './share';
 import type { PlayerConfig } from './types';
@@ -47,19 +47,19 @@ export async function publishProjections(
   // To prevent Firestore security rules from rejecting the publish write,
   // we must ensure the campaign doc has the latest shareToken first.
   const campaignRef = doc(db, 'campaigns', campaignId);
-  await updateDoc(campaignRef, {
+  await updateDoc(campaignRef, stripUndefined({
     'data.player': config,
     updatedAt: serverTimestamp(),
-  });
+  }));
 
-  await setDoc(doc(db, 'playerShares', token), buildShareMeta(campaignId, data, campaignName));
+  await setDoc(doc(db, 'playerShares', token), stripUndefined(buildShareMeta(campaignId, data, campaignName)));
 
   const roster = Array.isArray(config.roster) ? config.roster : [];
   const batch = writeBatch(db);
   for (const slot of roster) {
     batch.set(
       doc(db, 'playerShares', token, 'slots', slot.slotId),
-      buildSlotProjection(data, campaignName, slot.slotId),
+      stripUndefined(buildSlotProjection(data, campaignName, slot.slotId)),
     );
   }
   const existing = await getDocs(collection(db, 'playerShares', token, 'slots'));
