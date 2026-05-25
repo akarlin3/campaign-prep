@@ -358,9 +358,9 @@ const ListField = ({
   );
 };
 
-const Section = ({ id, title, methods, children, done, onToggle, icon: Icon }: any) => (
+const Section = ({ id, title, methods, children, done, onToggle, open, onToggleOpen, icon: Icon }: any) => (
   <div id={`section-${id}`} data-cp-anchor={`section:${id}`} className={`rounded border ${done ? 'border-brass/60 bg-brass/5' : 'border-rule bg-parchment-soft'} shadow-card`}>
-    <div className="flex items-center gap-2 p-2.5 sm:p-3 border-b border-rule/50">
+    <div className="flex items-center gap-2 p-2.5 sm:p-3">
       <button
         onClick={() => onToggle(id)}
         className={`w-4 h-4 rounded-sm border flex-shrink-0 flex items-center justify-center ${done ? 'bg-brass border-brass-deep text-parchment' : 'border-ink-mute bg-parchment'}`}
@@ -368,14 +368,19 @@ const Section = ({ id, title, methods, children, done, onToggle, icon: Icon }: a
       >
         {done && <Check size={10} strokeWidth={3} />}
       </button>
-      <div className="flex-1 min-w-0 flex items-center gap-2">
+      <button onClick={() => onToggleOpen(id)} className="flex-1 min-w-0 flex items-center gap-2 text-left">
         {Icon && <Icon size={14} className="text-brass-deep flex-shrink-0" />}
         <span className="font-display text-sm tracking-wide text-ink flex-1 min-w-0">{title}</span>
         <span className="hidden sm:flex gap-1 flex-shrink-0">{methods?.map((m: any) => <Tag key={m} m={m} />)}</span>
-      </div>
+        <span className="text-ink-mute flex-shrink-0">{open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</span>
+      </button>
     </div>
-    <div className="px-2.5 sm:px-3 pb-3 pt-3 space-y-3">
-      {children}
+    <div className={`gm-collapse ${open ? 'gm-collapse-open' : ''}`}>
+      <div className="gm-collapse-content">
+        <div className="px-2.5 sm:px-3 pb-3 border-t border-rule pt-3 space-y-3">
+          {children}
+        </div>
+      </div>
     </div>
   </div>
 );
