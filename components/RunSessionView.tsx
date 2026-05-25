@@ -5,7 +5,7 @@ import {
   ArrowLeft, Flag, Dice5, Sparkles, ChevronDown, ChevronRight, Check,
   Eye, EyeOff, Plus, Swords, NotebookPen, Target, Map, Users, ScrollText,
   Skull, Gem, Zap, BookOpen, Pin, PinOff, Wand2, Loader2, X, Wrench, ChevronUp, Clock,
-  Music,
+  Music, ExternalLink,
 } from 'lucide-react';
 import { TABLES, rollTable } from '@/lib/inspirationTables';
 import InitiativePanel from './InitiativePanel';
@@ -1223,6 +1223,17 @@ export function MusicPlayer({
       embedUrl = `https://www.youtube.com/embed/${videoId}?enablejsapi=1`;
     }
 
+    let externalUrl = '';
+    if (playlistUrl.startsWith('http')) {
+      externalUrl = playlistUrl;
+    } else {
+      if (playlistId) {
+        externalUrl = `https://music.youtube.com/playlist?list=${playlistId}`;
+      } else if (videoId) {
+        externalUrl = `https://music.youtube.com/watch?v=${videoId}`;
+      }
+    }
+
     return (
       <div className="space-y-3">
         <div className="relative aspect-video w-full overflow-hidden rounded border border-rule bg-ink shadow-sm">
@@ -1234,25 +1245,35 @@ export function MusicPlayer({
             className="absolute inset-0 h-full w-full border-0"
           />
         </div>
-        <div className="flex items-center justify-between gap-2 px-1">
-          <div className="flex items-center gap-1.5 font-serif text-[11px] text-ink-mute">
-            <div className="flex gap-0.5 items-end h-2.5 w-3.5">
-              <span className="w-[2px] bg-crimson rounded-full animate-bounce h-2" style={{ animationDelay: '0.1s', animationDuration: '0.6s' }} />
-              <span className="w-[2px] bg-crimson rounded-full animate-bounce h-3" style={{ animationDelay: '0.3s', animationDuration: '0.8s' }} />
-              <span className="w-[2px] bg-crimson rounded-full animate-bounce h-1.5" style={{ animationDelay: '0.2s', animationDuration: '0.5s' }} />
-              <span className="w-[2px] bg-crimson rounded-full animate-bounce h-2.5" style={{ animationDelay: '0.4s', animationDuration: '0.7s' }} />
-            </div>
-            {playlistId ? 'Playlist active' : 'Video active'}
-          </div>
-          <button
-            onClick={handleDisconnect}
-            className="font-display text-[10px] uppercase tracking-wider text-crimson hover:text-crimson-soft hover:underline"
+        <div className="flex flex-col gap-2">
+          <a
+            href={externalUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-1.5 w-full rounded border border-brass-deep bg-brass/10 hover:bg-brass hover:text-parchment py-1.5 font-display text-[11px] uppercase tracking-wider text-brass-deep transition-colors"
           >
-            Disconnect
-          </button>
+            <ExternalLink size={12} /> Play on YouTube Music
+          </a>
+          <div className="flex items-center justify-between gap-2 px-1">
+            <div className="flex items-center gap-1.5 font-serif text-[11px] text-ink-mute">
+              <div className="flex gap-0.5 items-end h-2.5 w-3.5">
+                <span className="w-[2px] bg-crimson rounded-full animate-bounce h-2" style={{ animationDelay: '0.1s', animationDuration: '0.6s' }} />
+                <span className="w-[2px] bg-crimson rounded-full animate-bounce h-3" style={{ animationDelay: '0.3s', animationDuration: '0.8s' }} />
+                <span className="w-[2px] bg-crimson rounded-full animate-bounce h-1.5" style={{ animationDelay: '0.2s', animationDuration: '0.5s' }} />
+                <span className="w-[2px] bg-crimson rounded-full animate-bounce h-2.5" style={{ animationDelay: '0.4s', animationDuration: '0.7s' }} />
+              </div>
+              {playlistId ? 'Playlist active' : 'Video active'}
+            </div>
+            <button
+              onClick={handleDisconnect}
+              className="font-display text-[10px] uppercase tracking-wider text-crimson hover:text-crimson-soft hover:underline"
+            >
+              Disconnect
+            </button>
+          </div>
         </div>
-        <p className="px-1 font-serif text-[10px] italic leading-normal text-ink-mute mt-1">
-          <strong>Tip:</strong> If you see "Video unavailable", ensure the playlist/video is public/unlisted and that the tracks allow embedding (some official music videos restrict third-party playback).
+        <p className="px-1 font-serif text-[10px] italic leading-normal text-ink-mute mt-0.5">
+          <strong>Note:</strong> Some official tracks restrict external embedding. If the embedded player displays "Video unavailable", click the button above to play the full list directly in a new tab.
         </p>
       </div>
     );
