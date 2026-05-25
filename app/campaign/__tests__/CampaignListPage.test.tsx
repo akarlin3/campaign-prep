@@ -15,9 +15,13 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }));
 
-vi.mock('@/lib/firebase/auth-context', () => ({
-  useAuth: () => ({ user: { uid: 'u1' }, loading: false }),
-}));
+vi.mock('@/lib/firebase/auth-context', () => {
+  // Return a STABLE reference — the page's subscribe effect depends on `user`,
+  // so a fresh object each render would re-subscribe → setState → re-render in
+  // an infinite loop (the real useAuth returns a stable value from state).
+  const authValue = { user: { uid: 'u1' }, loading: false };
+  return { useAuth: () => authValue };
+});
 
 vi.mock('@/components/AccountMenu', () => ({ AccountMenu: () => null }));
 
