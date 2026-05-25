@@ -15,14 +15,9 @@ import {
 
 type AnyData = Record<string, any>;
 
-// GM-only fields on modern session-log entries (lib/sessionLog.ts) that must
-// never reach players, regardless of entry visibility.
-const SESSION_LOG_GM_FIELDS = new Set([
-  'events',
-  'secretsRevealed',
-  'scenesUsed',
-  'goalUpdates',
-]);
+// Fields on a player-log entry that are GM-internal and must not be published
+// to players (the `visibility` record reveals who-can-see info).
+const PLAYER_LOG_INTERNAL_FIELDS = new Set(['visibility']);
 
 // Fields on an entity that are structural/non-content and should never be
 // surfaced as player-visible content (but `id` is always kept for keying).
@@ -56,10 +51,10 @@ function redactEntity(
   return out;
 }
 
-function redactSessionLogEntry(entry: AnyData): Record<string, unknown> {
+function redactLogEntry(entry: AnyData): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(entry)) {
-    if (!SESSION_LOG_GM_FIELDS.has(k)) out[k] = v;
+    if (!PLAYER_LOG_INTERNAL_FIELDS.has(k)) out[k] = v;
   }
   return out;
 }
@@ -104,18 +99,18 @@ export function buildSlotProjection(
     if (visible) handouts = data.handouts;
   }
 
-  // Session log: include entries whose visibility allows this slot (legacy
-  // entries with no visibility default to party), with GM-only fields stripped.
+  // Player narration feed (data.playerLog): include entries whose visibility
+  // allows this slot, oldest→newest, with the internal visibility field stripped.
   const sessionLog: Array<Record<string, unknown>> = [];
-  const logs = Array.isArray(data.sessionLogs) ? data.sessionLogs : [];
+  const logs = Array.isArray(data.playerLog) ? data.playerLog : [];
   for (const entry of logs) {
     if (!entry || typeof entry !== 'object') continue;
     const vis: EntityVisibility | undefined = entry.visibility;
     const visible = !vis
-      ? false // entries must be explicitly shared (see Checkpoint 3)
+      ? false
       : vis.mode === 'party'
         || (vis.mode === 'custom' && (vis.allowedSlotIds ?? []).includes(slotId));
-    if (visible) sessionLog.push(redactSessionLogEntry(entry));
+    if (visible) sessionLog.push(redactLogEntry(entry));
   }
 
   return {

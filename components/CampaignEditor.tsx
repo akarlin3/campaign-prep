@@ -78,6 +78,7 @@ import { useConfirm } from '@/components/ConfirmDialog';
 import PlayerModePanel from './PlayerModePanel';
 import { initPlayerMode } from '@/lib/playerMode/migration';
 import type { PlayerConfig } from '@/lib/playerMode/types';
+import type { PlayerLogEntry } from '@/lib/playerMode/sessionLog';
 import CommandPalette, { type CommandItem } from './CommandPalette';
 import KeyboardShortcuts from './KeyboardShortcuts';
 import {
@@ -3914,6 +3915,8 @@ export default function CampaignEditor({
                 config={state.player as PlayerConfig}
                 onConfigChange={(cfg) => setVal('player', cfg)}
                 confirm={confirmModal}
+                playerLog={get('playerLog', []) as PlayerLogEntry[]}
+                onPlayerLogChange={(entries) => setVal('playerLog', entries)}
               />
             )}
 

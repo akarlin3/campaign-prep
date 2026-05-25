@@ -12,9 +12,9 @@ function seedCampaignData() {
       { id: 'loc1', name: 'The Keep', type: 'Settlement', aspects: ['a', 'b', 'c'], factions: 'Crown' },
     ],
     handouts: 'The prophecy reads...',
-    sessionLogs: [
-      { id: 'log1', title: 'Session 1', date: '2026-01-01', recap: 'They met Sera.', events: [{ kind: 'xp' }], secretsRevealed: ['s1'] },
-      { id: 'log2', title: 'Session 2', date: '2026-01-08', recap: 'Secret stuff', events: [] },
+    playerLog: [
+      { id: 'log1', text: 'They met Sera.', mentions: [], authorRef: 'gm', postedAtMs: 1 },
+      { id: 'log2', text: 'Secret stuff', mentions: [], authorRef: 'gm', postedAtMs: 2 },
     ],
   } as Record<string, any>;
   const { data } = initPlayerMode(base);
@@ -59,16 +59,23 @@ describe('buildSlotProjection', () => {
     expect(buildSlotProjection(data, 'C', 'slot-a').handouts).toBe('The prophecy reads...');
   });
 
-  it('session log entries are hidden until shared and strip GM-only fields', () => {
+  it('player-log entries are hidden until shared and strip the internal visibility field', () => {
     const data = seedCampaignData();
     // nothing shared yet
     expect(buildSlotProjection(data, 'C', 'slot-a').sessionLog).toHaveLength(0);
-    data.sessionLogs[0].visibility = { mode: 'party' };
+    data.playerLog[0].visibility = { mode: 'party' };
     const log = buildSlotProjection(data, 'C', 'slot-a').sessionLog;
     expect(log).toHaveLength(1);
-    expect(log[0].recap).toBe('They met Sera.');
-    expect(log[0]).not.toHaveProperty('events');
-    expect(log[0]).not.toHaveProperty('secretsRevealed');
+    expect(log[0].text).toBe('They met Sera.');
+    expect(log[0]).not.toHaveProperty('visibility');
+    expect(log[0].id).toBe('log1');
+  });
+
+  it('custom-visibility player-log entries reach only listed slots', () => {
+    const data = seedCampaignData();
+    data.playerLog[0].visibility = { mode: 'custom', allowedSlotIds: ['slot-b'] };
+    expect(buildSlotProjection(data, 'C', 'slot-a').sessionLog).toHaveLength(0);
+    expect(buildSlotProjection(data, 'C', 'slot-b').sessionLog).toHaveLength(1);
   });
 
   it('buildShareMeta exposes roster + version, not entity data', () => {

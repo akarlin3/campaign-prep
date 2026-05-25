@@ -9,7 +9,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Users, Link2, RotateCcw, Copy, Check, Plus, X, Eye, ChevronDown, ChevronRight, Send,
+  Users, Link2, RotateCcw, Copy, Check, Plus, X, Eye, ChevronDown, ChevronRight, Send, ScrollText, Trash2, Pencil,
 } from 'lucide-react';
 import {
   PLAYER_ENTITY_TYPES, type PlayerConfig, type PlayerEntityType,
@@ -20,6 +20,9 @@ import { resolveFieldPrivacy } from '@/lib/playerMode/resolveVisibility';
 import { buildSlotProjection } from '@/lib/playerMode/projection';
 import { publishProjections, rotateShareToken, deleteShare, playUrl } from '@/lib/playerMode/publish';
 import { makeSlotId } from '@/lib/playerMode/share';
+import {
+  applyNarrationReveal, makeLogEntryId, type Mention, type PlayerLogEntry,
+} from '@/lib/playerMode/sessionLog';
 
 type AnyData = Record<string, any>;
 type Confirm = (o: { title: string; message: string; confirmText?: string; cancelText?: string; isDestructive?: boolean }) => Promise<boolean>;
@@ -48,7 +51,7 @@ const SectionCard = ({ title, icon, children, defaultOpen = false }: { title: st
 };
 
 export default function PlayerModePanel({
-  campaignId, campaignName, data, config, onConfigChange, confirm,
+  campaignId, campaignName, data, config, onConfigChange, confirm, playerLog, onPlayerLogChange,
 }: {
   campaignId: string;
   campaignName: string;
@@ -56,6 +59,8 @@ export default function PlayerModePanel({
   config: PlayerConfig;
   onConfigChange: (next: PlayerConfig) => void;
   confirm: Confirm;
+  playerLog: PlayerLogEntry[];
+  onPlayerLogChange: (entries: PlayerLogEntry[]) => void;
 }) {
   const [copied, setCopied] = useState(false);
   const [publishState, setPublishState] = useState<'idle' | 'publishing' | 'done' | 'error'>('idle');
@@ -66,8 +71,8 @@ export default function PlayerModePanel({
 
   // Debounced auto-publish whenever the campaign data or config changes.
   const publishSignature = useMemo(
-    () => JSON.stringify({ p: config, n: data.npcs, l: data.locations, f: data.factions, c: data.characters, k: data.clocks, h: data.handouts, s: data.sessionLogs }),
-    [config, data.npcs, data.locations, data.factions, data.characters, data.clocks, data.handouts, data.sessionLogs],
+    () => JSON.stringify({ p: config, n: data.npcs, l: data.locations, f: data.factions, c: data.characters, k: data.clocks, h: data.handouts, s: data.playerLog }),
+    [config, data.npcs, data.locations, data.factions, data.characters, data.clocks, data.handouts, data.playerLog],
   );
   useEffect(() => {
     if (roster.length === 0) return;
@@ -156,6 +161,26 @@ export default function PlayerModePanel({
     if (!vis || vis.mode === 'private') delete bucket[id]; else bucket[id] = vis;
     ev[type] = bucket;
     onConfigChange({ ...config, entityVisibility: ev });
+  }
+
+  // ---- Narration feed ------------------------------------------------------
+  function postNarration(text: string, mentions: Mention[], vis: EntityVisibility) {
+    const entry: PlayerLogEntry = {
+      id: makeLogEntryId(), text: text.trim(), mentions, visibility: vis, authorRef: 'gm', postedAtMs: Date.now(),
+    };
+    onPlayerLogChange([...(playerLog ?? []), entry]);
+    // Auto-reveal mentioned entities (sticky).
+    const nextConfig = applyNarrationReveal(config, mentions, vis);
+    if (nextConfig !== config) onConfigChange(nextConfig);
+  }
+  function editNarration(id: string, text: string) {
+    // Editing text never un-reveals entities (reveals are sticky).
+    onPlayerLogChange((playerLog ?? []).map((e) => (e.id === id ? { ...e, text } : e)));
+  }
+  async function deleteNarration(id: string) {
+    const ok = await confirm({ title: 'Delete log entry?', message: 'Players will no longer see this entry. Already-revealed entities stay revealed.', confirmText: 'Delete', isDestructive: true });
+    if (!ok) return;
+    onPlayerLogChange((playerLog ?? []).filter((e) => e.id !== id));
   }
 
   const url = playUrl(config.shareToken, typeof window !== 'undefined' ? window.location.origin : 'https://gm.averykarlin.org');
@@ -303,6 +328,14 @@ export default function PlayerModePanel({
         </div>
       </SectionCard>
 
+      {/* Session log / narration */}
+      <SectionCard title="Session log" icon={<ScrollText size={16} />} defaultOpen>
+        <div className="space-y-3">
+          <NarrationComposer data={data} roster={roster} onPost={postNarration} />
+          <NarrationFeed entries={playerLog ?? []} onEdit={editNarration} onDelete={deleteNarration} />
+        </div>
+      </SectionCard>
+
       {/* Preview */}
       <SectionCard title="Preview as player" icon={<Eye size={16} />}>
         <PreviewAsPlayer data={data} config={config} campaignName={campaignName} previewSlot={previewSlot} setPreviewSlot={setPreviewSlot} />
@@ -366,6 +399,162 @@ function EntityVisibilityRow({
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+function NarrationComposer({
+  data, roster, onPost,
+}: {
+  data: AnyData; roster: RosterSlot[]; onPost: (text: string, mentions: Mention[], vis: EntityVisibility) => void;
+}) {
+  const [text, setText] = useState('');
+  const [mentions, setMentions] = useState<Mention[]>([]);
+  const [mode, setMode] = useState<'party' | 'custom'>('party');
+  const [slots, setSlots] = useState<string[]>([]);
+  const [query, setQuery] = useState<string | null>(null);
+  const taRef = useRef<HTMLTextAreaElement>(null);
+
+  const allEntities = useMemo(() => {
+    const list: Mention[] = [];
+    for (const type of PLAYER_ENTITY_TYPES) {
+      const arr = Array.isArray(data[type]) ? data[type] : [];
+      arr.forEach((e: AnyData, i: number) => { if (e?.id) list.push({ entityType: type, entityId: e.id, label: entityLabel(type, e, i) }); });
+    }
+    return list;
+  }, [data]);
+
+  const suggestions = query === null ? [] : allEntities.filter((e) => e.label.toLowerCase().includes(query.toLowerCase())).slice(0, 6);
+
+  function onChange(v: string) {
+    setText(v);
+    const caret = taRef.current?.selectionStart ?? v.length;
+    const before = v.slice(0, caret);
+    const m = before.match(/@([\p{L}\p{N}_ ]{0,30})$/u);
+    setQuery(m ? m[1] : null);
+  }
+
+  function pickMention(e: Mention) {
+    const caret = taRef.current?.selectionStart ?? text.length;
+    const before = text.slice(0, caret).replace(/@([\p{L}\p{N}_ ]{0,30})$/u, `@${e.label} `);
+    setText(before + text.slice(caret));
+    setMentions((prev) => (prev.some((p) => p.entityType === e.entityType && p.entityId === e.entityId) ? prev : [...prev, e]));
+    setQuery(null);
+    taRef.current?.focus();
+  }
+
+  function removeMention(e: Mention) {
+    setMentions((prev) => prev.filter((p) => !(p.entityType === e.entityType && p.entityId === e.entityId)));
+  }
+
+  function post() {
+    if (!text.trim() && mentions.length === 0) return;
+    const vis: EntityVisibility = mode === 'party' ? { mode: 'party' } : { mode: 'custom', allowedSlotIds: slots };
+    onPost(text, mentions, vis);
+    setText(''); setMentions([]); setQuery(null);
+  }
+
+  return (
+    <div className="space-y-2 rounded border border-rule bg-parchment p-3">
+      <div className="relative">
+        <textarea
+          ref={taRef}
+          value={text}
+          onChange={(e) => onChange(e.target.value)}
+          rows={3}
+          placeholder="Narrate what happened… type @ to mention an NPC, place, or faction (mentioning reveals it)."
+          className="w-full resize-y rounded border border-rule bg-parchment-soft px-2 py-1.5 font-serif text-sm text-ink"
+        />
+        {query !== null && suggestions.length > 0 && (
+          <div className="absolute z-10 mt-1 w-64 overflow-hidden rounded border border-rule bg-parchment-soft shadow-page">
+            {suggestions.map((e) => (
+              <button
+                key={`${e.entityType}:${e.entityId}`}
+                onClick={() => pickMention(e)}
+                className="flex w-full items-center justify-between gap-2 px-2 py-1 text-left text-sm text-ink hover:bg-parchment-deep"
+              >
+                <span className="truncate">{e.label}</span>
+                <span className="font-display text-[10px] uppercase tracking-wider text-ink-mute">{e.entityType}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {mentions.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {mentions.map((m) => (
+            <span key={`${m.entityType}:${m.entityId}`} className="flex items-center gap-1 rounded-full bg-brass/20 px-2 py-0.5 text-[11px] text-brass-deep">
+              {m.label}
+              <button onClick={() => removeMention(m)} className="hover:text-crimson"><X size={11} /></button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className="font-display text-[10px] uppercase tracking-wider text-ink-mute">Visible to</span>
+          <div className="flex gap-1 font-display text-[10px] uppercase tracking-wider">
+            {(['party', 'custom'] as const).map((m) => (
+              <button key={m} onClick={() => setMode(m)} className={`rounded px-2 py-0.5 ${mode === m ? 'bg-brass-deep text-parchment' : 'bg-parchment-deep text-ink-mute'}`}>{m}</button>
+            ))}
+          </div>
+          {mode === 'custom' && roster.map((s) => {
+            const on = slots.includes(s.slotId);
+            return (
+              <button key={s.slotId} onClick={() => setSlots((p) => (on ? p.filter((x) => x !== s.slotId) : [...p, s.slotId]))} className={`rounded-full border px-2 py-0.5 text-[10px] ${on ? 'border-brass-deep bg-brass/20 text-brass-deep' : 'border-rule text-ink-mute'}`}>{s.displayName}</button>
+            );
+          })}
+        </div>
+        <button onClick={post} className="flex items-center gap-1 rounded border border-brass-deep bg-brass/10 px-3 py-1 font-display text-xs uppercase tracking-wider text-brass-deep hover:bg-brass hover:text-parchment">
+          <Send size={13} /> Post
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function NarrationFeed({
+  entries, onEdit, onDelete,
+}: {
+  entries: PlayerLogEntry[]; onEdit: (id: string, text: string) => void; onDelete: (id: string) => void;
+}) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draft, setDraft] = useState('');
+  const sorted = [...entries].sort((a, b) => b.postedAtMs - a.postedAtMs);
+  if (sorted.length === 0) return <p className="font-serif text-xs italic text-ink-mute">No narration posted yet.</p>;
+  return (
+    <div className="space-y-2">
+      {sorted.map((e) => (
+        <div key={e.id} className="rounded border border-rule bg-parchment px-3 py-2">
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <span className="font-display text-[10px] uppercase tracking-wider text-ink-mute">
+              {new Date(e.postedAtMs).toLocaleString()} · {e.visibility.mode === 'party' ? 'all players' : `${e.visibility.allowedSlotIds?.length ?? 0} player(s)`}
+            </span>
+            <div className="flex gap-2">
+              <button onClick={() => { setEditingId(e.id); setDraft(e.text); }} className="text-ink-mute hover:text-brass-deep"><Pencil size={13} /></button>
+              <button onClick={() => onDelete(e.id)} className="text-ink-mute hover:text-crimson"><Trash2 size={13} /></button>
+            </div>
+          </div>
+          {editingId === e.id ? (
+            <div className="space-y-1">
+              <textarea value={draft} onChange={(ev) => setDraft(ev.target.value)} rows={2} className="w-full rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink" />
+              <div className="flex gap-2 font-display text-[10px] uppercase tracking-wider">
+                <button onClick={() => { onEdit(e.id, draft); setEditingId(null); }} className="rounded bg-brass-deep px-2 py-0.5 text-parchment">Save</button>
+                <button onClick={() => setEditingId(null)} className="rounded border border-rule px-2 py-0.5 text-ink-mute">Cancel</button>
+              </div>
+            </div>
+          ) : (
+            <p className="whitespace-pre-wrap font-serif text-sm text-ink-soft">{e.text}</p>
+          )}
+          {e.mentions.length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-1">
+              {e.mentions.map((m) => <span key={`${m.entityType}:${m.entityId}`} className="rounded-full bg-parchment-deep px-1.5 py-0.5 text-[10px] text-ink-mute">{m.label}</span>)}
+            </div>
+          )}
+        </div>
+      ))}
     </div>
   );
 }
