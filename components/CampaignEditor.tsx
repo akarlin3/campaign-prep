@@ -2293,6 +2293,7 @@ export default function CampaignEditor({
       setSyncState('synced');
       setSyncError('');
     } catch (err: any) {
+      console.error("Auto-save failed:", err);
       setSyncState('error');
       setSyncError(err?.message || 'Unknown error');
     }
@@ -2321,6 +2322,7 @@ export default function CampaignEditor({
       await updateCampaign(campaign.id, { worldId: newWorldId, data: newCampaignData });
       setSyncState('synced');
     } catch (err: any) {
+      console.error("Convert to shared world failed:", err);
       setSyncError(err.message);
       setSyncState('error');
     }
