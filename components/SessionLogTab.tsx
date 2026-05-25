@@ -35,9 +35,13 @@ type Props = {
   entries: SessionLogEntry[];
   onChange: (entries: SessionLogEntry[]) => void;
   campaignId?: string;
+  campaignSecrets?: string[];
+  campaignScenes?: string[];
 };
 
-export default function SessionLogTab({ entries, onChange, campaignId }: Props) {
+export default function SessionLogTab({
+  entries, onChange, campaignId, campaignSecrets = [], campaignScenes = [],
+}: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [openIds, setOpenIds] = useState<Record<string, boolean>>({});
   const [compareIds, setCompareIds] = useState<string[]>([]);
@@ -128,6 +132,8 @@ export default function SessionLogTab({ entries, onChange, campaignId }: Props) 
             editing={editingId === entry.id}
             inCompare={compareIds.includes(entry.id)}
             campaignId={campaignId}
+            campaignSecrets={campaignSecrets}
+            campaignScenes={campaignScenes}
             onToggleOpen={() => setOpenIds(o => ({ ...o, [entry.id]: !o[entry.id] }))}
             onEdit={() => {
               setEditingId(entry.id);
@@ -173,6 +179,8 @@ type SessionCardProps = {
   editing: boolean;
   inCompare: boolean;
   campaignId?: string;
+  campaignSecrets?: string[];
+  campaignScenes?: string[];
   onToggleOpen: () => void;
   onEdit: () => void;
   onCancelEdit: () => void;
@@ -183,7 +191,7 @@ type SessionCardProps = {
 };
 
 function SessionCard({
-  entry, open, editing, inCompare, campaignId,
+  entry, open, editing, inCompare, campaignId, campaignSecrets = [], campaignScenes = [],
   onToggleOpen, onEdit, onCancelEdit, onChange, onSaveEdit, onDelete, onToggleCompare,
 }: SessionCardProps) {
   const duration = formatDuration(entry.endedAt - entry.startedAt);
@@ -192,6 +200,23 @@ function SessionCard({
     for (const e of entry.events) (acc[e.kind] ||= []).push(e);
     return acc;
   }, [entry.events]);
+
+  const allSecrets = useMemo(() => {
+    const list = [...campaignSecrets];
+    for (const s of entry.secretsRevealed || []) {
+      if (!list.includes(s)) list.push(s);
+    }
+    return list;
+  }, [campaignSecrets, entry.secretsRevealed]);
+
+  const allScenes = useMemo(() => {
+    const list = [...campaignScenes];
+    for (const s of entry.scenesUsed || []) {
+      if (!list.includes(s)) list.push(s);
+    }
+    return list;
+  }, [campaignScenes, entry.scenesUsed]);
+
   const [eventsOpen, setEventsOpen] = useState(false);
 
   return (
@@ -342,6 +367,65 @@ function SessionCard({
                   className="w-32 rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-sm text-ink"
                 />
               </label>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+                <div className="rounded border border-rule bg-parchment-soft p-3 space-y-1.5 shadow-sm">
+                  <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep block mb-1">Secrets Revealed</span>
+                  {allSecrets.length === 0 ? (
+                    <p className="text-xs text-ink-mute italic font-serif">No secrets prepped in campaign.</p>
+                  ) : (
+                    <div className="max-h-48 overflow-y-auto space-y-1 border border-rule/50 rounded bg-parchment p-2">
+                      {allSecrets.map((s, i) => {
+                        const isRevealed = entry.secretsRevealed?.includes(s);
+                        return (
+                          <label key={i} className="flex items-start gap-2 text-xs cursor-pointer font-serif py-0.5 hover:bg-parchment-deep/20 rounded px-1">
+                            <input
+                              type="checkbox"
+                              checked={isRevealed}
+                              onChange={(e) => {
+                                const nextSecrets = e.target.checked
+                                  ? [...(entry.secretsRevealed || []), s]
+                                  : (entry.secretsRevealed || []).filter(x => x !== s);
+                                onChange({ secretsRevealed: nextSecrets });
+                              }}
+                              className="mt-0.5 accent-crimson"
+                            />
+                            <span className={isRevealed ? 'text-ink font-semibold' : 'text-ink-soft'}>{s}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+                <div className="rounded border border-rule bg-parchment-soft p-3 space-y-1.5 shadow-sm">
+                  <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep block mb-1">Scenes Used</span>
+                  {allScenes.length === 0 ? (
+                    <p className="text-xs text-ink-mute italic font-serif">No scenes prepped in campaign.</p>
+                  ) : (
+                    <div className="max-h-48 overflow-y-auto space-y-1 border border-rule/50 rounded bg-parchment p-2">
+                      {allScenes.map((s, i) => {
+                        const isUsed = entry.scenesUsed?.includes(s);
+                        return (
+                          <label key={i} className="flex items-start gap-2 text-xs cursor-pointer font-serif py-0.5 hover:bg-parchment-deep/20 rounded px-1">
+                            <input
+                              type="checkbox"
+                              checked={isUsed}
+                              onChange={(e) => {
+                                const nextScenes = e.target.checked
+                                  ? [...(entry.scenesUsed || []), s]
+                                  : (entry.scenesUsed || []).filter(x => x !== s);
+                                onChange({ scenesUsed: nextScenes });
+                              }}
+                              className="mt-0.5 accent-crimson"
+                            />
+                            <span className={isUsed ? 'text-ink font-semibold' : 'text-ink-soft'}>{s}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
               <div className="flex items-center gap-2 pt-1">
                 <button onClick={onSaveEdit} className="flex items-center gap-1 rounded border border-crimson/60 bg-crimson/10 px-3 py-1 font-display text-xs uppercase tracking-wider text-crimson hover:bg-crimson hover:text-parchment">
                   <Save size={12} /> Done

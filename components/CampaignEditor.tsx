@@ -4375,6 +4375,8 @@ export default function CampaignEditor({
             entries={(get('sessionLogV2', []) as SessionLogEntry[])}
             onChange={(v) => setVal('sessionLogV2', v)}
             campaignId={campaign.id}
+            campaignSecrets={get('secrets', []) as string[]}
+            campaignScenes={get('scenes', []) as string[]}
           />
         )}
 
