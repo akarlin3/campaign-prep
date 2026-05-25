@@ -6,7 +6,7 @@
 // publishProjections() to (re)write the public share docs that players read.
 
 import {
-  collection, doc, getDocs, writeBatch, setDoc,
+  collection, doc, getDocs, writeBatch, setDoc, updateDoc, serverTimestamp,
 } from 'firebase/firestore';
 import { getDb } from '@/lib/firebase/client';
 import { buildShareMeta, buildSlotProjection } from './projection';
@@ -43,6 +43,14 @@ export async function publishProjections(
   if (!config?.shareToken) return;
   const db = getDb();
   const token = config.shareToken;
+
+  // To prevent Firestore security rules from rejecting the publish write,
+  // we must ensure the campaign doc has the latest shareToken first.
+  const campaignRef = doc(db, 'campaigns', campaignId);
+  await updateDoc(campaignRef, {
+    'data.player': config,
+    updatedAt: serverTimestamp(),
+  });
 
   await setDoc(doc(db, 'playerShares', token), buildShareMeta(campaignId, data, campaignName));
 
