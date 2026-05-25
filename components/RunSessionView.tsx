@@ -5,6 +5,7 @@ import {
   ArrowLeft, Flag, Dice5, Sparkles, ChevronDown, ChevronRight, Check,
   Eye, EyeOff, Plus, Swords, NotebookPen, Target, Map, Users, ScrollText,
   Skull, Gem, Zap, BookOpen, Pin, PinOff, Wand2, Loader2, X, Wrench, ChevronUp, Clock,
+  Music,
 } from 'lucide-react';
 import { TABLES, rollTable } from '@/lib/inspirationTables';
 import InitiativePanel from './InitiativePanel';
@@ -168,6 +169,9 @@ export default function RunSessionView({
   const initiativeOpen = !!get('__initiativeOpen', false);
   const setInitiativeOpen = (v: boolean) => setVal('__initiativeOpen', v);
 
+  const musicOpen = !!get('__musicOpen', false);
+  const setMusicOpen = (v: boolean) => setVal('__musicOpen', v);
+
   const homebrewMonstersRaw = get('homebrewMonsters', []) as HomebrewMonster[];
   const homebrewMonsters = useMemo(() => homebrewMonstersRaw || [], [homebrewMonstersRaw]);
   const [statBlockSlug, setStatBlockSlug] = useState<string | null>(null);
@@ -228,6 +232,13 @@ export default function RunSessionView({
         ) : (
           <p className="px-1 font-serif text-xs italic text-ink-mute">Tap to expand and track turns, HP, conditions.</p>
         )}
+      </PanelShell>
+
+      <PanelShell title="Session Music" icon={Music} open={musicOpen} onToggle={() => setMusicOpen(!musicOpen)}>
+        <MusicPlayer
+          playlistUrl={(get('__sessionPlaylist', '') as string)}
+          onChangePlaylist={(next) => setVal('__sessionPlaylist', next)}
+        />
       </PanelShell>
 
       <PanelShell title="Quick Dice" icon={Dice5} open={true} onToggle={() => {}}>
@@ -1117,5 +1128,111 @@ function NoteSeed({ pushEvent }: { pushEvent: (e: ChangeEvent) => void }) {
         </button>
       </div>
     </details>
+  );
+}
+
+function parsePlaylistId(urlOrId: string): string | null {
+  const trimmed = urlOrId.trim();
+  if (!trimmed) return null;
+  if (/^[a-zA-Z0-9_-]{18,40}$/.test(trimmed)) {
+    return trimmed;
+  }
+  const match = trimmed.match(/[&?]list=([a-zA-Z0-9_-]+)/);
+  if (match) return match[1];
+  return null;
+}
+
+export function MusicPlayer({
+  playlistUrl,
+  onChangePlaylist,
+}: {
+  playlistUrl: string;
+  onChangePlaylist: (v: string) => void;
+}) {
+  const [inputUrl, setInputUrl] = useState(playlistUrl);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    setInputUrl(playlistUrl);
+  }, [playlistUrl]);
+
+  const playlistId = parsePlaylistId(playlistUrl);
+
+  const handleConnect = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    const id = parsePlaylistId(inputUrl);
+    if (!id) {
+      setError('Invalid YouTube playlist URL or ID. Please enter a valid playlist link.');
+      return;
+    }
+    onChangePlaylist(inputUrl);
+  };
+
+  const handleDisconnect = () => {
+    setInputUrl('');
+    onChangePlaylist('');
+    setError('');
+  };
+
+  if (playlistId) {
+    return (
+      <div className="space-y-3">
+        <div className="relative aspect-video w-full overflow-hidden rounded border border-rule bg-ink shadow-sm">
+          <iframe
+            src={`https://www.youtube.com/embed/videoseries?list=${playlistId}&enablejsapi=1`}
+            title="YouTube Music Playlist"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            className="absolute inset-0 h-full w-full border-0"
+          />
+        </div>
+        <div className="flex items-center justify-between gap-2 px-1">
+          <div className="flex items-center gap-1.5 font-serif text-[11px] text-ink-mute">
+            <div className="flex gap-0.5 items-end h-2.5 w-3.5">
+              <span className="w-[2px] bg-crimson rounded-full animate-bounce h-2" style={{ animationDelay: '0.1s', animationDuration: '0.6s' }} />
+              <span className="w-[2px] bg-crimson rounded-full animate-bounce h-3" style={{ animationDelay: '0.3s', animationDuration: '0.8s' }} />
+              <span className="w-[2px] bg-crimson rounded-full animate-bounce h-1.5" style={{ animationDelay: '0.2s', animationDuration: '0.5s' }} />
+              <span className="w-[2px] bg-crimson rounded-full animate-bounce h-2.5" style={{ animationDelay: '0.4s', animationDuration: '0.7s' }} />
+            </div>
+            Playlist active
+          </div>
+          <button
+            onClick={handleDisconnect}
+            className="font-display text-[10px] uppercase tracking-wider text-crimson hover:text-crimson-soft hover:underline"
+          >
+            Disconnect
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleConnect} className="space-y-2">
+      <p className="font-serif text-xs italic text-ink-mute">
+        Enter a YouTube playlist link to play background ambiance or battle tracks during play.
+      </p>
+      <div className="flex gap-1.5">
+        <input
+          type="text"
+          value={inputUrl}
+          onChange={(e) => {
+            setInputUrl(e.target.value);
+            if (error) setError('');
+          }}
+          placeholder="Paste YouTube playlist URL or ID..."
+          className="flex-1 rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-xs text-ink placeholder:italic placeholder:text-ink-faint focus:border-crimson focus:outline-none"
+        />
+        <button
+          type="submit"
+          disabled={!inputUrl.trim()}
+          className="rounded border border-brass-deep/60 bg-brass/10 px-3 py-1 font-display text-[11px] uppercase tracking-wider text-brass-deep hover:bg-brass hover:text-parchment disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          Connect
+        </button>
+      </div>
+      {error && <p className="px-1 font-serif text-[10px] italic text-crimson">{error}</p>}
+    </form>
   );
 }
