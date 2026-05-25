@@ -6,7 +6,7 @@ type User @table {
 }
 
 type Campaign @table {
-  user: User!
+  user: User! @ref(onDelete: CASCADE)
   name: String!
   description: String
   gameSystem: String
@@ -14,17 +14,29 @@ type Campaign @table {
 }
 
 type Npc @table {
-  campaign: Campaign!
+  campaign: Campaign! @ref(onDelete: CASCADE)
   name: String!
   description: String
-  stats: String
+  # Structured stat block — individual attributes are first-class columns so
+  # they can be queried/mutated without parsing a serialized String blob.
+  armorClass: Int
+  hitPoints: Int
+  speed: Int
+  strength: Int
+  dexterity: Int
+  constitution: Int
+  intelligence: Int
+  wisdom: Int
+  charisma: Int
+  proficiencyBonus: Int
+  challengeRating: Float
   imageUrl: String
   status: String
   createdAt: Timestamp!
 }
 
 type Encounter @table {
-  campaign: Campaign!
+  campaign: Campaign! @ref(onDelete: CASCADE)
   name: String!
   location: String!
   difficulty: String!
@@ -34,17 +46,19 @@ type Encounter @table {
 }
 
 type EncounterNpc @table(key: ["encounter", "npc"]) {
-  encounter: Encounter!
-  npc: Npc!
+  encounter: Encounter! @ref(onDelete: CASCADE)
+  npc: Npc! @ref(onDelete: CASCADE)
   roleInEncounter: String
   createdAt: Timestamp!
 }
 
 type Note @table {
-  user: User!
+  user: User! @ref(onDelete: CASCADE)
   content: String!
-  campaign: Campaign
-  npc: Npc
-  encounter: Encounter
+  # Optional parent links: null the reference rather than delete the note when
+  # the linked entity is removed, since a note can stand on its own.
+  campaign: Campaign @ref(onDelete: SET_NULL)
+  npc: Npc @ref(onDelete: SET_NULL)
+  encounter: Encounter @ref(onDelete: SET_NULL)
   createdAt: Timestamp!
 }

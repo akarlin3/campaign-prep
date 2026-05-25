@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { buildSlotProjection, buildShareMeta } from '../projection';
 import { initPlayerMode } from '../migration';
+import type { PlayerModeData } from '../types';
 
-function seedCampaignData() {
+function seedCampaignData(): PlayerModeData {
   const base = {
     npcs: [
       { id: 'npc1', name: 'Sera', appearance: 'tall', goal: 'rule the city', flaw: 'greedy' },
@@ -18,7 +19,7 @@ function seedCampaignData() {
     ],
   } as Record<string, any>;
   const { data } = initPlayerMode(base);
-  return data;
+  return data as PlayerModeData;
 }
 
 describe('buildSlotProjection', () => {
@@ -63,7 +64,7 @@ describe('buildSlotProjection', () => {
     const data = seedCampaignData();
     // nothing shared yet
     expect(buildSlotProjection(data, 'C', 'slot-a').sessionLog).toHaveLength(0);
-    data.playerLog[0].visibility = { mode: 'party' };
+    data.playerLog![0].visibility = { mode: 'party' };
     const log = buildSlotProjection(data, 'C', 'slot-a').sessionLog;
     expect(log).toHaveLength(1);
     expect(log[0].text).toBe('They met Sera.');
@@ -73,7 +74,7 @@ describe('buildSlotProjection', () => {
 
   it('custom-visibility player-log entries reach only listed slots', () => {
     const data = seedCampaignData();
-    data.playerLog[0].visibility = { mode: 'custom', allowedSlotIds: ['slot-b'] };
+    data.playerLog![0].visibility = { mode: 'custom', allowedSlotIds: ['slot-b'] };
     expect(buildSlotProjection(data, 'C', 'slot-a').sessionLog).toHaveLength(0);
     expect(buildSlotProjection(data, 'C', 'slot-b').sessionLog).toHaveLength(1);
   });
@@ -84,7 +85,7 @@ describe('buildSlotProjection', () => {
     // goal is private by default -> hidden
     expect(buildSlotProjection(data, 'C', 'slot-a').entities.npcs![0]).not.toHaveProperty('goal');
     // flip the campaign default for npc.goal to public
-    data.player.fieldDefaults.npcs.goal = 'public';
+    data.player.fieldDefaults.npcs!.goal = 'public';
     expect(buildSlotProjection(data, 'C', 'slot-a').entities.npcs![0].goal).toBe('rule the city');
   });
 
