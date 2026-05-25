@@ -24,7 +24,7 @@ type Enriched = {
   pinned: boolean;
   archived: boolean;
   pitch: string;
-  pcName: string | null;
+  pcNames: string[];
   lastPlayed: Date | null;
   lastOpened: Date | null;
   status: Status;
@@ -51,10 +51,9 @@ function enrich(c: Campaign, userId?: string): Enriched {
     typeof data.pitch === 'string' ? data.pitch.split('\n')[0].trim() : '';
 
   const characters = Array.isArray(data.characters) ? data.characters : [];
-  const pcName =
-    typeof characters[0]?.name === 'string' && characters[0].name.trim()
-      ? characters[0].name.trim()
-      : null;
+  const pcNames = characters
+    .map(char => typeof char?.name === 'string' ? char.name.trim() : '')
+    .filter(Boolean);
 
   const sessionLogs = Array.isArray(data.sessionLogs) ? data.sessionLogs : [];
   // "Last played" reflects actual play only — never `updatedAt` — so opening
@@ -72,7 +71,7 @@ function enrich(c: Campaign, userId?: string): Enriched {
     status = days < 30 ? 'active' : 'hiatus';
   }
 
-  return { raw: c, pinned, archived, pitch, pcName, lastPlayed, lastOpened, status, sortKey: lastPlayed?.getTime() ?? 0, isPlayer };
+  return { raw: c, pinned, archived, pitch, pcNames, lastPlayed, lastOpened, status, sortKey: lastPlayed?.getTime() ?? 0, isPlayer };
 }
 
 function sortActive(items: Enriched[]): Enriched[] {
@@ -234,8 +233,13 @@ export default function CampaignListPage() {
           )}
 
           <div className="ml-6 mt-1 flex flex-wrap items-center gap-2 font-serif text-xs italic text-brass-deep">
-            {e.pcName && <span>PC: {e.pcName}</span>}
-            {e.pcName && <span className="text-ink-faint">·</span>}
+            {e.pcNames.length > 0 && (
+              <span>
+                {e.pcNames.length === 1 ? 'PC: ' : 'PCs: '}
+                {e.pcNames.join(', ')}
+              </span>
+            )}
+            {e.pcNames.length > 0 && <span className="text-ink-faint">·</span>}
             <span title={e.lastOpened ? `Last opened: ${relativeTime(e.lastOpened)}` : undefined}>
               Last played: {relativeTime(e.lastPlayed) || 'never'}
             </span>

@@ -2268,11 +2268,71 @@ export default function CampaignEditor({
   );
   const trackEvent = useCallback((kind: ChangeEventKind, summary: string, before?: unknown, after?: unknown) => {
     setState(s => {
-      if (!s.__runSessionOpen) return s;
+      if (!s.__activeSessionId) return s;
       const events = (s.__sessionChangeEvents as ChangeEvent[]) || [];
       return { ...s, __sessionChangeEvents: [...events, makeEvent(kind, summary, before, after)] };
     });
   }, []);
+
+  const handleEndSession = useCallback(async () => {
+    const sessionId = get('__activeSessionId', `session_${Date.now()}`) as string;
+    const startedAt = get('__sessionStartedAt', Date.now()) as number;
+    const endedAt = Date.now();
+    const scratchpad = get('__sessionScratchpad', '') as string;
+    const events = get('__sessionChangeEvents', []) as any[];
+    const existingEntries = get('sessionLogV2', []) as any[];
+    
+    const keptEvents = events.filter((e: any) => !e.dismissed);
+    const nextNumber = Math.max(0, ...existingEntries.map(e => e.number || 0)) + 1;
+    const entry = {
+      id: sessionId,
+      number: nextNumber,
+      date: new Date().toISOString().split('T')[0],
+      startedAt,
+      endedAt,
+      title: `Session ${nextNumber}`,
+      recap: scratchpad || '',
+      events: keptEvents,
+      secretsRevealed: keptEvents.filter((e: any) => e.kind === 'secret_revealed').map((e: any) => e.summary),
+      scenesUsed: keptEvents.filter((e: any) => e.kind === 'scene_used').map((e: any) => e.summary.replace(/^Used scene:\s*/, '')),
+      goalUpdates: keptEvents.filter((e: any) => e.kind === 'goal_status').map((e: any) => {
+        const [goalText] = e.summary.split(': ');
+        const fromTo = e.summary.split(': ')[1] || '';
+        const [from, to] = fromTo.split(' → ');
+        return { goal: goalText || '', from: from || String(e.before ?? ''), to: to || String(e.after ?? '') };
+      }),
+    };
+    
+    const updatedSessionLog = [...existingEntries, entry];
+    
+    // Build the next state object
+    let nextState: Record<string, any> = { ...state, sessionLogV2: updatedSessionLog };
+    delete nextState.__activeSessionId;
+    delete nextState.__sessionStartedAt;
+    delete nextState.__sessionEndedAt;
+    delete nextState.__sessionChangeEvents;
+    delete nextState.__sessionScratchpad;
+    delete nextState.__sessionUsedScenes;
+    nextState.__runSessionOpen = false;
+    nextState = markSessionPlayed(nextState);
+
+    // Cancel the pending auto-save timeout so it doesn't fire after our manual save
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    
+    // Optimistically update local React state
+    setState(nextState);
+
+    try {
+      // Save to the database immediately and wait for it to complete
+      await saveToDB({ name, data: { ...nextState, __soloMode: soloMode }, done });
+    } catch (err) {
+      console.error("Failed to save ended session to DB", err);
+    }
+    
+    router.push(`/campaign/${campaign.id}/recap/${sessionId}`);
+  }, [state, get, name, soloMode, done, saveToDB, campaign.id, router]);
   const toggleDone = (id: string) => setDone(d => ({ ...d, [id]: !d[id] }));
   const toggleOpen = (id: string) => setOpen(o => ({ ...o, [id]: !o[id] }));
   const togglePhase = (id: string) => setPhaseOpen(p => ({ ...p, [id]: !p[id] }));
@@ -2315,8 +2375,8 @@ export default function CampaignEditor({
   // segues offer the live Session Log; that option is unavailable until a
   // Run Session is open.
   const generatorDisabledDests: Partial<Record<LogKind, readonly CampaignDestKey[]>> = useMemo(
-    () => ({ 'plot-segue': state.__runSessionOpen ? [] : (['session-log'] as const) }),
-    [state.__runSessionOpen],
+    () => ({ 'plot-segue': state.__activeSessionId ? [] : (['session-log'] as const) }),
+    [state.__activeSessionId],
   );
 
   const parsedLevels = ((state.characters as Character[]) || [])
@@ -3124,65 +3184,7 @@ export default function CampaignEditor({
           get={get}
           setVal={setVal}
           characters={characters}
-          onEndSession={async () => {
-            const sessionId = get('__activeSessionId', `session_${Date.now()}`) as string;
-            const startedAt = get('__sessionStartedAt', Date.now()) as number;
-            const endedAt = Date.now();
-            const scratchpad = get('__sessionScratchpad', '') as string;
-            const events = get('__sessionChangeEvents', []) as any[];
-            const existingEntries = get('sessionLogV2', []) as any[];
-            
-            const keptEvents = events.filter((e: any) => !e.dismissed);
-            const nextNumber = Math.max(0, ...existingEntries.map(e => e.number || 0)) + 1;
-            const entry = {
-              id: sessionId,
-              number: nextNumber,
-              date: new Date().toISOString().split('T')[0],
-              startedAt,
-              endedAt,
-              title: `Session ${nextNumber}`,
-              recap: scratchpad || '',
-              events: keptEvents,
-              secretsRevealed: keptEvents.filter((e: any) => e.kind === 'secret_revealed').map((e: any) => e.summary),
-              scenesUsed: keptEvents.filter((e: any) => e.kind === 'scene_used').map((e: any) => e.summary.replace(/^Used scene:\s*/, '')),
-              goalUpdates: keptEvents.filter((e: any) => e.kind === 'goal_status').map((e: any) => {
-                const [goalText] = e.summary.split(': ');
-                const fromTo = e.summary.split(': ')[1] || '';
-                const [from, to] = fromTo.split(' → ');
-                return { goal: goalText || '', from: from || String(e.before ?? ''), to: to || String(e.after ?? '') };
-              }),
-            };
-            
-            const updatedSessionLog = [...existingEntries, entry];
-            
-            // Build the next state object
-            let nextState: Record<string, any> = { ...state, sessionLogV2: updatedSessionLog };
-            delete nextState.__activeSessionId;
-            delete nextState.__sessionStartedAt;
-            delete nextState.__sessionEndedAt;
-            delete nextState.__sessionChangeEvents;
-            delete nextState.__sessionScratchpad;
-            delete nextState.__sessionUsedScenes;
-            nextState.__runSessionOpen = false;
-            nextState = markSessionPlayed(nextState);
-
-            // Cancel the pending auto-save timeout so it doesn't fire after our manual save
-            if (saveTimeoutRef.current) {
-              clearTimeout(saveTimeoutRef.current);
-            }
-            
-            // Optimistically update local React state
-            setState(nextState);
-
-            try {
-              // Save to the database immediately and wait for it to complete
-              await saveToDB({ name, data: { ...nextState, __soloMode: soloMode }, done });
-            } catch (err) {
-              console.error("Failed to save ended session to DB", err);
-            }
-            
-            router.push(`/campaign/${campaign.id}/recap/${sessionId}`);
-          }}
+          onEndSession={handleEndSession}
           onExitWithoutEnding={() => setVal('__runSessionOpen', false)}
           onOpenLibrary={() => {
             setVal('__runSessionOpen', false);
@@ -3362,9 +3364,9 @@ export default function CampaignEditor({
                     setVal('__prepWizardOpen', true);
                     setVal('__prepWizardStep', 1);
                   }}
-                  disabled={get('__runSessionOpen', false) as boolean}
+                  disabled={!!get('__activeSessionId', '')}
                   className="text-xs px-3 py-1 rounded border border-moss/60 bg-moss/10 text-moss hover:bg-moss hover:text-parchment font-display uppercase tracking-wider flex items-center gap-1.5 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-moss/10 disabled:hover:text-moss"
-                  title={get('__runSessionOpen', false) ? 'Finish your current session first' : 'Walk through Lazy DM\'s 8-step prep'}
+                  title={get('__activeSessionId', '') ? 'Finish your current session first' : 'Walk through Lazy DM\'s 8-step prep'}
                 >
                   <ClipboardList size={12} /> Prep Next Session
                 </button>
@@ -4269,7 +4271,7 @@ export default function CampaignEditor({
             setVal('__prepWizardOpen', true);
             setVal('__prepWizardStep', 1);
           };
-          const sessionOpen = !!get('__runSessionOpen', false);
+          const sessionOpen = !!get('__activeSessionId', '');
           return (
             <div className="space-y-3">
               <div className="rounded border border-rule bg-parchment p-4 shadow-card">
@@ -4323,7 +4325,7 @@ export default function CampaignEditor({
             jumpToNextUp={jumpToNextUp}
             trackEvent={trackEvent}
             navigateTo={navigateTo}
-            onEndSession={() => setVal('__sessionEndedAt', Date.now())}
+            onEndSession={handleEndSession}
           />
         )}
 
