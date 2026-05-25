@@ -3124,7 +3124,7 @@ export default function CampaignEditor({
           get={get}
           setVal={setVal}
           characters={characters}
-          onEndSession={() => {
+          onEndSession={async () => {
             const sessionId = get('__activeSessionId', `session_${Date.now()}`) as string;
             const startedAt = get('__sessionStartedAt', Date.now()) as number;
             const endedAt = Date.now();
@@ -3153,19 +3153,33 @@ export default function CampaignEditor({
               }),
             };
             
-            setVal('sessionLogV2', [...existingEntries, entry]);
+            const updatedSessionLog = [...existingEntries, entry];
             
-            setState(s => {
-              const next = { ...s };
-              delete next.__activeSessionId;
-              delete next.__sessionStartedAt;
-              delete next.__sessionEndedAt;
-              delete next.__sessionChangeEvents;
-              delete next.__sessionScratchpad;
-              delete next.__sessionUsedScenes;
-              next.__runSessionOpen = false;
-              return markSessionPlayed(next);
-            });
+            // Build the next state object
+            let nextState: Record<string, any> = { ...state, sessionLogV2: updatedSessionLog };
+            delete nextState.__activeSessionId;
+            delete nextState.__sessionStartedAt;
+            delete nextState.__sessionEndedAt;
+            delete nextState.__sessionChangeEvents;
+            delete nextState.__sessionScratchpad;
+            delete nextState.__sessionUsedScenes;
+            nextState.__runSessionOpen = false;
+            nextState = markSessionPlayed(nextState);
+
+            // Cancel the pending auto-save timeout so it doesn't fire after our manual save
+            if (saveTimeoutRef.current) {
+              clearTimeout(saveTimeoutRef.current);
+            }
+            
+            // Optimistically update local React state
+            setState(nextState);
+
+            try {
+              // Save to the database immediately and wait for it to complete
+              await saveToDB({ name, data: { ...nextState, __soloMode: soloMode }, done });
+            } catch (err) {
+              console.error("Failed to save ended session to DB", err);
+            }
             
             router.push(`/campaign/${campaign.id}/recap/${sessionId}`);
           }}
