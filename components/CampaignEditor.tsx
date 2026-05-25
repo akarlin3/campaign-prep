@@ -8,7 +8,7 @@ import { WORLD_KEYS } from '@/lib/worldData';
 import { getFirebaseAuth } from '@/lib/firebase/client';
 import {
   ChevronDown, ChevronRight, Check, Plus, X, Quote,
-  User, Users, Map, Swords, Gift, Layers, Calendar, Target, Trophy,
+  User, Users, Map, Swords, Gift, Layers, Calendar, Target, Trophy, Clock,
   Download, Upload, ScrollText, ArrowLeft, ArrowRight, Cloud, CloudOff,
   FileUp, Sparkles, Play, Search, BookOpen, Dice5, Wand2, Skull, Footprints, Hash, ClipboardList, Wrench, SlidersHorizontal, Copy,
   Compass, NotebookPen, Zap, Gem, Globe, Music,
@@ -2589,7 +2589,9 @@ export default function CampaignEditor({
     if (nextUp.phaseId === 'p0') { targetMode = 'plan'; targetSubview = 'pitch'; }
     else if (nextUp.phaseId === 'p1') { targetMode = 'plan'; targetSubview = 'worldbuild'; }
     else if (nextUp.phaseId === 'p2') { targetMode = 'plan'; targetSubview = 'pcs'; }
-    else if (nextUp.phaseId === 'p4' || nextUp.phaseId === 'p5' || nextUp.phaseId === 'p6') { targetMode = 'prep'; targetSubview = 'fronts'; }
+    else if (nextUp.phaseId === 'p4') { targetMode = 'prep'; targetSubview = 'clocks'; }
+    else if (nextUp.phaseId === 'p5') { targetMode = 'prep'; targetSubview = 'arc'; }
+    else if (nextUp.phaseId === 'p6') { targetMode = 'prep'; targetSubview = 'ending'; }
     
     setMode(targetMode);
     setSubview(targetSubview);
@@ -2845,9 +2847,9 @@ export default function CampaignEditor({
     p1: { mode: 'plan', subview: 'worldbuild' },
     p2: { mode: 'plan', subview: 'pcs' },
     p3: { mode: 'prep', subview: 'flow' },
-    p4: { mode: 'prep', subview: 'fronts' },
-    p5: { mode: 'prep', subview: 'fronts' },
-    p6: { mode: 'prep', subview: 'fronts' },
+    p4: { mode: 'prep', subview: 'clocks' },
+    p5: { mode: 'prep', subview: 'arc' },
+    p6: { mode: 'prep', subview: 'ending' },
   };
 
   const navigateTo = (target: {
@@ -2974,7 +2976,10 @@ export default function CampaignEditor({
     { mode: 'plan',    subview: 'pitch',     label: 'Premise',     icon: Compass,         keywords: ['hook', 'givens', 'truths'] },
     { mode: 'plan',    subview: 'worldbuild',     label: 'Worldbuild',       icon: BookOpen,        keywords: ['setting', 'factions', 'reference', 'downtime'] },
     { mode: 'plan',    subview: 'pcs',       label: 'Characters',  icon: User,            keywords: ['pc', 'goals', 'sidekick'] },
-    { mode: 'prep',    subview: 'fronts',    label: 'Fronts',      icon: Target,          keywords: ['clocks', 'audits', 'tracking', 'ending', 'secrets revealed'] },
+    { mode: 'prep',    subview: 'clocks',    label: 'Faction Clocks', icon: Clock,          keywords: ['clocks', 'factions', 'tracking'] },
+    { mode: 'prep',    subview: 'arc',       label: 'Arc Planning',   icon: Layers,         keywords: ['audits', 'goals', 'secrets'] },
+    { mode: 'prep',    subview: 'ending',    label: 'Ending',         icon: Trophy,         keywords: ['ending', 'wrap', 'threads'] },
+    { mode: 'prep',    subview: 'logs',      label: 'Session Logs',   icon: Calendar,       keywords: ['session log', 'recap'] },
     { mode: 'prep',    subview: 'flow',      label: 'Prep Flow',   icon: ScrollText,      keywords: ['lazy dm', '8 step', 'next session'] },
     { mode: 'prep',    subview: 'wizard',    label: 'Prep Wizard', icon: ClipboardList,   keywords: ['guided', 'walkthrough'] },
     { mode: 'run',     subview: 'session',   label: 'Run Session', icon: Swords,          keywords: ['active', 'table'] },
@@ -3212,7 +3217,7 @@ export default function CampaignEditor({
         group: 'Faction clocks',
         keywords: [faction],
         icon: Target,
-        run: () => { setPhaseOpen(p => ({ ...p, p4: true })); navigateTo({ mode: 'prep', subview: 'fronts' }); },
+        run: () => { setPhaseOpen(p => ({ ...p, p4: true })); navigateTo({ mode: 'prep', subview: 'clocks' }); },
       });
     });
 
@@ -4061,79 +4066,126 @@ export default function CampaignEditor({
               />
             )}
 
-            {mode === 'prep' && subview === 'fronts' && (
-            <>
-            <Phase n="4" title="Between Sessions · Faction Clocks" sub="Update Faction Progress" methods={['ccd']} audience="solo" icon={Target} expanded={phaseOpen.p4} onToggle={() => togglePhase('p4')}>
-              <BookQuote source="CCD ch. 6">Glance at faction clocks once per session.</BookQuote>
-              <div className="rounded border border-rule bg-parchment-deep/40 p-3 text-sm font-serif">
-                <p className="text-ink font-display uppercase tracking-wider text-xs mb-1.5">Clock Sizes</p>
-                <div className="grid grid-cols-2 gap-1 text-ink-soft">
-                  <p>4 — quick task</p><p>6 — short-term goal</p>
-                  <p>8 — multi-session</p><p>12 — long project</p>
-                  <p>16 — arc-defining</p>
+            {mode === 'prep' && subview === 'clocks' && (
+              <Phase n="4" title="Between Sessions · Faction Clocks" sub="Update Faction Progress" methods={['ccd']} audience="solo" icon={Target} expanded={phaseOpen.p4} onToggle={() => togglePhase('p4')}>
+                <BookQuote source="CCD ch. 6">Glance at faction clocks once per session.</BookQuote>
+                <div className="rounded border border-rule bg-parchment-deep/40 p-3 text-sm font-serif">
+                  <p className="text-ink font-display uppercase tracking-wider text-xs mb-1.5">Clock Sizes</p>
+                  <div className="grid grid-cols-2 gap-1 text-ink-soft">
+                    <p>4 — quick task</p><p>6 — short-term goal</p>
+                    <p>8 — multi-session</p><p>12 — long project</p>
+                    <p>16 — arc-defining</p>
+                  </div>
+                </div>
+                <div id="section-clocks" />
+                <TargetBar current={countFilled('clocks', get('clocks', []))} target={tgt('clocks')} source={TARGETS.clocks.source} />
+                {(get('clocks', []) as any[]).map((c: any, i: number) => (
+                  <ClockCard key={i} data={c} onChange={(v: any) => {
+                    const next = [...(get('clocks', []) as any[])]; next[i] = v; setVal('clocks', next);
+                    if ((c.filled || 0) !== (v.filled || 0)) {
+                      trackEvent(
+                        'faction_clock_ticked',
+                        `${v.faction || c.faction || 'Faction'}: ${v.text || c.text || 'clock'} ${c.filled || 0} → ${v.filled || 0} / ${v.max || c.max || 6}`,
+                        c.filled || 0, v.filled || 0,
+                      );
+                    }
+                    if ((c.notes || '') !== (v.notes || '')) {
+                      trackEvent(
+                        'other',
+                        `Updated notes on clock: ${v.faction || c.faction || 'Faction'} — ${v.text || c.text || 'clock'}`,
+                      );
+                    }
+                  }} onRemove={() => setVal('clocks', (get('clocks', []) as any[]).filter((_: any, j: number) => j !== i))} />
+                ))}
+                <button onClick={() => setVal('clocks', [...(get('clocks', []) as any[]), { text: '', faction: '', max: 6, filled: 0 }])} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
+                  <Plus size={12} /> Add Clock
+                </button>
+              </Phase>
+            )}
+
+            {mode === 'prep' && subview === 'arc' && (
+              <Phase n="5" title="Mid-Campaign · Arc Planning" sub="Periodic Review (Every 5-10 Sessions)" methods={['ccd', 'pr']} audience="solo" icon={Layers} expanded={phaseOpen.p5} onToggle={() => togglePhase('p5')}>
+                <Section id="audit-goals" title="PC Goal Audit" methods={['pr']} done={done['audit-goals']} onToggle={toggleDone} open={open['audit-goals']} onToggleOpen={toggleOpen}>
+                  <Field value={get('auditGoals', '')} onChange={(v) => setVal('auditGoals', v)} placeholder="Still active? Completed? Boring?" rows={5} />
+                </Section>
+                <Section id="audit-factions" title="Faction Audit" methods={['pr', 'ccd']} done={done['audit-factions']} onToggle={toggleDone} open={open['audit-factions']} onToggleOpen={toggleOpen}>
+                  <Field value={get('auditFactions', '')} onChange={(v) => setVal('auditFactions', v)} placeholder="..." rows={5} />
+                </Section>
+                <Section id="audit-secrets" title="Secrets Audit" methods={['shea']} done={done['audit-secrets']} onToggle={toggleDone} open={open['audit-secrets']} onToggleOpen={toggleOpen}>
+                  <Field value={get('auditSecrets', '')} onChange={(v) => setVal('auditSecrets', v)} placeholder="Which secrets never landed?" rows={4} />
+                </Section>
+              </Phase>
+            )}
+
+            {mode === 'prep' && subview === 'ending' && (
+              <Phase n="6" title="Ending the Campaign" sub="When and How to Wrap" methods={['ccd']} audience="solo" icon={Trophy} expanded={phaseOpen.p6} onToggle={() => togglePhase('p6')}>
+                <BookQuote source="CCD ch. 7">Players maintain desire to keep playing until natural conclusion.</BookQuote>
+                <Section id="end-ready" title="Is the Campaign Ready to End?" methods={['ccd']} done={done['end-ready']} onToggle={toggleDone} open={open['end-ready']} onToggleOpen={toggleOpen}>
+                  <Field value={get('endReadiness', '')} onChange={(v) => setVal('endReadiness', v)} placeholder="Where are we?" rows={3} />
+                </Section>
+                <Section id="end-collect" title="Collect Every Thread" methods={['ccd']} done={done['end-collect']} onToggle={toggleDone} open={open['end-collect']} onToggleOpen={toggleOpen}>
+                  <Field value={get('endThreads', '')} onChange={(v) => setVal('endThreads', v)} placeholder="Active threads list" rows={6} />
+                  <InspireGroup>
+                    <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Inspire:</span>
+                    <Inspire tableId="climaxes" label="Climax" onPick={(e) => {
+                      const cur = get('endThreads', '') as string;
+                      setVal('endThreads', cur ? `${cur}\n• ${e}` : `• ${e}`);
+                    }} />
+                    <Inspire tableId="campaignEvents" label="Event" onPick={(e) => {
+                      const cur = get('endThreads', '') as string;
+                      setVal('endThreads', cur ? `${cur}\n• ${e}` : `• ${e}`);
+                    }} />
+                  </InspireGroup>
+                </Section>
+                <Section id="end-catalyst" title="Add Catalysts" methods={['ccd']} done={done['end-catalyst']} onToggle={toggleDone} open={open['end-catalyst']} onToggleOpen={toggleOpen}>
+                  <Field value={get('endCatalyst', '')} onChange={(v) => setVal('endCatalyst', v)} placeholder="Forcing events" rows={3} />
+                </Section>
+              </Phase>
+            )}
+
+            {mode === 'prep' && subview === 'logs' && (
+              <div className="rounded border border-rule bg-parchment p-4 shadow-card">
+                <div className="flex items-center justify-between mb-3 border-b border-rule pb-2">
+                  <div>
+                    <h3 className="font-display text-lg tracking-wide text-ink">Session Log Archive</h3>
+                    <p className="text-xs text-ink-mute font-serif italic">Track, recap, and review your campaign's session history.</p>
+                  </div>
+                  <button onClick={addSessionLog} className="text-xs text-moss border border-moss/65 hover:bg-moss hover:text-parchment flex items-center gap-1 font-display uppercase tracking-wider px-2.5 py-1 rounded">
+                    <Plus size={12} /> New Session
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  {sortedSessionLogs.length === 0 && sessionLogsV2.length === 0 && (
+                    <p className="text-sm text-ink-mute italic font-serif">No sessions yet. Click "New Session" to start a log.</p>
+                  )}
+                  {sessionLogsV2.slice().reverse().map((log: any) => (
+                    <div key={log.id} className="rounded border border-rule bg-parchment p-3 flex items-center justify-between shadow-sm">
+                      <div>
+                        <div className="font-display tracking-wide text-sm text-ink">
+                          {log.title || `Session ${log.number}`}
+                        </div>
+                        <div className="text-[11px] text-ink-mute font-serif">
+                          {log.date}
+                        </div>
+                      </div>
+                      <button onClick={() => router.push(`/campaign/${campaign.id}/recap/${log.id}`)} className="text-xs text-brass-deep hover:text-crimson font-display uppercase tracking-wider flex-shrink-0 transition-colors bg-brass/10 px-3 py-1.5 rounded flex items-center gap-1">
+                        View Recap <ArrowRight size={12} />
+                      </button>
+                    </div>
+                  ))}
+                  {sortedSessionLogs.map((log) => (
+                    <div key={log.id} data-cp-anchor={`session:${log.id}`}>
+                      <SessionLogCard
+                        data={log}
+                        open={!!openLogs[log.id]}
+                        onToggleOpen={() => setOpenLogs(o => ({ ...o, [log.id]: !o[log.id] }))}
+                        onChange={(v) => updateSessionLog(log.id, v)}
+                        onRemove={() => removeSessionLog(log.id)}
+                      />
+                    </div>
+                  ))}
                 </div>
               </div>
-              <div id="section-clocks" />
-              <TargetBar current={countFilled('clocks', get('clocks', []))} target={tgt('clocks')} source={TARGETS.clocks.source} />
-              {(get('clocks', []) as any[]).map((c: any, i: number) => (
-                <ClockCard key={i} data={c} onChange={(v: any) => {
-                  const next = [...(get('clocks', []) as any[])]; next[i] = v; setVal('clocks', next);
-                  if ((c.filled || 0) !== (v.filled || 0)) {
-                    trackEvent(
-                      'faction_clock_ticked',
-                      `${v.faction || c.faction || 'Faction'}: ${v.text || c.text || 'clock'} ${c.filled || 0} → ${v.filled || 0} / ${v.max || c.max || 6}`,
-                      c.filled || 0, v.filled || 0,
-                    );
-                  }
-                  if ((c.notes || '') !== (v.notes || '')) {
-                    trackEvent(
-                      'other',
-                      `Updated notes on clock: ${v.faction || c.faction || 'Faction'} — ${v.text || c.text || 'clock'}`,
-                    );
-                  }
-                }} onRemove={() => setVal('clocks', (get('clocks', []) as any[]).filter((_: any, j: number) => j !== i))} />
-              ))}
-              <button onClick={() => setVal('clocks', [...(get('clocks', []) as any[]), { text: '', faction: '', max: 6, filled: 0 }])} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
-                <Plus size={12} /> Add Clock
-              </button>
-            </Phase>
-
-            <Phase n="5" title="Mid-Campaign · Arc Planning" sub="Periodic Review (Every 5-10 Sessions)" methods={['ccd', 'pr']} audience="solo" icon={Layers} expanded={phaseOpen.p5} onToggle={() => togglePhase('p5')}>
-              <Section id="audit-goals" title="PC Goal Audit" methods={['pr']} done={done['audit-goals']} onToggle={toggleDone} open={open['audit-goals']} onToggleOpen={toggleOpen}>
-                <Field value={get('auditGoals', '')} onChange={(v) => setVal('auditGoals', v)} placeholder="Still active? Completed? Boring?" rows={5} />
-              </Section>
-              <Section id="audit-factions" title="Faction Audit" methods={['pr', 'ccd']} done={done['audit-factions']} onToggle={toggleDone} open={open['audit-factions']} onToggleOpen={toggleOpen}>
-                <Field value={get('auditFactions', '')} onChange={(v) => setVal('auditFactions', v)} placeholder="..." rows={5} />
-              </Section>
-              <Section id="audit-secrets" title="Secrets Audit" methods={['shea']} done={done['audit-secrets']} onToggle={toggleDone} open={open['audit-secrets']} onToggleOpen={toggleOpen}>
-                <Field value={get('auditSecrets', '')} onChange={(v) => setVal('auditSecrets', v)} placeholder="Which secrets never landed?" rows={4} />
-              </Section>
-            </Phase>
-
-            <Phase n="6" title="Ending the Campaign" sub="When and How to Wrap" methods={['ccd']} audience="solo" icon={Trophy} expanded={phaseOpen.p6} onToggle={() => togglePhase('p6')}>
-              <BookQuote source="CCD ch. 7">Players maintain desire to keep playing until natural conclusion.</BookQuote>
-              <Section id="end-ready" title="Is the Campaign Ready to End?" methods={['ccd']} done={done['end-ready']} onToggle={toggleDone} open={open['end-ready']} onToggleOpen={toggleOpen}>
-                <Field value={get('endReadiness', '')} onChange={(v) => setVal('endReadiness', v)} placeholder="Where are we?" rows={3} />
-              </Section>
-              <Section id="end-collect" title="Collect Every Thread" methods={['ccd']} done={done['end-collect']} onToggle={toggleDone} open={open['end-collect']} onToggleOpen={toggleOpen}>
-                <Field value={get('endThreads', '')} onChange={(v) => setVal('endThreads', v)} placeholder="Active threads list" rows={6} />
-                <InspireGroup>
-                  <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Inspire:</span>
-                  <Inspire tableId="climaxes" label="Climax" onPick={(e) => {
-                    const cur = get('endThreads', '') as string;
-                    setVal('endThreads', cur ? `${cur}\n• ${e}` : `• ${e}`);
-                  }} />
-                  <Inspire tableId="campaignEvents" label="Event" onPick={(e) => {
-                    const cur = get('endThreads', '') as string;
-                    setVal('endThreads', cur ? `${cur}\n• ${e}` : `• ${e}`);
-                  }} />
-                </InspireGroup>
-              </Section>
-              <Section id="end-catalyst" title="Add Catalysts" methods={['ccd']} done={done['end-catalyst']} onToggle={toggleDone} open={open['end-catalyst']} onToggleOpen={toggleOpen}>
-                <Field value={get('endCatalyst', '')} onChange={(v) => setVal('endCatalyst', v)} placeholder="Forcing events" rows={3} />
-              </Section>
-            </Phase>
-            </>
             )}
           </div>
 
@@ -4223,47 +4275,8 @@ export default function CampaignEditor({
           </div>
         )}
 
-        {mode === 'prep' && subview === 'fronts' && (
+        {mode === 'prep' && subview === 'arc' && (
           <div className="space-y-3 text-sm">
-            <div className="rounded border border-rule bg-parchment p-3 shadow-card">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="font-display tracking-wide text-ink">Session Logs</h3>
-                <button onClick={addSessionLog} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
-                  <Plus size={12} /> New Session
-                </button>
-              </div>
-              <div className="space-y-2">
-                {sortedSessionLogs.length === 0 && sessionLogsV2.length === 0 && (
-                  <p className="text-sm text-ink-mute italic font-serif">No sessions yet. Click "New Session" to start a log.</p>
-                )}
-                {sessionLogsV2.slice().reverse().map((log: any) => (
-                  <div key={log.id} className="rounded border border-rule bg-parchment p-3 flex items-center justify-between">
-                    <div>
-                      <div className="font-display tracking-wide text-sm text-ink">
-                        {log.title || `Session ${log.number}`}
-                      </div>
-                      <div className="text-[11px] text-ink-mute font-serif">
-                        {log.date}
-                      </div>
-                    </div>
-                    <button onClick={() => router.push(`/campaign/${campaign.id}/recap/${log.id}`)} className="text-xs text-brass-deep hover:text-crimson font-display uppercase tracking-wider flex items-center gap-1 bg-brass-deep/10 px-2 py-1 rounded">
-                      View Recap <ArrowRight size={12} />
-                    </button>
-                  </div>
-                ))}
-                {sortedSessionLogs.map((log) => (
-                  <div key={log.id} data-cp-anchor={`session:${log.id}`}>
-                    <SessionLogCard
-                      data={log}
-                      open={!!openLogs[log.id]}
-                      onToggleOpen={() => setOpenLogs(o => ({ ...o, [log.id]: !o[log.id] }))}
-                      onChange={(v) => updateSessionLog(log.id, v)}
-                      onRemove={() => removeSessionLog(log.id)}
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
             <div className="rounded border border-rule bg-parchment p-3 shadow-card">
               <h3 className="font-display tracking-wide text-ink mb-2">Revealed Secrets</h3>
               <div className="space-y-1">
@@ -4303,6 +4316,11 @@ export default function CampaignEditor({
                 {(get('pcGoals', []) as any[]).length === 0 && <p className="text-sm text-ink-mute italic font-serif">Add goals in Phase 2.</p>}
               </div>
             </div>
+          </div>
+        )}
+
+        {mode === 'prep' && subview === 'ending' && (
+          <div className="space-y-3 text-sm">
             <div className="rounded border border-rule bg-parchment p-3 shadow-card">
               <h3 className="font-display tracking-wide text-ink mb-2">Dropped Threads</h3>
               <ListField items={get('dropped', [])} onChange={(v) => setVal('dropped', v)} placeholder="A thread to follow up" />

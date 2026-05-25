@@ -51,7 +51,10 @@ export const MODES: Record<Mode, ModeDef> = {
     subviews: [
       { id: 'flow',   label: 'Flow',   description: 'The 8-step prep checklist' },
       { id: 'wizard', label: 'Wizard', description: 'Guided prep walkthrough' },
-      { id: 'fronts', label: 'Fronts',     description: 'Faction clocks, audits, threads, ending',              audience: 'solo' },
+      { id: 'clocks', label: 'Clocks',        description: 'Faction clocks & tracking', audience: 'solo' },
+      { id: 'arc',    label: 'Arc Planning',  description: 'Mid-campaign audits & PC goals', audience: 'solo' },
+      { id: 'ending', label: 'Ending',        description: 'Threads & campaign wrap checklist', audience: 'solo' },
+      { id: 'logs',   label: 'Session Logs',  description: 'Session logs & history archive', audience: 'solo' },
     ],
   },
   run: {
@@ -93,7 +96,7 @@ export const MODE_ORDER: readonly Mode[] = ['plan', 'prep', 'run', 'library'];
 export const LEGACY_TAB_MAP: Record<string, { mode: Mode; subview: string }> = {
   prep:        { mode: 'prep',    subview: 'flow' },
   ref:         { mode: 'plan',    subview: 'worldbuild' },
-  track:       { mode: 'prep',    subview: 'fronts' },
+  track:       { mode: 'prep',    subview: 'clocks' },
   down:        { mode: 'plan',    subview: 'worldbuild' },
   dice:        { mode: 'run',     subview: 'dice' },
   spells:      { mode: 'run',     subview: 'spells' },
