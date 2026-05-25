@@ -11,7 +11,7 @@ import {
   User, Users, Map, Swords, Gift, Layers, Calendar, Target, Trophy,
   Download, Upload, ScrollText, ArrowLeft, ArrowRight, Cloud, CloudOff,
   FileUp, Sparkles, Play, Search, BookOpen, Dice5, Wand2, Skull, Footprints, Hash, ClipboardList, Wrench, SlidersHorizontal, Copy,
-  Compass, NotebookPen, Zap, Gem, Globe,
+  Compass, NotebookPen, Zap, Gem, Globe, Music,
 } from 'lucide-react';
 import { TABLES, sampleTable } from '@/lib/inspirationTables';
 import { CR_TO_XP, encounterMultiplier, difficultyForSolo, parseLevelFromClassLevel } from '@/lib/encounterMath';
@@ -48,7 +48,7 @@ import TrapBuilder from './TrapBuilder';
 import type { Trap } from '@/lib/trapTables';
 import InitiativePanel from './InitiativePanel';
 import type { InitiativeState } from '@/lib/initiative';
-import { QuickDice, QuickInspire, PanelShell, SectionShell } from './RunSessionView';
+import { QuickDice, QuickInspire, PanelShell, SectionShell, MusicPlayer } from './RunSessionView';
 import { applySession0Patch } from '@/lib/session0';
 import SessionLogFinalizer from './SessionLogFinalizer';
 import { type ChangeEvent, type ChangeEventKind, makeEvent } from '@/lib/sessionEvents';
@@ -1261,6 +1261,8 @@ function RunSessionInlineActive({
   const sessionV2 = (get('sessionLogV2', []) as SessionLogEntry[]) || [];
   const sessionNumber = nextSessionNumber(sessionV2);
   const [initiativeOpen, setInitiativeOpen] = useState(false);
+  const musicOpen = !!get('__musicOpen', false);
+  const setMusicOpen = (v: boolean) => setVal('__musicOpen', v);
 
   const scenes = (get('scenes', []) as string[]) || [];
   const secrets = (get('secrets', []) as string[]) || [];
@@ -1604,6 +1606,13 @@ function RunSessionInlineActive({
             ) : (
               <p className="text-xs text-ink-mute italic font-serif px-1">Tap to expand and track turns, HP, conditions.</p>
             )}
+          </PanelShell>
+
+          <PanelShell title="Session Music" icon={Music} open={musicOpen} onToggle={() => setMusicOpen(!musicOpen)}>
+            <MusicPlayer
+              playlistUrl={(get('__sessionPlaylist', '') as string)}
+              onChangePlaylist={(next) => setVal('__sessionPlaylist', next)}
+            />
           </PanelShell>
 
           <PanelShell title="Quick Dice" icon={Dice5} open={true} onToggle={() => {}}>
