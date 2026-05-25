@@ -26,6 +26,18 @@ Beyond worldbuilding, the app includes table-side helpers for actually running s
 - **Encounter helper** — XP budgets and difficulty calculation
 - **Renown** and **Downtime** trackers for between-session bookkeeping
 
+## Player Mode
+
+Share a **read-only, real-time view** of a campaign with your players via a
+link — no player accounts. Players pick their name from a GM-defined roster and
+see only what you reveal: party-wide by default, with per-player and per-field
+overrides. Reveal entities with a Private/Party/Custom toggle, or just
+`@`-mention them in the session-log narration feed (mentions auto-reveal, and
+reveals are sticky). The GM's browser publishes redacted, per-player projections
+to public-read Firestore docs that players read live; the unguessable share-link
+token is the capability. It's a **free** feature. See
+[docs/player-mode.md](./docs/player-mode.md) for the schema and security model.
+
 ## Pro features (LLM-powered)
 
 A few features call paid inference APIs and will be gated behind a $2.99/month Pro subscription at launch. Pro is currently waitlist-only — signed-in users can join from the account page and get emailed when it opens:

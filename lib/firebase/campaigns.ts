@@ -6,6 +6,7 @@ import {
   or, arrayUnion
 } from 'firebase/firestore';
 import { getDb } from './client';
+import { initPlayerMode } from '@/lib/playerMode/migration';
 
 export type Campaign = {
   id: string;
@@ -115,6 +116,16 @@ export async function archiveCampaign(campaignId: string) {
 export async function unarchiveCampaign(campaignId: string) {
   const ref = doc(getDb(), 'campaigns', campaignId);
   await updateDoc(ref, { archivedAt: null });
+}
+
+// Idempotently initialize player-mode config + backfill entity ids on a
+// campaign. Safe to call on every GM open; writes only when something changed.
+// Pure logic lives in lib/playerMode/migration.ts (unit-tested).
+export async function ensurePlayerModeInitialized(campaign: Campaign): Promise<Campaign> {
+  const { data, changed } = initPlayerMode(campaign.data || {});
+  if (!changed) return campaign;
+  await updateCampaign(campaign.id, { data });
+  return { ...campaign, data };
 }
 
 export async function getCampaignOnce(campaignId: string) {

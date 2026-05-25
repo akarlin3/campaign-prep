@@ -43,6 +43,39 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Player Mode share docs. The GM (campaign owner) publishes redacted
+    // projections here from their authenticated browser; unauthenticated
+    // players read them via the share link. The unguessable shareToken in the
+    // path is the capability — there are no player accounts (see
+    // docs/player-mode-audit.md §5). Players never read source campaign docs.
+    function ownsCampaign(campaignId) {
+      return request.auth != null
+        && get(/databases/$(database)/documents/campaigns/$(campaignId)).data.userId == request.auth.uid;
+    }
+    function tokenMatchesCampaign(campaignId, shareToken) {
+      return get(/databases/$(database)/documents/campaigns/$(campaignId)).data.data.player.shareToken == shareToken;
+    }
+    match /playerShares/{shareToken} {
+      // Public read: anyone with the link can fetch roster/meta to pick a slot.
+      allow read: if true;
+      // Only the owning GM may publish, and only under their campaign's current
+      // token (prevents a leaked token from being hijacked to another campaign).
+      allow create, update: if request.resource.data.campaignId is string
+        && ownsCampaign(request.resource.data.campaignId)
+        && tokenMatchesCampaign(request.resource.data.campaignId, shareToken);
+      allow delete: if resource.data.campaignId is string
+        && ownsCampaign(resource.data.campaignId);
+
+      match /slots/{slotId} {
+        // Public read of the redacted per-slot payload.
+        allow read: if true;
+        // Writable only by the GM who owns the campaign this share points to.
+        allow write: if ownsCampaign(
+          get(/databases/$(database)/documents/playerShares/$(shareToken)).data.campaignId
+        );
+      }
+    }
+
     // Pro waitlist signups — clients write their own doc directly from the
     // Firebase Web SDK (the deployment can't use the Admin SDK because
     // service-account key creation is blocked by org policy). The schema is
