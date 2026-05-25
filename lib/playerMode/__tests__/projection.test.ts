@@ -78,6 +78,16 @@ describe('buildSlotProjection', () => {
     expect(buildSlotProjection(data, 'C', 'slot-b').sessionLog).toHaveLength(1);
   });
 
+  it('changing a campaign field default cascades to the projection', () => {
+    const data = seedCampaignData();
+    data.player.entityVisibility.npcs = { npc1: { mode: 'party' } };
+    // goal is private by default -> hidden
+    expect(buildSlotProjection(data, 'C', 'slot-a').entities.npcs![0]).not.toHaveProperty('goal');
+    // flip the campaign default for npc.goal to public
+    data.player.fieldDefaults.npcs.goal = 'public';
+    expect(buildSlotProjection(data, 'C', 'slot-a').entities.npcs![0].goal).toBe('rule the city');
+  });
+
   it('buildShareMeta exposes roster + version, not entity data', () => {
     const data = seedCampaignData();
     data.player.roster = [{ slotId: 'slot-a', displayName: 'Avery' }];

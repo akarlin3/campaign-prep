@@ -20,6 +20,7 @@ import { resolveFieldPrivacy } from '@/lib/playerMode/resolveVisibility';
 import { buildSlotProjection } from '@/lib/playerMode/projection';
 import { publishProjections, rotateShareToken, deleteShare, playUrl } from '@/lib/playerMode/publish';
 import { makeSlotId } from '@/lib/playerMode/share';
+import { removeSlotFromConfig } from '@/lib/playerMode/roster';
 import {
   applyNarrationReveal, makeLogEntryId, type Mention, type PlayerLogEntry,
 } from '@/lib/playerMode/sessionLog';
@@ -109,15 +110,9 @@ export default function PlayerModePanel({
       confirmText: 'Remove', isDestructive: true,
     });
     if (!ok) return;
-    // Drop the slot from any custom visibility lists too.
-    const ev = JSON.parse(JSON.stringify(config.entityVisibility ?? {}));
-    for (const type of Object.keys(ev)) {
-      for (const id of Object.keys(ev[type])) {
-        const vis = ev[type][id] as EntityVisibility;
-        if (vis.allowedSlotIds) vis.allowedSlotIds = vis.allowedSlotIds.filter((s) => s !== slot.slotId);
-      }
-    }
-    onConfigChange({ ...config, roster: roster.filter((s) => s.slotId !== slot.slotId), entityVisibility: ev });
+    // Drop the slot from the roster and scrub it out of every custom allow-list.
+    // The publisher prunes the orphaned slot projection doc on the next publish.
+    onConfigChange(removeSlotFromConfig(config, slot.slotId));
   }
 
   // ---- Token rotation ------------------------------------------------------
