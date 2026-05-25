@@ -2187,7 +2187,10 @@ export default function CampaignEditor({
 
       for (const [k, v] of Object.entries(payload.data)) {
         if (WORLD_KEYS.includes(k as any) && campaign.worldId) {
-          worldPatch[k] = v;
+          const existingVal = world?.data?.[k];
+          if (JSON.stringify(v) !== JSON.stringify(existingVal)) {
+            worldPatch[k] = v;
+          }
         } else {
           campaignPatch[k] = v;
         }
@@ -2208,7 +2211,7 @@ export default function CampaignEditor({
       setSyncState('error');
       setSyncError(err?.message || 'Unknown error');
     }
-  }, [campaign.id, campaign.worldId]);
+  }, [campaign.id, campaign.worldId, world]);
 
   const handleConvertToWorld = async () => {
     if (campaign.worldId) return;
@@ -3205,6 +3208,7 @@ export default function CampaignEditor({
           }}
           campaignContext={generatorCampaignContext}
         />
+        <SyncPill />
       </>
     );
   }
