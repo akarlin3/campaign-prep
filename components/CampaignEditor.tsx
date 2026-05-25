@@ -358,25 +358,24 @@ const ListField = ({
   );
 };
 
-const Section = ({ id, title, methods, children, done, onToggle, open, onToggleOpen, icon: Icon }: any) => (
+const Section = ({ id, title, methods, children, done, onToggle, icon: Icon }: any) => (
   <div id={`section-${id}`} data-cp-anchor={`section:${id}`} className={`rounded border ${done ? 'border-brass/60 bg-brass/5' : 'border-rule bg-parchment-soft'} shadow-card`}>
-    <div className="flex items-center gap-2 p-2.5 sm:p-3">
-      <button onClick={() => onToggle(id)} className={`w-4 h-4 rounded-sm border flex-shrink-0 flex items-center justify-center ${done ? 'bg-brass border-brass-deep text-parchment' : 'border-ink-mute bg-parchment'}`}>
+    <div className="flex items-center gap-2 p-2.5 sm:p-3 border-b border-rule/50">
+      <button
+        onClick={() => onToggle(id)}
+        className={`w-4 h-4 rounded-sm border flex-shrink-0 flex items-center justify-center ${done ? 'bg-brass border-brass-deep text-parchment' : 'border-ink-mute bg-parchment'}`}
+        title={done ? "Mark step uncompleted" : "Mark step completed"}
+      >
         {done && <Check size={10} strokeWidth={3} />}
       </button>
-      <button onClick={() => onToggleOpen(id)} className="flex-1 min-w-0 flex items-center gap-2 text-left">
+      <div className="flex-1 min-w-0 flex items-center gap-2">
         {Icon && <Icon size={14} className="text-brass-deep flex-shrink-0" />}
         <span className="font-display text-sm tracking-wide text-ink flex-1 min-w-0">{title}</span>
         <span className="hidden sm:flex gap-1 flex-shrink-0">{methods?.map((m: any) => <Tag key={m} m={m} />)}</span>
-        <span className="text-ink-mute flex-shrink-0">{open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</span>
-      </button>
-    </div>
-    <div className={`gm-collapse ${open ? 'gm-collapse-open' : ''}`}>
-      <div className="gm-collapse-content">
-        <div className="px-2.5 sm:px-3 pb-3 border-t border-rule pt-3 space-y-3">
-          {children}
-        </div>
       </div>
+    </div>
+    <div className="px-2.5 sm:px-3 pb-3 pt-3 space-y-3">
+      {children}
     </div>
   </div>
 );
@@ -2113,9 +2112,9 @@ const AudienceBadge = ({ audience }: { audience: 'solo' | 'together' }) => {
   );
 };
 
-const Phase = ({ n, title, sub, methods, audience, children, expanded, onToggle, icon: Icon }: any) => (
+const Phase = ({ n, title, sub, methods, audience, children, icon: Icon }: any) => (
   <div className="border border-rule rounded-lg overflow-hidden bg-parchment-soft shadow-page">
-    <button onClick={onToggle} className="w-full flex items-center gap-2.5 sm:gap-4 p-3 sm:p-4 hover:bg-parchment-deep/30 text-left transition-colors">
+    <div className="w-full flex items-center gap-2.5 sm:gap-4 p-3 sm:p-4 text-left border-b border-rule bg-parchment-deep/20">
       <div className="font-display text-3xl sm:text-4xl text-crimson w-8 sm:w-12 leading-none flex-shrink-0">{n}</div>
       {Icon && <Icon size={20} className="text-brass-deep flex-shrink-0 hidden sm:block" />}
       <div className="flex-1 min-w-0">
@@ -2126,9 +2125,8 @@ const Phase = ({ n, title, sub, methods, audience, children, expanded, onToggle,
         </div>
         <div className="text-xs sm:text-sm text-ink-soft italic font-serif mt-0.5">{sub}</div>
       </div>
-      {expanded ? <ChevronDown size={18} className="text-brass-deep flex-shrink-0" /> : <ChevronRight size={18} className="text-brass-deep flex-shrink-0" />}
-    </button>
-    {expanded && <div className="p-3 pt-3 space-y-2 border-t border-rule bg-parchment/40">{children}</div>}
+    </div>
+    <div className="p-3 pt-3 space-y-4 bg-parchment/40">{children}</div>
   </div>
 );
 
