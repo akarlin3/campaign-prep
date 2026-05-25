@@ -2398,7 +2398,7 @@ export default function CampaignEditor({
     partyLevel,
   };
 
-  const completedCount = Object.values(state.done || {}).filter(Boolean).length;
+  const completedCount = Object.values(done || {}).filter(Boolean).length;
   
   const PREP_GROUPS = [
     { name: 'Premise', keys: ['pitch', 'genre', 'g-lines', 'g-mech'], labels: ['Quick Pitch', 'Genre Statement', 'Content Lines', 'Mechanics & System'] },
@@ -3406,7 +3406,7 @@ export default function CampaignEditor({
                     </div>
                     <div className="p-2 space-y-3">
                       {PREP_GROUPS.map(g => {
-                        const uncompleted = g.keys.map((k, i) => ({ k, label: g.labels[i] })).filter(x => !state.done?.[x.k]);
+                        const uncompleted = g.keys.map((k, i) => ({ k, label: g.labels[i] })).filter(x => !done?.[x.k]);
                         if (uncompleted.length === 0) return null;
                         return (
                           <div key={g.name}>
@@ -3423,7 +3423,7 @@ export default function CampaignEditor({
                           </div>
                         );
                       })}
-                      {PREP_GROUPS.every(g => g.keys.every(k => state.done?.[k])) && (
+                      {PREP_GROUPS.every(g => g.keys.every(k => done?.[k])) && (
                         <div className="text-center font-serif text-xs italic text-moss p-2">
                           All standard prep steps are complete!
                         </div>
