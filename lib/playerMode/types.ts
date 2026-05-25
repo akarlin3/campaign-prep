@@ -85,6 +85,31 @@ export type CampaignItem = {
   playerVisibility?: 'name-only' | 'full';
 };
 
+// A redactable game entity: a stable string id plus arbitrary content fields.
+// Field-level redaction (resolveVisibility) decides which fields reach players.
+export type PlayerEntity = {
+  id: string;
+  [field: string]: unknown;
+};
+
+// A GM narration entry in the player log. `visibility` is GM-internal and is
+// stripped before the entry is published to players.
+export type PlayerLogEntry = {
+  visibility?: EntityVisibility;
+  [field: string]: unknown;
+};
+
+// The slice of a campaign's `data` blob that the projection pipeline reads.
+// Modeling it explicitly is the security boundary's input contract: a field
+// that isn't declared here can't be projected to a player by accident, which
+// is what stops hidden GM notes from drifting into player views.
+export type PlayerModeData = Partial<Record<PlayerEntityType, PlayerEntity[]>> & {
+  player: PlayerConfig;
+  handouts?: unknown;
+  playerLog?: readonly PlayerLogEntry[];
+  items?: ReadonlyArray<string | CampaignItem>;
+};
+
 export function normalizeItem(it: string | Record<string, any>, index: number): CampaignItem {
   if (typeof it === 'string') {
     const parts = it.split(' — ');

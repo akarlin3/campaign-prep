@@ -3,18 +3,22 @@
 // read, so redaction correctness here IS the security boundary for field-level
 // privacy. Uses resolveVisibility for every decision.
 
+import { DEFAULT_FIELD_VISIBILITY } from './fieldDefaults';
 import { resolveVisibility } from './resolveVisibility';
 import {
   PLAYER_ENTITY_TYPES,
   normalizeItem,
+  type CampaignItem,
   type EntityVisibility,
+  type FieldPrivacyMap,
   type PlayerConfig,
+  type PlayerEntity,
   type PlayerEntityType,
+  type PlayerLogEntry,
+  type PlayerModeData,
   type ShareMeta,
   type SlotProjection,
 } from './types';
-
-type AnyData = Record<string, any>;
 
 // Fields on a player-log entry that are GM-internal and must not be published
 // to players (the `visibility` record reveals who-can-see info).
@@ -27,12 +31,43 @@ const STRUCTURAL_FIELDS = new Set([
   'sidekickLevel', 'gestalt', 'pointBuy', 'isPublic',
 ]);
 
-function entityFields(entity: AnyData): string[] {
-  return Object.keys(entity).filter((k) => k !== 'id' && !STRUCTURAL_FIELDS.has(k));
+// Compiled once at module load: the candidate content fields per entity type,
+// derived from the canonical field-privacy schema. Iterating this static list
+// instead of Object.keys(entity) on every entity avoids per-entity reflection
+// in the hot publish loop. Privacy is still resolved per field downstream, so
+// listing a private field here is harmless — it just gets filtered out.
+const ENTITY_CONTENT_FIELDS: Record<PlayerEntityType, readonly string[]> =
+  Object.freeze(
+    Object.fromEntries(
+      PLAYER_ENTITY_TYPES.map((type) => [
+        type,
+        Object.freeze(
+          Object.keys(DEFAULT_FIELD_VISIBILITY[type]).filter(
+            (k) => k !== 'id' && !STRUCTURAL_FIELDS.has(k),
+          ),
+        ),
+      ]),
+    ),
+  ) as Record<PlayerEntityType, readonly string[]>;
+
+// The fields to consider for an entity: the static schema list plus any
+// per-instance override keys (sparse, so the spread only runs when overrides
+// exist). Override keys are unioned in so a GM flipping a non-default field to
+// public still surfaces it, matching the prior Object.keys(entity) behavior.
+function candidateFields(
+  entityType: PlayerEntityType,
+  overrides: FieldPrivacyMap | undefined,
+): readonly string[] {
+  const base = ENTITY_CONTENT_FIELDS[entityType];
+  if (!overrides) return base;
+  const extra = Object.keys(overrides).filter(
+    (k) => k !== 'id' && !STRUCTURAL_FIELDS.has(k) && !base.includes(k),
+  );
+  return extra.length ? [...base, ...extra] : base;
 }
 
 function redactEntity(
-  entity: AnyData,
+  entity: PlayerEntity,
   entityType: PlayerEntityType,
   config: PlayerConfig,
   slotId: string,
@@ -44,15 +79,21 @@ function redactEntity(
     visibility,
     slotId,
     defaults: config.fieldDefaults,
-    fields: entityFields(entity),
+    fields: candidateFields(entityType, visibility?.fieldOverrides) as string[],
   });
   if (!entityVisible) return null;
   const out: Record<string, unknown> = { id: entity.id };
-  for (const field of visibleFields) out[field] = entity[field];
+  // Only emit fields actually present on the instance, so a public-by-default
+  // field that this entity simply doesn't carry isn't published as undefined.
+  for (const field of visibleFields) {
+    if (Object.prototype.hasOwnProperty.call(entity, field)) {
+      out[field] = entity[field];
+    }
+  }
   return out;
 }
 
-function redactLogEntry(entry: AnyData): Record<string, unknown> {
+function redactLogEntry(entry: PlayerLogEntry): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(entry)) {
     if (!PLAYER_LOG_INTERNAL_FIELDS.has(k)) out[k] = v;
@@ -60,7 +101,32 @@ function redactLogEntry(entry: AnyData): Record<string, unknown> {
   return out;
 }
 
-export function buildShareMeta(campaignId: string, data: AnyData, campaignName: string): ShareMeta {
+// Group items by their assigned roster slot once, so each slot's projection is
+// an O(1) lookup instead of a full scan of data.items. Built once and reused
+// across every slot when publishing (see publishProjections).
+export type ItemsBySlot = Map<string, CampaignItem[]>;
+
+export function indexItemsBySlot(
+  items: ReadonlyArray<string | CampaignItem> | undefined,
+): ItemsBySlot {
+  const bySlot: ItemsBySlot = new Map();
+  if (!Array.isArray(items)) return bySlot;
+  items.forEach((it, index) => {
+    const normalized = normalizeItem(it, index);
+    const slot = normalized.assignedPlayerId;
+    if (!slot) return;
+    const bucket = bySlot.get(slot);
+    if (bucket) bucket.push(normalized);
+    else bySlot.set(slot, [normalized]);
+  });
+  return bySlot;
+}
+
+export function buildShareMeta(
+  campaignId: string,
+  data: PlayerModeData,
+  campaignName: string,
+): ShareMeta {
   const config: PlayerConfig = data.player;
   return {
     campaignId,
@@ -71,10 +137,11 @@ export function buildShareMeta(campaignId: string, data: AnyData, campaignName: 
 }
 
 export function buildSlotProjection(
-  data: AnyData,
+  data: PlayerModeData,
   campaignName: string,
   slotId: string,
   nowMs: number = Date.now(),
+  itemsBySlot: ItemsBySlot = indexItemsBySlot(data.items),
 ): SlotProjection {
   const config: PlayerConfig = data.player;
   const entities: SlotProjection['entities'] = {};
@@ -114,26 +181,21 @@ export function buildSlotProjection(
     if (visible) sessionLog.push(redactLogEntry(entry));
   }
 
-  // Project assigned items for this slot
+  // Project assigned items for this slot via the prebuilt index (O(1) lookup).
   const projectedItems: Array<{ id: string; name: string; description?: string }> = [];
-  if (Array.isArray(data.items)) {
-    data.items.forEach((it: any, index: number) => {
-      const normalized = normalizeItem(it, index);
-      if (normalized.assignedPlayerId === slotId) {
-        if (normalized.playerVisibility === 'full') {
-          projectedItems.push({
-            id: normalized.id,
-            name: normalized.name,
-            description: normalized.description,
-          });
-        } else {
-          projectedItems.push({
-            id: normalized.id,
-            name: normalized.name,
-          });
-        }
-      }
-    });
+  for (const normalized of itemsBySlot.get(slotId) ?? []) {
+    if (normalized.playerVisibility === 'full') {
+      projectedItems.push({
+        id: normalized.id,
+        name: normalized.name,
+        description: normalized.description,
+      });
+    } else {
+      projectedItems.push({
+        id: normalized.id,
+        name: normalized.name,
+      });
+    }
   }
 
   return {

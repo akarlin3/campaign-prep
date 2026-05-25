@@ -9,9 +9,9 @@ import {
   collection, doc, getDocs, writeBatch, setDoc, updateDoc, serverTimestamp,
 } from 'firebase/firestore';
 import { getDb, stripUndefined } from '@/lib/firebase/client';
-import { buildShareMeta, buildSlotProjection } from './projection';
+import { buildShareMeta, buildSlotProjection, indexItemsBySlot } from './projection';
 import { makeShareToken } from './share';
-import type { PlayerConfig } from './types';
+import type { PlayerConfig, PlayerModeData } from './types';
 
 // Slot docs present in Firestore that no longer correspond to a roster slot and
 // must be deleted. Pure for testing.
@@ -30,16 +30,14 @@ export function rotateShareToken(config: PlayerConfig): PlayerConfig {
   };
 }
 
-export type AnyData = Record<string, any>;
-
 // (Re)publish the meta doc and every roster slot's redacted projection, and
 // prune slot docs for removed roster members. Idempotent.
 export async function publishProjections(
   campaignId: string,
   campaignName: string,
-  data: AnyData,
+  data: PlayerModeData,
 ): Promise<void> {
-  const config: PlayerConfig | undefined = data.player;
+  const config: PlayerConfig = data.player;
   if (!config?.shareToken) return;
   const db = getDb();
   const token = config.shareToken;
@@ -55,11 +53,14 @@ export async function publishProjections(
   await setDoc(doc(db, 'playerShares', token), stripUndefined(buildShareMeta(campaignId, data, campaignName)));
 
   const roster = Array.isArray(config.roster) ? config.roster : [];
+  // Index items by slot once and reuse across every slot, so item projection is
+  // O(slots + items) rather than re-scanning data.items for each slot.
+  const itemsBySlot = indexItemsBySlot(data.items);
   const batch = writeBatch(db);
   for (const slot of roster) {
     batch.set(
       doc(db, 'playerShares', token, 'slots', slot.slotId),
-      stripUndefined(buildSlotProjection(data, campaignName, slot.slotId)),
+      stripUndefined(buildSlotProjection(data, campaignName, slot.slotId, Date.now(), itemsBySlot)),
     );
   }
   const existing = await getDocs(collection(db, 'playerShares', token, 'slots'));
