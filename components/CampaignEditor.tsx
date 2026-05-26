@@ -655,18 +655,59 @@ function migrateCharacters(data: Record<string, any>): Record<string, any> {
 function migrateSessionLogs(data: Record<string, any>): { initialState: Record<string, any>; initialOpenId: string | null } {
   const { logCurrent, ...rest } = data;
 
+  let legacyLogs: any[] = [];
   if (Array.isArray(data.sessionLogs)) {
-    const logs = data.sessionLogs as SessionLog[];
-    if (logs.length === 0) return { initialState: rest, initialOpenId: null };
-    const newest = [...logs].sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0];
-    return { initialState: rest, initialOpenId: newest?.id ?? null };
+    legacyLogs = data.sessionLogs;
+  }
+  let v2Logs: any[] = [];
+  if (Array.isArray(data.sessionLogV2)) {
+    v2Logs = data.sessionLogV2;
   }
 
   const existing = typeof logCurrent === 'string' ? logCurrent.trim() : '';
-  if (!existing) return { initialState: rest, initialOpenId: null };
-  const id = makeLogId();
-  const migrated: SessionLog = { id, title: 'Session 1', date: todayISO(), body: logCurrent };
-  return { initialState: { ...rest, sessionLogs: [migrated] }, initialOpenId: id };
+  if (existing) {
+    const id = makeLogId();
+    const migrated: SessionLog = { id, title: 'Session 1', date: todayISO(), body: logCurrent };
+    legacyLogs = [migrated, ...legacyLogs];
+  }
+
+  if (legacyLogs.length > 0) {
+    const nextV2 = [...v2Logs];
+    const sortedLegacy = [...legacyLogs].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    
+    sortedLegacy.forEach((legacy) => {
+      const exists = v2Logs.some(v2 => v2.id === legacy.id);
+      if (!exists) {
+        const parsedDate = legacy.date ? Date.parse(legacy.date) : Date.now();
+        const time = isNaN(parsedDate) ? Date.now() : parsedDate;
+        const entry: SessionLogEntry = {
+          id: legacy.id || `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          number: nextV2.length + 1,
+          date: legacy.date || todayISO(),
+          startedAt: time,
+          endedAt: time,
+          title: legacy.title || `Session ${nextV2.length + 1}`,
+          recap: legacy.body || '',
+          events: [],
+          secretsRevealed: [],
+          scenesUsed: [],
+          goalUpdates: [],
+        };
+        nextV2.push(entry);
+      }
+    });
+
+    return {
+      initialState: {
+        ...rest,
+        sessionLogV2: nextV2,
+        sessionLogs: [],
+      },
+      initialOpenId: null
+    };
+  }
+
+  return { initialState: { ...rest, sessionLogV2: v2Logs }, initialOpenId: null };
 }
 
 const SessionLogCard = ({ data, open, onToggleOpen, onChange, onRemove }: {
@@ -2982,7 +3023,6 @@ export default function CampaignEditor({
     { mode: 'prep',    subview: 'clocks',    label: 'Faction Clocks', icon: Clock,          keywords: ['clocks', 'factions', 'tracking'] },
     { mode: 'prep',    subview: 'arc',       label: 'Arc Planning',   icon: Layers,         keywords: ['audits', 'goals', 'secrets'] },
     { mode: 'prep',    subview: 'ending',    label: 'Ending',         icon: Trophy,         keywords: ['ending', 'wrap', 'threads'] },
-    { mode: 'prep',    subview: 'logs',      label: 'Session Logs',   icon: Calendar,       keywords: ['session log', 'recap'] },
     { mode: 'prep',    subview: 'flow',      label: 'Prep Flow',   icon: ScrollText,      keywords: ['lazy dm', '8 step', 'next session'] },
     { mode: 'prep',    subview: 'wizard',    label: 'Prep Wizard', icon: ClipboardList,   keywords: ['guided', 'walkthrough'] },
     { mode: 'run',     subview: 'session',   label: 'Run Session', icon: Swords,          keywords: ['active', 'table'] },
@@ -4144,51 +4184,6 @@ export default function CampaignEditor({
                   <Field value={get('endCatalyst', '')} onChange={(v) => setVal('endCatalyst', v)} placeholder="Forcing events" rows={3} />
                 </Section>
               </Phase>
-            )}
-
-            {mode === 'prep' && subview === 'logs' && (
-              <div className="rounded border border-rule bg-parchment p-4 shadow-card">
-                <div className="flex items-center justify-between mb-3 border-b border-rule pb-2">
-                  <div>
-                    <h3 className="font-display text-lg tracking-wide text-ink">Session Log Archive</h3>
-                    <p className="text-xs text-ink-mute font-serif italic">Track, recap, and review your campaign's session history.</p>
-                  </div>
-                  <button onClick={addSessionLog} className="text-xs text-moss border border-moss/65 hover:bg-moss hover:text-parchment flex items-center gap-1 font-display uppercase tracking-wider px-2.5 py-1 rounded">
-                    <Plus size={12} /> New Session
-                  </button>
-                </div>
-                <div className="space-y-3">
-                  {sortedSessionLogs.length === 0 && sessionLogsV2.length === 0 && (
-                    <p className="text-sm text-ink-mute italic font-serif">No sessions yet. Click "New Session" to start a log.</p>
-                  )}
-                  {sessionLogsV2.slice().reverse().map((log: any) => (
-                    <div key={log.id} className="rounded border border-rule bg-parchment p-3 flex items-center justify-between shadow-sm">
-                      <div>
-                        <div className="font-display tracking-wide text-sm text-ink">
-                          {log.title || `Session ${log.number}`}
-                        </div>
-                        <div className="text-[11px] text-ink-mute font-serif">
-                          {log.date}
-                        </div>
-                      </div>
-                      <button onClick={() => router.push(`/campaign/${campaign.id}/recap/${log.id}`)} className="text-xs text-brass-deep hover:text-crimson font-display uppercase tracking-wider flex-shrink-0 transition-colors bg-brass/10 px-3 py-1.5 rounded flex items-center gap-1">
-                        View Recap <ArrowRight size={12} />
-                      </button>
-                    </div>
-                  ))}
-                  {sortedSessionLogs.map((log) => (
-                    <div key={log.id} data-cp-anchor={`session:${log.id}`}>
-                      <SessionLogCard
-                        data={log}
-                        open={!!openLogs[log.id]}
-                        onToggleOpen={() => setOpenLogs(o => ({ ...o, [log.id]: !o[log.id] }))}
-                        onChange={(v) => updateSessionLog(log.id, v)}
-                        onRemove={() => removeSessionLog(log.id)}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
             )}
           </div>
 

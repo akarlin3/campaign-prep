@@ -133,9 +133,9 @@ function describeCharacter(c: any): string | null {
 
 function describeSessionLog(log: any): string | null {
   if (!log || typeof log !== 'object') return null;
-  const body = log.body?.trim();
+  const body = (log.recap || log.body || '').trim();
   if (!body) return null;
-  const head = log.title?.trim() || 'Session';
+  const head = log.title?.trim() || (log.number ? `Session ${log.number}` : 'Session');
   const date = log.date ? ` (${log.date})` : '';
   return `### ${head}${date}\n${body}`;
 }
@@ -200,7 +200,13 @@ export function buildSystemPrompt(template: Template, data: CampaignData): strin
   );
 
   const contextSections = template.contextKeys
-    .map((key) => formatContextSection(key, data[key]))
+    .map((key) => {
+      let val = data[key];
+      if (key === 'sessionLogs' && (!Array.isArray(val) || val.length === 0)) {
+        val = data.sessionLogV2;
+      }
+      return formatContextSection(key, val);
+    })
     .filter((x): x is string => !!x);
 
   if (contextSections.length > 0) {

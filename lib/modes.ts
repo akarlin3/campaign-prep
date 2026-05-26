@@ -54,7 +54,6 @@ export const MODES: Record<Mode, ModeDef> = {
       { id: 'clocks', label: 'Clocks',        description: 'Faction clocks & tracking', audience: 'solo' },
       { id: 'arc',    label: 'Arc Planning',  description: 'Mid-campaign audits & PC goals', audience: 'solo' },
       { id: 'ending', label: 'Ending',        description: 'Threads & campaign wrap checklist', audience: 'solo' },
-      { id: 'logs',   label: 'Session Logs',  description: 'Session logs & history archive', audience: 'solo' },
     ],
   },
   run: {

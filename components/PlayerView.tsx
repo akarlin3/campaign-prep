@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { type Campaign } from '@/lib/firebase/campaigns';
 import { Users, ScrollText, Map, User, BookOpen, Music, ChevronDown, ChevronRight, Gift } from 'lucide-react';
 import CharacterCard from './CharacterCard';
@@ -15,9 +15,32 @@ export default function PlayerView({ campaign, userEmail }: { campaign: Campaign
   const playlistUrl = campaign.data.__sessionPlaylist || '';
   const characters = Array.isArray(campaign.data.characters) ? campaign.data.characters : [];
   const sessionLogs = Array.isArray(campaign.data.sessionLogs) ? campaign.data.sessionLogs : [];
+  const sessionLogsV2 = Array.isArray(campaign.data.sessionLogV2) ? campaign.data.sessionLogV2 : [];
   const npcs = Array.isArray(campaign.data.npcs) ? campaign.data.npcs.filter(n => n.isPublic) : [];
   const locations = Array.isArray(campaign.data.locations) ? campaign.data.locations.filter(l => l.isPublic) : [];
   const handouts = campaign.data.handouts || '';
+
+  const allRecaps = useMemo(() => {
+    const list: Array<{ id: string; title: string; date: string; body: string }> = [];
+    sessionLogs.forEach(l => {
+      list.push({
+        id: l.id,
+        title: l.title || 'Untitled Session',
+        date: l.date || '',
+        body: l.body || 'No notes.',
+      });
+    });
+    sessionLogsV2.forEach((l: any) => {
+      if (list.some(x => x.id === l.id)) return;
+      list.push({
+        id: l.id,
+        title: l.title || `Session ${l.number || ''}`,
+        date: l.date || '',
+        body: l.recap || 'No notes.',
+      });
+    });
+    return list.sort((a, b) => b.date.localeCompare(a.date));
+  }, [sessionLogs, sessionLogsV2]);
 
   const playerConfig = (campaign.data.player as any) || {};
   const roster = playerConfig.roster || [];
@@ -141,10 +164,10 @@ export default function PlayerView({ campaign, userEmail }: { campaign: Campaign
 
           {activeTab === 'recaps' && (
             <div className="space-y-6">
-              {sessionLogs.length === 0 ? (
+              {allRecaps.length === 0 ? (
                 <div className="text-center italic text-ink-mute font-serif py-10">No session recaps available yet.</div>
               ) : (
-                sessionLogs.sort((a: any, b: any) => (b.date || '').localeCompare(a.date || '')).map((log: any, i: number) => (
+                allRecaps.map((log: any, i: number) => (
                   <div key={log.id || i} className="bg-parchment-soft border border-rule rounded p-4 shadow-card">
                     <div className="flex justify-between items-baseline mb-3 border-b border-rule pb-2">
                       <h3 className="font-display text-lg tracking-wide text-ink">{log.title || 'Untitled Session'}</h3>

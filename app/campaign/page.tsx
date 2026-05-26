@@ -56,6 +56,8 @@ function enrich(c: Campaign, userId?: string): Enriched {
     .filter(Boolean);
 
   const sessionLogs = Array.isArray(data.sessionLogs) ? data.sessionLogs : [];
+  const sessionLogsV2 = Array.isArray(data.sessionLogV2) ? data.sessionLogV2 : [];
+  const hasSessions = sessionLogs.length > 0 || sessionLogsV2.length > 0;
   // "Last played" reflects actual play only — never `updatedAt` — so opening
   // or editing a campaign no longer moves the timestamp (B-06).
   const lastPlayed = lastSessionDate(c);
@@ -63,7 +65,7 @@ function enrich(c: Campaign, userId?: string): Enriched {
 
   let status: Status;
   if (archived) status = 'archived';
-  else if (sessionLogs.length === 0) status = 'new';
+  else if (!hasSessions) status = 'new';
   else {
     const days = lastPlayed
       ? Math.floor((Date.now() - lastPlayed.getTime()) / (1000 * 60 * 60 * 24))
