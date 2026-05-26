@@ -1394,6 +1394,7 @@ function RunSessionInlineActive({
   const monstersList = (get('monsters', []) as string[]) || [];
   const magicItemsList = ((get('items', []) as any[]) || []).filter(item => !(typeof item === 'object' && item && !!item.assignedPlayerId));
   const normalizedItems = magicItemsList.map((it, i) => normalizeItem(it, i));
+  const treasureList = (get('treasure', []) as string[]) || [];
   const playerConfig = (get('player', {}) as any) || {};
   const roster = playerConfig.roster || [];
   const givenItems = (get('__sessionItemsGiven', []) as string[]) || [];
@@ -1643,9 +1644,9 @@ function RunSessionInlineActive({
             )}
           </ActivePrepGroup>
 
-          <ActivePrepGroup title="Magic Items" icon={Gem} count={magicItemsList.length}>
-            {normalizedItems.length === 0 ? (
-              <Empty>No magic items prepped.</Empty>
+          <ActivePrepGroup title="Loot & Treasure" icon={Gem} count={magicItemsList.length + treasureList.length}>
+            {normalizedItems.length === 0 && treasureList.length === 0 ? (
+              <Empty>No magic items or treasure prepped.</Empty>
             ) : (
               <div className="space-y-2 w-full">
                 {normalizedItems.map((item, i) => {
@@ -1743,6 +1744,42 @@ function RunSessionInlineActive({
                               </select>
                             </div>
                           )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {treasureList.map((treasure, idx) => {
+                  const isGiven = givenItems.includes(treasure);
+                  return (
+                    <div
+                      key={`t-${idx}`}
+                      className={`p-3 rounded border font-serif text-sm transition-all duration-150 flex gap-2 items-start ${
+                        isGiven
+                          ? 'border-brass/60 bg-brass/10 shadow-sm'
+                          : 'border-rule bg-parchment hover:border-brass/45'
+                      }`}
+                    >
+                      <button
+                        onClick={() => toggleItemGiven(treasure)}
+                        className={`mt-0.5 flex size-4 flex-shrink-0 items-center justify-center rounded-sm border ${
+                          isGiven
+                            ? 'border-brass-deep bg-brass text-parchment'
+                            : 'border-ink-mute bg-parchment hover:border-brass-deep'
+                        }`}
+                        title={isGiven ? 'Unmark treasure given' : 'Mark treasure given this session'}
+                      >
+                        {isGiven && <Check size={10} strokeWidth={3} />}
+                      </button>
+                      <div className="flex-1 space-y-1">
+                        <div className="flex justify-between items-start gap-2">
+                          <div className={`font-semibold text-ink ${isGiven ? 'text-ink-mute' : ''}`}>
+                            {treasure}
+                          </div>
+                          <span className="font-display text-[9px] uppercase tracking-wider text-brass-deep bg-brass/10 border border-brass/25 rounded px-1.5 py-0.5">
+                            Treasure
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -2577,6 +2614,10 @@ export default function CampaignEditor({
       return item;
     });
 
+    // Filter out given treasure from the prepped treasure array
+    const rawTreasure = (get('treasure', []) as string[]) || [];
+    const updatedTreasure = rawTreasure.filter(t => !sessionGivenItems.includes(t));
+
     // Build the next state object
     let nextState: Record<string, any> = {
       ...state,
@@ -2584,7 +2625,8 @@ export default function CampaignEditor({
       partyXP,
       partyInventory,
       characters: updatedCharacters,
-      items: updatedItems
+      items: updatedItems,
+      treasure: updatedTreasure
     };
     delete nextState.__activeSessionId;
     delete nextState.__sessionStartedAt;
@@ -2592,6 +2634,7 @@ export default function CampaignEditor({
     delete nextState.__sessionChangeEvents;
     delete nextState.__sessionScratchpad;
     delete nextState.__sessionUsedScenes;
+    delete nextState.__sessionItemsGiven;
     nextState.__runSessionOpen = false;
     nextState = markSessionPlayed(nextState);
 
