@@ -68,7 +68,7 @@ import { emptyLogistics, type LogisticsState } from './LogisticsTab';
 import { emptyGraph, type RelationshipGraphState } from './NPCRelationshipWeb';
 import { emptyWorld, type FactionWorld } from '@/lib/factionEngine';
 import type { SessionLogEntry } from '@/lib/sessionLog';
-import { nextSessionNumber } from '@/lib/sessionLog';
+import { nextSessionNumber, recalculatePartyState } from '@/lib/sessionLog';
 import type { PrepWizardRun } from '@/lib/prepWizard';
 import type { GeneratorLogs, LogEntry, LogKind } from '@/lib/generators/log';
 import { buildPatch as buildCampaignPatch, type CampaignDestKey, type SelectableItem } from '@/lib/generators/addToCampaign';
@@ -2559,9 +2559,16 @@ export default function CampaignEditor({
     };
     
     const updatedSessionLog = [...existingEntries, entry];
+    const { partyXP, partyInventory, updatedCharacters } = recalculatePartyState(updatedSessionLog, characters);
     
     // Build the next state object
-    let nextState: Record<string, any> = { ...state, sessionLogV2: updatedSessionLog };
+    let nextState: Record<string, any> = {
+      ...state,
+      sessionLogV2: updatedSessionLog,
+      partyXP,
+      partyInventory,
+      characters: updatedCharacters
+    };
     delete nextState.__activeSessionId;
     delete nextState.__sessionStartedAt;
     delete nextState.__sessionEndedAt;
@@ -4680,15 +4687,33 @@ export default function CampaignEditor({
           />;
         })()}
 
-        {mode === 'run' && subview === 'log' && (
-          <SessionLogTab
-            entries={(get('sessionLogV2', []) as SessionLogEntry[])}
-            onChange={(v) => setVal('sessionLogV2', v)}
-            campaignId={campaign.id}
-            campaignSecrets={get('secrets', []) as string[]}
-            campaignScenes={get('scenes', []) as string[]}
-          />
-        )}
+        {mode === 'run' && subview === 'log' && (() => {
+          const handleSessionLogChange = (updatedEntries: SessionLogEntry[]) => {
+            const { partyXP, partyInventory, updatedCharacters } = recalculatePartyState(updatedEntries, characters);
+            setState(s => ({
+              ...s,
+              sessionLogV2: updatedEntries,
+              partyXP,
+              partyInventory,
+              characters: updatedCharacters
+            }));
+          };
+          return (
+            <SessionLogTab
+              entries={(get('sessionLogV2', []) as SessionLogEntry[])}
+              onChange={handleSessionLogChange}
+              campaignId={campaign.id}
+              campaignSecrets={get('secrets', []) as string[]}
+              campaignScenes={get('scenes', []) as string[]}
+              npcs={get('npcs', [])}
+              locations={get('locations', [])}
+              monsters={get('monsters', [])}
+              items={get('items', [])}
+              treasure={get('treasure', [])}
+              characters={characters}
+            />
+          );
+        })()}
 
         {mode === 'run' && subview === 'dice' && (
           <DiceRoller
