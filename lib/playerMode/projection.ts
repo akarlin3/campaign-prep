@@ -198,6 +198,20 @@ export function buildSlotProjection(
     }
   }
 
+  // Project planning & worldbuilding aspects redacted by planningVisibility choices.
+  const pv = config.planningVisibility ?? {};
+  const planning: SlotProjection['planning'] = {
+    pitch: pv.pitch && typeof (data as any).pitch === 'string' && (data as any).pitch.trim() ? (data as any).pitch : null,
+    genre: pv.genre && typeof (data as any).genre === 'string' && (data as any).genre.trim() ? (data as any).genre : null,
+    gWorld: (Array.isArray((data as any).gWorld) ? (data as any).gWorld : []).filter((_: any, i: number) => !!pv.gWorld?.[i]),
+    gFNL: (Array.isArray((data as any).gFNL) ? (data as any).gFNL : []).filter((_: any, i: number) => !!pv.gFNL?.[i]),
+    tone: (Array.isArray((data as any).tone) ? (data as any).tone : []).filter((_: any, i: number) => !!pv.tone?.[i]),
+    lines: (Array.isArray((data as any).lines) ? (data as any).lines : []).filter((_: any, i: number) => !!pv.lines?.[i]),
+    facts: (Array.isArray((data as any).facts) ? (data as any).facts : []).filter((_: any, i: number) => !!pv.facts?.[i]),
+    secrets: (Array.isArray((data as any).secrets) ? (data as any).secrets : []).filter((_: any, i: number) => !!pv.secrets?.[i]),
+    conflicts: (Array.isArray((data as any).conflicts) ? (data as any).conflicts : []).filter((_: any, i: number) => !!pv.conflicts?.[i]),
+  };
+
   return {
     campaignName,
     tokenVersion: config.tokenVersion,
@@ -207,5 +221,6 @@ export function buildSlotProjection(
     sessionLog,
     updatedAtMs: nowMs,
     items: projectedItems,
+    planning,
   };
 }

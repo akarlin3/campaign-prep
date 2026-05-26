@@ -3461,22 +3461,99 @@ export default function CampaignEditor({
               <BookQuote source="CCD ch. 1">Givens are a set of things your group agrees will feature regardless of how worldbuilding ends up.</BookQuote>
               <Section id="g-world" title="World Facts" methods={['ccd']} done={done['g-world']} onToggle={toggleDone} open={open['g-world']} onToggleOpen={toggleOpen}>
                 <Example title="from CCD">"Post-apocalyptic." "The sun has gone out." "Magic has died."</Example>
-                <ListField items={get('gWorld', [])} onChange={(v) => setVal('gWorld', v)} placeholder="A world fact" target={tgt('gWorld')} />
+                <ListField
+                  items={get('gWorld', [])}
+                  onChange={(v) => setVal('gWorld', v)}
+                  placeholder="A world fact"
+                  target={tgt('gWorld')}
+                  isShared={(i) => !!get('player', {}).planningVisibility?.gWorld?.[i]}
+                  onToggleShare={(i) => {
+                    const curConfig = get('player', {});
+                    const pv = { ...(curConfig.planningVisibility ?? {}) };
+                    const curArr = [...(pv.gWorld ?? [])];
+                    curArr[i] = !curArr[i];
+                    pv.gWorld = curArr;
+                    setVal('player', { ...curConfig, planningVisibility: pv });
+                  }}
+                />
               </Section>
               <Section id="g-fnl" title="Required Factions, NPCs & Locations" methods={['ccd']} done={done['g-fnl']} onToggle={toggleDone} open={open['g-fnl']} onToggleOpen={toggleOpen}>
-                <ListField items={get('gFNL', [])} onChange={(v) => setVal('gFNL', v)} placeholder="A specific entity" target={tgt('gFNL')} />
+                <ListField
+                  items={get('gFNL', [])}
+                  onChange={(v) => setVal('gFNL', v)}
+                  placeholder="A specific entity"
+                  target={tgt('gFNL')}
+                  isShared={(i) => !!get('player', {}).planningVisibility?.gFNL?.[i]}
+                  onToggleShare={(i) => {
+                    const curConfig = get('player', {});
+                    const pv = { ...(curConfig.planningVisibility ?? {}) };
+                    const curArr = [...(pv.gFNL ?? [])];
+                    curArr[i] = !curArr[i];
+                    pv.gFNL = curArr;
+                    setVal('player', { ...curConfig, planningVisibility: pv });
+                  }}
+                />
               </Section>
               <Section id="g-mech" title="Mechanics & System" methods={['ccd']} done={done['g-mech']} onToggle={toggleDone} open={open['g-mech']} onToggleOpen={toggleOpen}>
                 <Field value={get('system', '')} onChange={(v) => setVal('system', v)} placeholder="System (e.g. 5e)" />
                 <CardLabel>Tone Keywords</CardLabel>
-                <ListField items={get('tone', [])} onChange={(v) => setVal('tone', v)} placeholder="A tone word" />
+                <ListField
+                  items={get('tone', [])}
+                  onChange={(v) => setVal('tone', v)}
+                  placeholder="A tone word"
+                  isShared={(i) => !!get('player', {}).planningVisibility?.tone?.[i]}
+                  onToggleShare={(i) => {
+                    const curConfig = get('player', {});
+                    const pv = { ...(curConfig.planningVisibility ?? {}) };
+                    const curArr = [...(pv.tone ?? [])];
+                    curArr[i] = !curArr[i];
+                    pv.tone = curArr;
+                    setVal('player', { ...curConfig, planningVisibility: pv });
+                  }}
+                />
               </Section>
               <Section id="g-lines" title="Content Lines (Hard Nos)" methods={['ccd']} done={done['g-lines']} onToggle={toggleDone} open={open['g-lines']} onToggleOpen={toggleOpen}>
-                <ListField items={get('lines', [])} onChange={(v) => setVal('lines', v)} placeholder="A topic to avoid" target={tgt('lines')} />
+                <ListField
+                  items={get('lines', [])}
+                  onChange={(v) => setVal('lines', v)}
+                  placeholder="A topic to avoid"
+                  target={tgt('lines')}
+                  isShared={(i) => !!get('player', {}).planningVisibility?.lines?.[i]}
+                  onToggleShare={(i) => {
+                    const curConfig = get('player', {});
+                    const pv = { ...(curConfig.planningVisibility ?? {}) };
+                    const curArr = [...(pv.lines ?? [])];
+                    curArr[i] = !curArr[i];
+                    pv.lines = curArr;
+                    setVal('player', { ...curConfig, planningVisibility: pv });
+                  }}
+                />
               </Section>
               <Section id="pitch" title="Quick Pitch" methods={['ccd']} done={done.pitch} onToggle={toggleDone} open={open.pitch} onToggleOpen={toggleOpen}>
                 <BookQuote source="CCD case study">Pitch the results, not the concept.</BookQuote>
                 <Field value={get('pitch', '')} onChange={(v) => setVal('pitch', v)} placeholder="2-3 sentences" rows={4} />
+                {(() => {
+                  const curConfig = get('player', {});
+                  const pitchShared = !!curConfig.planningVisibility?.pitch;
+                  return (
+                    <div className="flex justify-end mt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const pv = { ...(curConfig.planningVisibility ?? {}) };
+                          pv.pitch = !pv.pitch;
+                          setVal('player', { ...curConfig, planningVisibility: pv });
+                        }}
+                        className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded transition-colors ${
+                          pitchShared ? 'bg-moss/10 text-moss hover:bg-moss/20 font-medium' : 'bg-parchment-deep border border-rule text-ink-mute hover:text-ink'
+                        }`}
+                      >
+                        {pitchShared ? <Eye size={12} /> : <EyeOff size={12} />}
+                        {pitchShared ? 'Shared with Players' : 'Private (Click to share)'}
+                      </button>
+                    </div>
+                  );
+                })()}
                 <InspireGroup>
                   <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Goal seeds:</span>
                   <Inspire tableId="dungeonGoals" label="Dungeon" onPick={(e) => {
@@ -3503,16 +3580,68 @@ export default function CampaignEditor({
               <Section id="genre" title="Genre Statement" methods={['ccd']} done={done.genre} onToggle={toggleDone} open={open.genre} onToggleOpen={toggleOpen}>
                 <Example title="format">[tone] [genre] in [setting] where [tension]</Example>
                 <Field value={get('genre', '')} onChange={(v) => setVal('genre', v)} placeholder="One sentence" rows={2} />
+                {(() => {
+                  const curConfig = get('player', {});
+                  const genreShared = !!curConfig.planningVisibility?.genre;
+                  return (
+                    <div className="flex justify-end mt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const pv = { ...(curConfig.planningVisibility ?? {}) };
+                          pv.genre = !pv.genre;
+                          setVal('player', { ...curConfig, planningVisibility: pv });
+                        }}
+                        className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded transition-colors ${
+                          genreShared ? 'bg-moss/10 text-moss hover:bg-moss/20 font-medium' : 'bg-parchment-deep border border-rule text-ink-mute hover:text-ink'
+                        }`}
+                      >
+                        {genreShared ? <Eye size={12} /> : <EyeOff size={12} />}
+                        {genreShared ? 'Shared with Players' : 'Private (Click to share)'}
+                      </button>
+                    </div>
+                  );
+                })()}
               </Section>
               <Section id="facts" title="Setting Facts" methods={['ccd']} done={done.facts} onToggle={toggleDone} open={open.facts} onToggleOpen={toggleOpen}>
                 <Pitfall>Don't pre-load all the secrets. Players still need new ones to discover.</Pitfall>
-                <ListField items={get('facts', [])} onChange={(v) => setVal('facts', v)} placeholder="A fact about the world" rows={2} target={tgt('facts')} />
+                <ListField
+                  items={get('facts', [])}
+                  onChange={(v) => setVal('facts', v)}
+                  placeholder="A fact about the world"
+                  rows={2}
+                  target={tgt('facts')}
+                  isShared={(i) => !!get('player', {}).planningVisibility?.facts?.[i]}
+                  onToggleShare={(i) => {
+                    const curConfig = get('player', {});
+                    const pv = { ...(curConfig.planningVisibility ?? {}) };
+                    const curArr = [...(pv.facts ?? [])];
+                    curArr[i] = !curArr[i];
+                    pv.facts = curArr;
+                    setVal('player', { ...curConfig, planningVisibility: pv });
+                  }}
+                />
               </Section>
               <Section id="secrets" title="Secrets & Clues" methods={['ccd', 'pr']} done={done.secrets} onToggle={toggleDone} open={open.secrets} onToggleOpen={toggleOpen}>
                 <BookQuote source="PR ch. 5">Secrets are the currency of the game. They shouldn't be gated behind high rolls.</BookQuote>
                 <Pitfall>Secrets without context (like "the duke is actually a lizard") don't drive action. Tie them to character goals.</Pitfall>
                 <TargetBar current={countFilled('secrets', get('secrets', []))} target={tgt('secrets')} source={TARGETS.secrets.source} />
-                <ListField items={get('secrets', [])} onChange={(v) => setVal('secrets', v)} placeholder="A secret someone doesn't want known" rows={2} target={tgt('secrets')} />
+                <ListField
+                  items={get('secrets', [])}
+                  onChange={(v) => setVal('secrets', v)}
+                  placeholder="A secret someone doesn't want known"
+                  rows={2}
+                  target={tgt('secrets')}
+                  isShared={(i) => !!get('player', {}).planningVisibility?.secrets?.[i]}
+                  onToggleShare={(i) => {
+                    const curConfig = get('player', {});
+                    const pv = { ...(curConfig.planningVisibility ?? {}) };
+                    const curArr = [...(pv.secrets ?? [])];
+                    curArr[i] = !curArr[i];
+                    pv.secrets = curArr;
+                    setVal('player', { ...curConfig, planningVisibility: pv });
+                  }}
+                />
               </Section>
               <Section id="handouts" title="Handouts / Lore (Public)" methods={[]} done={done.handouts} onToggle={toggleDone} open={open.handouts} onToggleOpen={toggleOpen}>
                 <div className="text-[10px] text-ink-mute uppercase font-display tracking-wider mb-2">Visible to players via invite link</div>
@@ -3556,7 +3685,22 @@ export default function CampaignEditor({
               </Section>
               <Section id="conflicts" title="Active Conflicts" methods={['ccd', 'pr']} done={done.conflicts} onToggle={toggleDone} open={open.conflicts} onToggleOpen={toggleOpen}>
                 <BookQuote source="CCD ch. 2">Conflicts are the end goal of worldbuilding.</BookQuote>
-                <ListField items={get('conflicts', [])} onChange={(v) => setVal('conflicts', v)} placeholder="Faction A vs Faction B over X" rows={2} target={tgt('conflicts')} />
+                <ListField
+                  items={get('conflicts', [])}
+                  onChange={(v) => setVal('conflicts', v)}
+                  placeholder="Faction A vs Faction B over X"
+                  rows={2}
+                  target={tgt('conflicts')}
+                  isShared={(i) => !!get('player', {}).planningVisibility?.conflicts?.[i]}
+                  onToggleShare={(i) => {
+                    const curConfig = get('player', {});
+                    const pv = { ...(curConfig.planningVisibility ?? {}) };
+                    const curArr = [...(pv.conflicts ?? [])];
+                    curArr[i] = !curArr[i];
+                    pv.conflicts = curArr;
+                    setVal('player', { ...curConfig, planningVisibility: pv });
+                  }}
+                />
                 <InspireGroup>
                   <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Inspire:</span>
                   <Inspire tableId="twists" label="Twist" onPick={(e) => {

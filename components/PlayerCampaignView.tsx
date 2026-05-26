@@ -5,7 +5,7 @@
 // No edit affordances; mobile-first.
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollText, Users, Map, Flag, Clock, BookOpen, UserCircle, Gift } from 'lucide-react';
+import { ScrollText, Users, Map, Flag, Clock, BookOpen, UserCircle, Gift, Compass } from 'lucide-react';
 import { subscribeSlotProjection } from '@/lib/playerMode/playerClient';
 import type { SlotProjection } from '@/lib/playerMode/types';
 
@@ -91,6 +91,19 @@ export default function PlayerCampaignView({
     if (projection.handouts) out.push({ id: 'handouts', label: 'Handouts', icon: <BookOpen size={15} /> });
     if (projection.items && projection.items.length > 0) {
       out.push({ id: 'items', label: 'My Items', icon: <Gift size={15} /> });
+    }
+    if (projection.planning && (
+      projection.planning.pitch ||
+      projection.planning.genre ||
+      (projection.planning.gWorld && projection.planning.gWorld.length > 0) ||
+      (projection.planning.gFNL && projection.planning.gFNL.length > 0) ||
+      (projection.planning.tone && projection.planning.tone.length > 0) ||
+      (projection.planning.lines && projection.planning.lines.length > 0) ||
+      (projection.planning.facts && projection.planning.facts.length > 0) ||
+      (projection.planning.secrets && projection.planning.secrets.length > 0) ||
+      (projection.planning.conflicts && projection.planning.conflicts.length > 0)
+    )) {
+      out.push({ id: 'planning', label: 'Premise', icon: <Compass size={15} /> });
     }
     return out;
   }, [projection]);
@@ -215,6 +228,79 @@ export default function PlayerCampaignView({
               ) : active === 'handouts' ? (
                 <div className="whitespace-pre-wrap rounded border border-rule bg-parchment p-4 font-serif text-sm leading-relaxed text-ink-soft shadow-card">
                   {projection.handouts}
+                </div>
+              ) : active === 'planning' ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {projection.planning?.pitch && (
+                    <div className="col-span-full rounded border border-rule bg-parchment p-4 shadow-card space-y-2 font-serif text-sm">
+                      <div className="font-display text-xs uppercase tracking-wider text-brass-deep border-b border-rule pb-1">Quick Pitch</div>
+                      <p className="text-ink-soft whitespace-pre-wrap leading-relaxed">{projection.planning.pitch}</p>
+                    </div>
+                  )}
+                  {projection.planning?.genre && (
+                    <div className="col-span-full rounded border border-rule bg-parchment p-4 shadow-card space-y-2 font-serif text-sm">
+                      <div className="font-display text-xs uppercase tracking-wider text-brass-deep border-b border-rule pb-1">Genre Statement</div>
+                      <p className="text-ink-soft whitespace-pre-wrap leading-relaxed">{projection.planning.genre}</p>
+                    </div>
+                  )}
+                  {projection.planning?.gWorld && projection.planning.gWorld.length > 0 && (
+                    <div className="rounded border border-rule bg-parchment p-4 shadow-card space-y-2 font-serif text-sm">
+                      <div className="font-display text-xs uppercase tracking-wider text-brass-deep border-b border-rule pb-1">World Facts</div>
+                      <ul className="list-disc pl-4 space-y-1 text-ink-soft">
+                        {projection.planning.gWorld.map((w, idx) => <li key={idx}>{w}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  {projection.planning?.gFNL && projection.planning.gFNL.length > 0 && (
+                    <div className="rounded border border-rule bg-parchment p-4 shadow-card space-y-2 font-serif text-sm">
+                      <div className="font-display text-xs uppercase tracking-wider text-brass-deep border-b border-rule pb-1">Required Entities</div>
+                      <ul className="list-disc pl-4 space-y-1 text-ink-soft">
+                        {projection.planning.gFNL.map((w, idx) => <li key={idx}>{w}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  {projection.planning?.tone && projection.planning.tone.length > 0 && (
+                    <div className="rounded border border-rule bg-parchment p-4 shadow-card space-y-2 font-serif text-sm">
+                      <div className="font-display text-xs uppercase tracking-wider text-brass-deep border-b border-rule pb-1">Tone Keywords</div>
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {projection.planning.tone.map((w, idx) => (
+                          <span key={idx} className="rounded bg-brass/10 px-2 py-0.5 text-xs text-brass-deep font-display uppercase tracking-wider">{w}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {projection.planning?.lines && projection.planning.lines.length > 0 && (
+                    <div className="rounded border border-rule bg-parchment p-4 shadow-card space-y-2 font-serif text-sm">
+                      <div className="font-display text-xs uppercase tracking-wider text-brass-deep border-b border-rule pb-1">Content Lines (Hard Nos)</div>
+                      <ul className="list-disc pl-4 space-y-1 text-ink-soft">
+                        {projection.planning.lines.map((w, idx) => <li key={idx}>{w}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  {projection.planning?.facts && projection.planning.facts.length > 0 && (
+                    <div className="rounded border border-rule bg-parchment p-4 shadow-card space-y-2 font-serif text-sm">
+                      <div className="font-display text-xs uppercase tracking-wider text-brass-deep border-b border-rule pb-1">Setting Facts</div>
+                      <ul className="list-disc pl-4 space-y-1 text-ink-soft">
+                        {projection.planning.facts.map((w, idx) => <li key={idx}>{w}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  {projection.planning?.secrets && projection.planning.secrets.length > 0 && (
+                    <div className="rounded border border-rule bg-parchment p-4 shadow-card space-y-2 font-serif text-sm">
+                      <div className="font-display text-xs uppercase tracking-wider text-brass-deep border-b border-rule pb-1">Secrets & Clues</div>
+                      <ul className="list-disc pl-4 space-y-1 text-ink-soft">
+                        {projection.planning.secrets.map((w, idx) => <li key={idx}>{w}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  {projection.planning?.conflicts && projection.planning.conflicts.length > 0 && (
+                    <div className="col-span-full rounded border border-rule bg-parchment p-4 shadow-card space-y-2 font-serif text-sm">
+                      <div className="font-display text-xs uppercase tracking-wider text-brass-deep border-b border-rule pb-1">Active Conflicts</div>
+                      <ul className="list-disc pl-4 space-y-1 text-ink-soft">
+                        {projection.planning.conflicts.map((w, idx) => <li key={idx}>{w}</li>)}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               ) : active === 'items' ? (
                 <div className="grid gap-3 sm:grid-cols-2">
