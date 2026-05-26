@@ -3679,6 +3679,7 @@ export default function CampaignEditor({
               </Section>
               <Section id="s2-start" title="2 · Create a Strong Start" methods={['shea']} done={done['s2-start']} onToggle={toggleDone} open={open['s2-start']} onToggleOpen={toggleOpen}>
                 <SoloNote>Solo level-1 cannot reliably survive opening combat. Substitute action that isn't a losable fight.</SoloNote>
+                <TargetBar current={countFilled('strongStart', get('strongStart', ''))} target={tgt('strongStart')} source={TARGETS.strongStart.source} />
                 <Field value={get('strongStart', '')} onChange={(v) => setVal('strongStart', v)} placeholder="One sentence or paragraph" rows={4} />
                 <InspireGroup>
                   <Inspire tableId="introductions" label="Introduction" onPick={(e) => {
