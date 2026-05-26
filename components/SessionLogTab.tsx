@@ -5,10 +5,13 @@ import Link from 'next/link';
 import {
   ChevronDown, ChevronRight, Pin, PinOff, Edit3, Trash2, Save, X, Award, BookOpen,
 } from 'lucide-react';
-import type { SessionLogEntry } from '@/lib/sessionLog';
-import { formatDuration } from '@/lib/sessionLog';
+import type { SessionLogEntry, LinkedPrepItem } from '@/lib/sessionLog';
+import { formatDuration, parseMonsterXP, parseMonsterName } from '@/lib/sessionLog';
 import type { ChangeEvent, ChangeEventKind } from '@/lib/sessionEvents';
 import { CHANGE_EVENT_LABELS } from '@/lib/sessionEvents';
+import type { Character } from '@/lib/character-schema';
+import type { CampaignItem } from '@/lib/playerMode/types';
+import { normalizeItem } from '@/lib/playerMode/types';
 
 const getLocalDateString = (ms: number) => {
   const d = new Date(ms);
@@ -31,16 +34,42 @@ const parseLocalStart = (dateStr: string, timeStr: string) => {
   return new Date(year, month - 1, day, hour, minute).getTime();
 };
 
+type NPC = {
+  id?: string;
+  name?: string;
+  type?: string;
+  faction?: string;
+  archetype?: string;
+  goal?: string;
+  method?: string;
+  isPublic?: boolean;
+};
+
+type LocationRow = {
+  id?: string;
+  name: string;
+  type: string;
+  aspects: [string, string, string];
+  factions: string;
+};
+
 type Props = {
   entries: SessionLogEntry[];
   onChange: (entries: SessionLogEntry[]) => void;
   campaignId?: string;
   campaignSecrets?: string[];
   campaignScenes?: string[];
+  npcs?: NPC[];
+  locations?: LocationRow[];
+  monsters?: string[];
+  items?: any[];
+  treasure?: string[];
+  characters?: Character[];
 };
 
 export default function SessionLogTab({
   entries, onChange, campaignId, campaignSecrets = [], campaignScenes = [],
+  npcs = [], locations = [], monsters = [], items = [], treasure = [], characters = [],
 }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [openIds, setOpenIds] = useState<Record<string, boolean>>({});
@@ -134,6 +163,12 @@ export default function SessionLogTab({
             campaignId={campaignId}
             campaignSecrets={campaignSecrets}
             campaignScenes={campaignScenes}
+            npcs={npcs}
+            locations={locations}
+            monsters={monsters}
+            items={items}
+            treasure={treasure}
+            characters={characters}
             onToggleOpen={() => setOpenIds(o => ({ ...o, [entry.id]: !o[entry.id] }))}
             onEdit={() => {
               setEditingId(entry.id);
@@ -181,6 +216,12 @@ type SessionCardProps = {
   campaignId?: string;
   campaignSecrets?: string[];
   campaignScenes?: string[];
+  npcs: NPC[];
+  locations: LocationRow[];
+  monsters: string[];
+  items: any[];
+  treasure: string[];
+  characters: Character[];
   onToggleOpen: () => void;
   onEdit: () => void;
   onCancelEdit: () => void;
@@ -192,6 +233,7 @@ type SessionCardProps = {
 
 function SessionCard({
   entry, open, editing, inCompare, campaignId, campaignSecrets = [], campaignScenes = [],
+  npcs = [], locations = [], monsters = [], items = [], treasure = [], characters = [],
   onToggleOpen, onEdit, onCancelEdit, onChange, onSaveEdit, onDelete, onToggleCompare,
 }: SessionCardProps) {
   const duration = formatDuration(entry.endedAt - entry.startedAt);
@@ -218,6 +260,52 @@ function SessionCard({
   }, [campaignScenes, entry.scenesUsed]);
 
   const [eventsOpen, setEventsOpen] = useState(false);
+
+  const linkedItems = entry.linkedPrepItems || [];
+
+  const handleAddLink = (type: LinkedPrepItem['type'], id: string, name: string, extra?: { xp?: number; loot?: string }) => {
+    const isDup = linkedItems.some(item => item.id === id && item.type === type);
+    if (isDup) return;
+    const newItem: LinkedPrepItem = {
+      id,
+      type,
+      snapshotName: name,
+      snapshotXP: extra?.xp,
+      snapshotLoot: extra?.loot,
+    };
+    onChange({ linkedPrepItems: [...linkedItems, newItem] });
+  };
+
+  const handleRemoveLink = (type: LinkedPrepItem['type'], id: string) => {
+    onChange({ linkedPrepItems: linkedItems.filter(item => !(item.id === id && item.type === type)) });
+  };
+
+  const handleUpdateXP = (id: string, xpValue: number) => {
+    onChange({
+      linkedPrepItems: linkedItems.map(item =>
+        (item.id === id && item.type === 'encounter') ? { ...item, snapshotXP: xpValue } : item
+      )
+    });
+  };
+
+  const isGhostItem = (item: LinkedPrepItem) => {
+    switch (item.type) {
+      case 'npc':
+        return !npcs.some(n => n.id === item.id || n.name === item.snapshotName);
+      case 'location':
+        return !locations.some(l => l.id === item.id || l.name === item.snapshotName);
+      case 'encounter':
+        return !monsters.some(m => m === item.id || parseMonsterName(m) === item.snapshotName);
+      case 'loot': {
+        const itemsList = items.map((it, idx) => normalizeItem(it, idx));
+        const inItems = itemsList.some(it => it.id === item.id || it.name === item.snapshotName);
+        const inTreasure = treasure.some(t => t === item.id || t === item.snapshotName);
+        return !inItems && !inTreasure;
+      }
+      default:
+        return true;
+    }
+  };
 
   return (
     <li className={`rounded border ${entry.pinned ? 'border-brass/60 bg-brass/5' : 'border-rule bg-parchment'} shadow-card`}>
@@ -355,7 +443,7 @@ function SessionCard({
                 />
               </label>
               <label className="block space-y-1">
-                <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">XP Awarded</span>
+                <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">XP Awarded (Basic)</span>
                 <input
                   type="number"
                   min={0}
@@ -426,6 +514,192 @@ function SessionCard({
                   )}
                 </div>
               </div>
+
+              {/* Prep Utilization Ledger Edit Section */}
+              <div className="rounded border border-rule bg-parchment-soft p-3.5 space-y-3 shadow-sm mt-3">
+                <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep block border-b border-rule/40 pb-1">Prep Utilization & Party State Ledger</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                  {/* NPCs utilization */}
+                  <div className="space-y-2">
+                    <span className="font-display text-[9px] uppercase tracking-wider text-ink-mute block">NPCs Utilized</span>
+                    <ul className="space-y-1">
+                      {linkedItems.filter(i => i.type === 'npc').map(item => {
+                        const ghost = isGhostItem(item);
+                        return (
+                          <li key={item.id} className="flex items-center justify-between gap-1.5 px-2 py-1 rounded bg-parchment border border-rule/40 text-xs font-serif">
+                            <span className={ghost ? "text-ink-mute italic flex items-center gap-1" : "text-ink"}>
+                              {ghost && <span className="inline-block px-1 py-0.2 text-[8px] bg-wine/10 text-wine rounded font-display uppercase tracking-wider scale-90">Ghost</span>}
+                              {item.snapshotName}
+                            </span>
+                            <button type="button" onClick={() => handleRemoveLink('npc', item.id)} className="text-ink-mute hover:text-crimson transition-colors">
+                              <X size={12} />
+                            </button>
+                          </li>
+                        );
+                      })}
+                      {linkedItems.filter(i => i.type === 'npc').length === 0 && (
+                        <li className="text-[11px] text-ink-mute italic font-serif">No NPCs linked</li>
+                      )}
+                    </ul>
+                    <select
+                      value=""
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (!val) return;
+                        const npc = npcs.find(n => n.id === val);
+                        if (npc) handleAddLink('npc', val, npc.name || 'Unnamed NPC');
+                      }}
+                      className="w-full bg-parchment border border-rule/50 rounded px-2 py-0.5 text-xs text-ink-soft font-serif cursor-pointer hover:border-brass transition-colors focus:outline-none"
+                    >
+                      <option value="">+ Link NPC</option>
+                      {npcs.filter(n => !linkedItems.some(i => i.type === 'npc' && i.id === n.id)).map(n => (
+                        <option key={n.id} value={n.id}>{n.name || 'Unnamed NPC'}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Locations utilization */}
+                  <div className="space-y-2">
+                    <span className="font-display text-[9px] uppercase tracking-wider text-ink-mute block">Locations Utilized</span>
+                    <ul className="space-y-1">
+                      {linkedItems.filter(i => i.type === 'location').map(item => {
+                        const ghost = isGhostItem(item);
+                        return (
+                          <li key={item.id} className="flex items-center justify-between gap-1.5 px-2 py-1 rounded bg-parchment border border-rule/40 text-xs font-serif">
+                            <span className={ghost ? "text-ink-mute italic flex items-center gap-1" : "text-ink"}>
+                              {ghost && <span className="inline-block px-1 py-0.2 text-[8px] bg-wine/10 text-wine rounded font-display uppercase tracking-wider scale-90">Ghost</span>}
+                              {item.snapshotName}
+                            </span>
+                            <button type="button" onClick={() => handleRemoveLink('location', item.id)} className="text-ink-mute hover:text-crimson transition-colors">
+                              <X size={12} />
+                            </button>
+                          </li>
+                        );
+                      })}
+                      {linkedItems.filter(i => i.type === 'location').length === 0 && (
+                        <li className="text-[11px] text-ink-mute italic font-serif">No locations linked</li>
+                      )}
+                    </ul>
+                    <select
+                      value=""
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (!val) return;
+                        const loc = locations.find(l => l.id === val || l.name === val);
+                        if (loc) handleAddLink('location', val, loc.name);
+                      }}
+                      className="w-full bg-parchment border border-rule/50 rounded px-2 py-0.5 text-xs text-ink-soft font-serif cursor-pointer hover:border-brass transition-colors focus:outline-none"
+                    >
+                      <option value="">+ Link Location</option>
+                      {locations.filter(l => !linkedItems.some(i => i.type === 'location' && (i.id === l.id || i.snapshotName === l.name))).map((l, idx) => (
+                        <option key={l.id || idx} value={l.id || l.name}>{l.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Encounters utilization */}
+                  <div className="space-y-2">
+                    <span className="font-display text-[9px] uppercase tracking-wider text-ink-mute block">Encounters Utilized</span>
+                    <ul className="space-y-1.5">
+                      {linkedItems.filter(i => i.type === 'encounter').map(item => {
+                        const ghost = isGhostItem(item);
+                        return (
+                          <li key={item.id} className="space-y-1 px-2 py-1.5 rounded bg-parchment border border-rule/40 text-xs font-serif">
+                            <div className="flex items-center justify-between gap-1.5">
+                              <span className={ghost ? "text-ink-mute italic flex items-center gap-1" : "text-ink font-semibold"}>
+                                {ghost && <span className="inline-block px-1 py-0.2 text-[8px] bg-wine/10 text-wine rounded font-display uppercase tracking-wider scale-90">Ghost</span>}
+                                {item.snapshotName}
+                              </span>
+                              <button type="button" onClick={() => handleRemoveLink('encounter', item.id)} className="text-ink-mute hover:text-crimson transition-colors">
+                                <X size={12} />
+                              </button>
+                            </div>
+                            <div className="flex items-center gap-1 pt-0.5">
+                              <span className="text-[10px] font-display uppercase text-brass-deep">XP:</span>
+                              <input
+                                type="number"
+                                min={0}
+                                value={item.snapshotXP || 0}
+                                onChange={(e) => handleUpdateXP(item.id, parseInt(e.target.value || '0', 10))}
+                                className="w-16 bg-parchment-soft border border-rule/60 rounded px-1 text-[11px] text-ink text-center focus:outline-none"
+                              />
+                            </div>
+                          </li>
+                        );
+                      })}
+                      {linkedItems.filter(i => i.type === 'encounter').length === 0 && (
+                        <li className="text-[11px] text-ink-mute italic font-serif">No encounters linked</li>
+                      )}
+                    </ul>
+                    <select
+                      value=""
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (!val) return;
+                        const name = parseMonsterName(val);
+                        const xp = parseMonsterXP(val);
+                        handleAddLink('encounter', val, name, { xp });
+                      }}
+                      className="w-full bg-parchment border border-rule/50 rounded px-2 py-0.5 text-xs text-ink-soft font-serif cursor-pointer hover:border-brass transition-colors focus:outline-none"
+                    >
+                      <option value="">+ Link Encounter</option>
+                      {monsters.filter(m => !linkedItems.some(i => i.type === 'encounter' && i.id === m)).map((m, idx) => (
+                        <option key={idx} value={m}>{parseMonsterName(m)}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Loot utilization */}
+                  <div className="space-y-2">
+                    <span className="font-display text-[9px] uppercase tracking-wider text-ink-mute block">Loot Awarded</span>
+                    <ul className="space-y-1">
+                      {linkedItems.filter(i => i.type === 'loot').map(item => {
+                        const ghost = isGhostItem(item);
+                        return (
+                          <li key={item.id} className="flex items-center justify-between gap-1.5 px-2 py-1 rounded bg-parchment border border-rule/40 text-xs font-serif" title={item.snapshotLoot}>
+                            <span className={ghost ? "text-ink-mute italic flex items-center gap-1 truncate max-w-[80%]" : "text-ink truncate max-w-[80%]"}>
+                              {ghost && <span className="inline-block px-1 py-0.2 text-[8px] bg-wine/10 text-wine rounded font-display uppercase tracking-wider scale-90 flex-shrink-0">Ghost</span>}
+                              {item.snapshotName}
+                            </span>
+                            <button type="button" onClick={() => handleRemoveLink('loot', item.id)} className="text-ink-mute hover:text-crimson transition-colors flex-shrink-0">
+                              <X size={12} />
+                            </button>
+                          </li>
+                        );
+                      })}
+                      {linkedItems.filter(i => i.type === 'loot').length === 0 && (
+                        <li className="text-[11px] text-ink-mute italic font-serif">No loot linked</li>
+                      )}
+                    </ul>
+                    <select
+                      value=""
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (!val) return;
+                        const itemObj = items.map((it, idx) => normalizeItem(it, idx)).find(it => it.id === val);
+                        if (itemObj) {
+                          handleAddLink('loot', val, itemObj.name, { loot: itemObj.description });
+                        } else {
+                          handleAddLink('loot', val, val, { loot: val });
+                        }
+                      }}
+                      className="w-full bg-parchment border border-rule/50 rounded px-2 py-0.5 text-xs text-ink-soft font-serif cursor-pointer hover:border-brass transition-colors focus:outline-none"
+                    >
+                      <option value="">+ Link Loot</option>
+                      {items.map((it, idx) => normalizeItem(it, idx))
+                        .filter(it => !linkedItems.some(i => i.type === 'loot' && i.id === it.id))
+                        .map(it => (
+                          <option key={it.id} value={it.id}>{it.name || 'Unnamed Item'}</option>
+                        ))
+                      }
+                      {treasure.filter(t => !linkedItems.some(i => i.type === 'loot' && i.id === t)).map((t, idx) => (
+                        <option key={`t-${idx}`} value={t}>{t}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
               <div className="flex items-center gap-2 pt-1">
                 <button onClick={onSaveEdit} className="flex items-center gap-1 rounded border border-crimson/60 bg-crimson/10 px-3 py-1 font-display text-xs uppercase tracking-wider text-crimson hover:bg-crimson hover:text-parchment">
                   <Save size={12} /> Done
@@ -498,6 +772,103 @@ function SessionCard({
                       </li>
                     ))}
                   </ul>
+                </div>
+              )}
+
+              {/* Prep Utilized in Session Display Section */}
+              {linkedItems.length > 0 && (
+                <div className="rounded border border-rule bg-parchment-soft/40 p-3 space-y-2 mt-2">
+                  <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep border-b border-rule/30 pb-0.5">Prep Utilized in Session</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs font-serif text-ink-soft">
+                    {/* NPCs */}
+                    <div>
+                      <span className="font-display text-[9px] uppercase tracking-wider text-ink-mute block mb-1">NPCs</span>
+                      {linkedItems.filter(i => i.type === 'npc').length === 0 ? (
+                        <span className="text-[10px] text-ink-mute italic">None</span>
+                      ) : (
+                        <ul className="space-y-0.5 list-disc pl-3">
+                          {linkedItems.filter(i => i.type === 'npc').map(item => {
+                            const ghost = isGhostItem(item);
+                            return (
+                              <li key={item.id}>
+                                <span className={ghost ? "text-ink-mute italic" : "text-ink"}>
+                                  {item.snapshotName}
+                                  {ghost && <span className="inline-block ml-1 text-[8px] bg-wine/10 text-wine px-0.5 rounded uppercase tracking-wider font-display scale-90">Ghost</span>}
+                                </span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </div>
+
+                    {/* Locations */}
+                    <div>
+                      <span className="font-display text-[9px] uppercase tracking-wider text-ink-mute block mb-1">Locations</span>
+                      {linkedItems.filter(i => i.type === 'location').length === 0 ? (
+                        <span className="text-[10px] text-ink-mute italic">None</span>
+                      ) : (
+                        <ul className="space-y-0.5 list-disc pl-3">
+                          {linkedItems.filter(i => i.type === 'location').map(item => {
+                            const ghost = isGhostItem(item);
+                            return (
+                              <li key={item.id}>
+                                <span className={ghost ? "text-ink-mute italic" : "text-ink"}>
+                                  {item.snapshotName}
+                                  {ghost && <span className="inline-block ml-1 text-[8px] bg-wine/10 text-wine px-0.5 rounded uppercase tracking-wider font-display scale-90">Ghost</span>}
+                                </span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </div>
+
+                    {/* Encounters */}
+                    <div>
+                      <span className="font-display text-[9px] uppercase tracking-wider text-ink-mute block mb-1">Encounters</span>
+                      {linkedItems.filter(i => i.type === 'encounter').length === 0 ? (
+                        <span className="text-[10px] text-ink-mute italic">None</span>
+                      ) : (
+                        <ul className="space-y-0.5 list-disc pl-3">
+                          {linkedItems.filter(i => i.type === 'encounter').map(item => {
+                            const ghost = isGhostItem(item);
+                            return (
+                              <li key={item.id}>
+                                <span className={ghost ? "text-ink-mute italic" : "text-ink font-semibold"}>
+                                  {item.snapshotName}
+                                  {item.snapshotXP ? ` (${item.snapshotXP} XP)` : ''}
+                                  {ghost && <span className="inline-block ml-1 text-[8px] bg-wine/10 text-wine px-0.5 rounded uppercase tracking-wider font-display scale-90">Ghost</span>}
+                                </span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </div>
+
+                    {/* Loot */}
+                    <div>
+                      <span className="font-display text-[9px] uppercase tracking-wider text-ink-mute block mb-1">Loot</span>
+                      {linkedItems.filter(i => i.type === 'loot').length === 0 ? (
+                        <span className="text-[10px] text-ink-mute italic">None</span>
+                      ) : (
+                        <ul className="space-y-0.5 list-disc pl-3">
+                          {linkedItems.filter(i => i.type === 'loot').map(item => {
+                            const ghost = isGhostItem(item);
+                            return (
+                              <li key={item.id} title={item.snapshotLoot}>
+                                <span className={ghost ? "text-ink-mute italic" : "text-ink"}>
+                                  {item.snapshotName}
+                                  {ghost && <span className="inline-block ml-1 text-[8px] bg-wine/10 text-wine px-0.5 rounded uppercase tracking-wider font-display scale-90 font-sans">Ghost</span>}
+                                </span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
             </>

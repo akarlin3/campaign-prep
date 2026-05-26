@@ -6,7 +6,7 @@
 // to keep CampaignEditor focused on orchestration.
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { User, X, Sparkles, Plus, Check, ChevronDown, ChevronRight } from 'lucide-react';
+import { User, X, Sparkles, Plus, Check, ChevronDown, ChevronRight, Eye, EyeOff } from 'lucide-react';
 import { TABLES, sampleTable } from '@/lib/inspirationTables';
 
 export const M = {
@@ -209,6 +209,8 @@ export const ListField = ({
   target = 0,
   rowIdFor,
   highlightId,
+  isShared,
+  onToggleShare,
 }: {
   items: (string | any)[];
   onChange: (v: any[]) => void;
@@ -217,6 +219,8 @@ export const ListField = ({
   target?: number;
   rowIdFor?: (i: number) => string;
   highlightId?: string | null;
+  isShared?: (i: number) => boolean;
+  onToggleShare?: (i: number) => void;
 }) => {
   const getStringValue = (item: any): string => {
     if (typeof item === 'string') return item;
@@ -253,14 +257,34 @@ export const ListField = ({
       {items.map((item, i) => {
         const rid = rowIdFor ? rowIdFor(i) : undefined;
         const highlighted = !!rid && highlightId === rid;
+        const valStr = getStringValue(item);
+        const hasContent = valStr.trim().length > 0;
+        const shared = hasContent && isShared && onToggleShare ? isShared(i) : false;
         return (
           <div
             key={i}
             id={rid ? `entity-${rid}` : undefined}
-            className={`flex gap-2 items-center transition-shadow rounded ${highlighted ? 'ring-2 ring-crimson ring-offset-2 ring-offset-parchment-soft' : ''}`}
+            className={`flex gap-2 items-center transition-shadow rounded ${
+              highlighted ? 'ring-2 ring-crimson ring-offset-2 ring-offset-parchment-soft' : ''
+            } ${
+              shared ? 'bg-moss/5 border border-moss/10 px-1 py-0.5' : ''
+            }`}
           >
             <span className="text-brass-deep font-display text-xs w-5 text-right">{i + 1}.</span>
-            <div className="flex-1"><Field value={getStringValue(item)} onChange={(v) => update(i, v)} placeholder={placeholder} rows={rows} /></div>
+            <div className="flex-1"><Field value={valStr} onChange={(v) => update(i, v)} placeholder={placeholder} rows={rows} /></div>
+            {onToggleShare && isShared && hasContent && (
+              <button
+                type="button"
+                onClick={() => onToggleShare(i)}
+                aria-label={shared ? 'Hide from players' : 'Share with players'}
+                className={`p-1 transition-colors ${
+                  shared ? 'text-moss hover:bg-moss/10' : 'text-ink-mute hover:text-brass-deep hover:bg-brass/10'
+                }`}
+                title={shared ? 'Shared with Players (Click to hide)' : 'Share with Players'}
+              >
+                {shared ? <Eye size={12} /> : <EyeOff size={12} />}
+              </button>
+            )}
             <button onClick={() => remove(i)} aria-label="Remove item" className="text-ink-mute hover:text-crimson px-1"><X size={14} /></button>
           </div>
         );
@@ -382,10 +406,19 @@ export const NPCCard = ({ data, onChange, onRemove, defaultDetailsOpen = false }
       <div className="flex justify-between gap-2">
         <Field value={data.name} onChange={(v) => onChange({ ...data, name: v })} placeholder="NPC Name" />
         <div className="flex items-center gap-2 flex-shrink-0">
-          <label className="flex items-center gap-1 text-[10px] text-ink-soft uppercase font-display tracking-wider cursor-pointer select-none">
-            <input type="checkbox" checked={!!data.isPublic} onChange={(e) => onChange({ ...data, isPublic: e.target.checked })} className="accent-wine" />
-            Public
-          </label>
+          <button
+            type="button"
+            onClick={() => onChange({ ...data, isPublic: !data.isPublic })}
+            className={`flex items-center gap-1 rounded border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider transition-colors ${
+              data.isPublic
+                ? 'bg-moss border-moss text-parchment hover:bg-moss/90'
+                : 'border-ink-mute text-ink-mute hover:bg-parchment-deep hover:text-ink'
+            }`}
+            title={data.isPublic ? 'Shared with Players (Public)' : 'Hidden from Players (Private)'}
+          >
+            {data.isPublic ? <Eye size={10} /> : <EyeOff size={10} />}
+            {data.isPublic ? 'Shared' : 'Private'}
+          </button>
           <button onClick={onRemove} aria-label="Remove" className="text-ink-mute hover:text-crimson"><X size={14} /></button>
         </div>
       </div>
@@ -442,10 +475,19 @@ export const LocationCard = ({ data, onChange, onRemove }: any) => (
     <div className="flex justify-between gap-2">
       <Field value={data.name} onChange={(v) => onChange({ ...data, name: v })} placeholder="Evocative Name" />
       <div className="flex items-center gap-2 flex-shrink-0">
-        <label className="flex items-center gap-1 text-[10px] text-ink-soft uppercase font-display tracking-wider cursor-pointer select-none">
-          <input type="checkbox" checked={!!data.isPublic} onChange={(e) => onChange({ ...data, isPublic: e.target.checked })} className="accent-wine" />
-          Public
-        </label>
+        <button
+          type="button"
+          onClick={() => onChange({ ...data, isPublic: !data.isPublic })}
+          className={`flex items-center gap-1 rounded border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider transition-colors ${
+            data.isPublic
+              ? 'bg-moss border-moss text-parchment hover:bg-moss/90'
+              : 'border-ink-mute text-ink-mute hover:bg-parchment-deep hover:text-ink'
+          }`}
+          title={data.isPublic ? 'Shared with Players (Public)' : 'Hidden from Players (Private)'}
+        >
+          {data.isPublic ? <Eye size={10} /> : <EyeOff size={10} />}
+          {data.isPublic ? 'Shared' : 'Private'}
+        </button>
         <button onClick={onRemove} aria-label="Remove" className="text-ink-mute hover:text-crimson"><X size={14} /></button>
       </div>
     </div>
