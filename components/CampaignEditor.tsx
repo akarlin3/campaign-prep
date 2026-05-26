@@ -68,7 +68,7 @@ import { emptyLogistics, type LogisticsState } from './LogisticsTab';
 import { emptyGraph, type RelationshipGraphState } from './NPCRelationshipWeb';
 import { emptyWorld, type FactionWorld } from '@/lib/factionEngine';
 import type { SessionLogEntry } from '@/lib/sessionLog';
-import { nextSessionNumber, recalculatePartyState, cleanPrepLists } from '@/lib/sessionLog';
+import { nextSessionNumber, recalculatePartyState, cleanPrepLists, parseMonsterName } from '@/lib/sessionLog';
 import type { PrepWizardRun } from '@/lib/prepWizard';
 import type { GeneratorLogs, LogEntry, LogKind } from '@/lib/generators/log';
 import { buildPatch as buildCampaignPatch, type CampaignDestKey, type SelectableItem } from '@/lib/generators/addToCampaign';
@@ -1186,7 +1186,7 @@ function renownRank(value: number, custom?: string[]): string {
 // available via the header "Run Session" button.
 function RunSessionInline({
   get, setVal, setState, characters, campaignContext,
-  nextUp, jumpToNextUp, trackEvent, navigateTo, onEndSession,
+  nextUp, jumpToNextUp, trackEvent, navigateTo, onEndSession, usedPrep,
 }: {
   get: (k: string, fb: any) => any;
   setVal: (k: string, v: any) => void;
@@ -1198,6 +1198,7 @@ function RunSessionInline({
   trackEvent: (kind: ChangeEventKind, summary: string, before?: unknown, after?: unknown) => void;
   navigateTo: (target: { mode: Mode; subview?: string; sessionId?: string; anchor?: string }) => void;
   onEndSession: () => void;
+  usedPrep: any;
 }) {
   const activeId = (get('__activeSessionId', '') as string) || '';
   const isActive = !!activeId;
@@ -4907,6 +4908,7 @@ export default function CampaignEditor({
             trackEvent={trackEvent}
             navigateTo={navigateTo}
             onEndSession={handleEndSession}
+            usedPrep={usedPrep}
           />
         )}
 
