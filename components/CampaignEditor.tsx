@@ -1392,7 +1392,7 @@ function RunSessionInlineActive({
   const scratchpad = (get('__sessionScratchpad', '') as string) || '';
 
   const monstersList = (get('monsters', []) as string[]) || [];
-  const magicItemsList = (get('items', []) as any[]) || [];
+  const magicItemsList = ((get('items', []) as any[]) || []).filter(item => !(typeof item === 'object' && item && !!item.assignedPlayerId));
   const normalizedItems = magicItemsList.map((it, i) => normalizeItem(it, i));
   const playerConfig = (get('player', {}) as any) || {};
   const roster = playerConfig.roster || [];
@@ -2561,13 +2561,30 @@ export default function CampaignEditor({
     const updatedSessionLog = [...existingEntries, entry];
     const { partyXP, partyInventory, updatedCharacters } = recalculatePartyState(updatedSessionLog, characters);
     
+    // Auto-assign magic items marked as given to 'party' to remove them from future prep
+    const sessionGivenItems = (get('__sessionItemsGiven', []) as string[]) || [];
+    const rawItems = (get('items', []) as any[]) || [];
+    const updatedItems = rawItems.map((item, idx) => {
+      if (typeof item === 'object' && item) {
+        if (sessionGivenItems.includes(item.name)) {
+          return { ...item, assignedPlayerId: item.assignedPlayerId || 'party' };
+        }
+      } else if (typeof item === 'string') {
+        if (sessionGivenItems.includes(item)) {
+          return { id: `item_${idx}_${Date.now().toString(36).slice(-2)}`, name: item, assignedPlayerId: 'party' };
+        }
+      }
+      return item;
+    });
+
     // Build the next state object
     let nextState: Record<string, any> = {
       ...state,
       sessionLogV2: updatedSessionLog,
       partyXP,
       partyInventory,
-      characters: updatedCharacters
+      characters: updatedCharacters,
+      items: updatedItems
     };
     delete nextState.__activeSessionId;
     delete nextState.__sessionStartedAt;
