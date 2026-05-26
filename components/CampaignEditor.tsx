@@ -68,7 +68,7 @@ import { emptyLogistics, type LogisticsState } from './LogisticsTab';
 import { emptyGraph, type RelationshipGraphState } from './NPCRelationshipWeb';
 import { emptyWorld, type FactionWorld } from '@/lib/factionEngine';
 import type { SessionLogEntry } from '@/lib/sessionLog';
-import { nextSessionNumber, recalculatePartyState } from '@/lib/sessionLog';
+import { nextSessionNumber, recalculatePartyState, cleanPrepLists } from '@/lib/sessionLog';
 import type { PrepWizardRun } from '@/lib/prepWizard';
 import type { GeneratorLogs, LogEntry, LogKind } from '@/lib/generators/log';
 import { buildPatch as buildCampaignPatch, type CampaignDestKey, type SelectableItem } from '@/lib/generators/addToCampaign';
@@ -1207,17 +1207,19 @@ function RunSessionInline({
     return <RunSessionInlineIdle
       get={get} setVal={setVal} setState={setState}
       nextUp={nextUp} jumpToNextUp={jumpToNextUp} navigateTo={navigateTo}
+      usedPrep={usedPrep}
     />;
   }
 
   return <RunSessionInlineActive
     get={get} setVal={setVal} characters={characters} campaignContext={campaignContext}
     startedAt={startedAt} trackEvent={trackEvent} onEndSession={onEndSession}
+    usedPrep={usedPrep}
   />;
 }
 
 function RunSessionInlineIdle({
-  get, setVal, setState, nextUp, jumpToNextUp, navigateTo,
+  get, setVal, setState, nextUp, jumpToNextUp, navigateTo, usedPrep,
 }: {
   get: (k: string, fb: any) => any;
   setVal: (k: string, v: any) => void;
@@ -1225,16 +1227,24 @@ function RunSessionInlineIdle({
   nextUp: { id: string; label: string; current: number; target: number; sectionId: string; phaseId: string } | null;
   jumpToNextUp: () => void;
   navigateTo: (target: { mode: Mode; subview?: string }) => void;
+  usedPrep: any;
 }) {
   const sessionV2 = (get('sessionLogV2', []) as SessionLogEntry[]) || [];
   const recent = [...sessionV2].sort((a, b) => (b.endedAt || 0) - (a.endedAt || 0)).slice(0, 3);
 
-  const npcsCount = (get('npcs', []) as any[]).length;
-  const locationsCount = (get('locations', []) as any[]).length;
-  const secretsTotal = (get('secrets', []) as string[]).length;
-  const revealedMap = get('revSec', {}) as Record<number, boolean>;
-  const secretsRemaining = (get('secrets', []) as string[]).filter((_, i) => !revealedMap[i]).length;
-  const scenesCount = (get('scenes', []) as string[]).length;
+  const rawNpcs = (get('npcs', []) as any[]);
+  const npcsCount = rawNpcs.filter(n => !usedPrep.linkedNpcIds.has(n.id) && !usedPrep.linkedNpcNames.has(n.name)).length;
+
+  const rawLocs = (get('locations', []) as any[]);
+  const locationsCount = rawLocs.filter(l => !usedPrep.linkedLocIds.has(l.id) && !usedPrep.linkedLocNames.has(l.name)).length;
+
+  const rawSecrets = (get('secrets', []) as string[]);
+  const secretsTotal = rawSecrets.length;
+  const unusedSecrets = rawSecrets.filter(s => !usedPrep.usedSecrets.has(s.trim()));
+  const secretsRemaining = unusedSecrets.length;
+
+  const rawScenes = (get('scenes', []) as string[]);
+  const scenesCount = rawScenes.filter(s => !usedPrep.usedScenes.has(s.trim())).length;
 
   const startNewSession = (openOverlay: boolean) => {
     if (nextUp) {
@@ -1367,7 +1377,7 @@ function PrepStat({ label, value, sub }: { label: string; value: number | string
 }
 
 function RunSessionInlineActive({
-  get, setVal, characters, campaignContext, startedAt, trackEvent, onEndSession,
+  get, setVal, characters, campaignContext, startedAt, trackEvent, onEndSession, usedPrep,
 }: {
   get: (k: string, fb: any) => any;
   setVal: (k: string, v: any) => void;
@@ -1376,6 +1386,7 @@ function RunSessionInlineActive({
   startedAt: number;
   trackEvent: (kind: ChangeEventKind, summary: string, before?: unknown, after?: unknown) => void;
   onEndSession: () => void;
+  usedPrep: any;
 }) {
   const sessionV2 = (get('sessionLogV2', []) as SessionLogEntry[]) || [];
   const sessionNumber = nextSessionNumber(sessionV2);
@@ -1383,18 +1394,32 @@ function RunSessionInlineActive({
   const musicOpen = !!get('__musicOpen', false);
   const setMusicOpen = (v: boolean) => setVal('__musicOpen', v);
 
-  const scenes = (get('scenes', []) as string[]) || [];
-  const secrets = (get('secrets', []) as string[]) || [];
-  const npcs = (get('npcs', []) as any[]) || [];
-  const locations = (get('locations', []) as any[]) || [];
+  const scenes = (get('scenes', []) as string[]).filter(s => !usedPrep.usedScenes.has(s.trim()));
+  const secrets = (get('secrets', []) as string[]).filter(s => !usedPrep.usedSecrets.has(s.trim()));
+  const npcs = (get('npcs', []) as any[]).filter(n => !usedPrep.linkedNpcIds.has(n.id) && !usedPrep.linkedNpcNames.has(n.name));
+  const locations = (get('locations', []) as any[]).filter(l => !usedPrep.linkedLocIds.has(l.id) && !usedPrep.linkedLocNames.has(l.name));
   const usedScenes = (get('__sessionUsedScenes', []) as string[]) || [];
   const revSec = (get('revSec', {}) as Record<number, boolean>) || {};
   const scratchpad = (get('__sessionScratchpad', '') as string) || '';
 
-  const monstersList = (get('monsters', []) as string[]) || [];
-  const magicItemsList = ((get('items', []) as any[]) || []).filter(item => !(typeof item === 'object' && item && !!item.assignedPlayerId));
+  const monstersList = (get('monsters', []) as string[]).filter(m => !usedPrep.linkedMonsterIds.has(m) && !usedPrep.linkedMonsterNames.has(parseMonsterName(m)));
+  const magicItemsList = ((get('items', []) as any[]) || []).filter(item => {
+    if (typeof item === 'object' && item) {
+      const isAssigned = !!item.assignedPlayerId;
+      const id = String(item.id || '').trim();
+      const name = String(item.name || '').trim();
+      const isLinked = usedPrep.linkedLootIds.has(id) || usedPrep.linkedLootNames.has(name);
+      return !isAssigned && !isLinked;
+    }
+    if (typeof item === 'string') {
+      const trimmed = item.trim();
+      const isLinked = usedPrep.linkedLootIds.has(trimmed) || usedPrep.linkedLootNames.has(trimmed);
+      return !isLinked;
+    }
+    return true;
+  });
   const normalizedItems = magicItemsList.map((it, i) => normalizeItem(it, i));
-  const treasureList = (get('treasure', []) as string[]) || [];
+  const treasureList = (get('treasure', []) as string[]).filter(t => !usedPrep.linkedLootIds.has(t.trim()) && !usedPrep.linkedLootNames.has(t.trim()));
   const playerConfig = (get('player', {}) as any) || {};
   const roster = playerConfig.roster || [];
   const givenItems = (get('__sessionItemsGiven', []) as string[]) || [];
@@ -2553,6 +2578,99 @@ export default function CampaignEditor({
 
   const get = (k: string, fb: any) => state[k] !== undefined ? state[k] : fb;
   const setVal = (k: string, v: any) => setState(s => ({ ...s, [k]: v }));
+  const getUsedPrep = () => {
+    const sessionLogsV2 = (get('sessionLogV2', [])) || [];
+    const linkedNpcIds = new Set<string>();
+    const linkedNpcNames = new Set<string>();
+    const linkedLocIds = new Set<string>();
+    const linkedLocNames = new Set<string>();
+    const linkedMonsterIds = new Set<string>();
+    const linkedMonsterNames = new Set<string>();
+    const linkedLootIds = new Set<string>();
+    const linkedLootNames = new Set<string>();
+
+    const usedScenes = new Set<string>();
+    const usedSecrets = new Set<string>();
+
+    for (const entry of sessionLogsV2) {
+      if (entry.scenesUsed) {
+        for (const scene of entry.scenesUsed) {
+          if (scene) usedScenes.add(scene.trim());
+        }
+      }
+      if (entry.secretsRevealed) {
+        for (const secret of entry.secretsRevealed) {
+          if (secret) usedSecrets.add(secret.trim());
+        }
+      }
+      if (entry.linkedPrepItems) {
+        for (const item of entry.linkedPrepItems) {
+          if (!item) continue;
+          const id = (item.id || '').trim();
+          const name = (item.snapshotName || '').trim();
+
+          if (item.type === 'npc') {
+            if (id) linkedNpcIds.add(id);
+            if (name) linkedNpcNames.add(name);
+          } else if (item.type === 'location') {
+            if (id) linkedLocIds.add(id);
+            if (name) linkedLocNames.add(name);
+          } else if (item.type === 'encounter') {
+            if (id) linkedMonsterIds.add(id);
+            if (name) linkedMonsterNames.add(name);
+          } else if (item.type === 'loot') {
+            if (id) linkedLootIds.add(id);
+            if (name) linkedLootNames.add(name);
+          }
+        }
+      }
+    }
+
+    return {
+      linkedNpcIds, linkedNpcNames,
+      linkedLocIds, linkedLocNames,
+      linkedMonsterIds, linkedMonsterNames,
+      linkedLootIds, linkedLootNames,
+      usedScenes, usedSecrets
+    };
+  };
+  const usedPrep = getUsedPrep();
+  const getFilteredPrepArray = (key: PrepTargetKey, rawArray: any[]) => {
+    if (!Array.isArray(rawArray)) return rawArray;
+    if (key === 'scenes') {
+      return rawArray.filter((s: string) => !usedPrep.usedScenes.has(s.trim()));
+    }
+    if (key === 'secrets') {
+      return rawArray.filter((s: string) => !usedPrep.usedSecrets.has(s.trim()));
+    }
+    if (key === 'locations') {
+      return rawArray.filter((l: any) => !usedPrep.linkedLocIds.has(l.id) && !usedPrep.linkedLocNames.has(l.name));
+    }
+    if (key === 'npcs') {
+      return rawArray.filter((n: any) => !usedPrep.linkedNpcIds.has(n.id) && !usedPrep.linkedNpcNames.has(n.name));
+    }
+    if (key === 'monsters') {
+      return rawArray.filter((m: string) => !usedPrep.linkedMonsterIds.has(m) && !usedPrep.linkedMonsterNames.has(parseMonsterName(m)));
+    }
+    if (key === 'items') {
+      return rawArray.filter(item => {
+        if (typeof item === 'object' && item) {
+          const isAssigned = !!item.assignedPlayerId;
+          const id = String(item.id || '').trim();
+          const name = String(item.name || '').trim();
+          const isLinked = usedPrep.linkedLootIds.has(id) || usedPrep.linkedLootNames.has(name);
+          return !isAssigned && !isLinked;
+        }
+        if (typeof item === 'string') {
+          const trimmed = item.trim();
+          const isLinked = usedPrep.linkedLootIds.has(trimmed) || usedPrep.linkedLootNames.has(trimmed);
+          return !isLinked;
+        }
+        return true;
+      });
+    }
+    return rawArray;
+  };
   const prepTargetOverrides = (state[OVERRIDES_STATE_KEY] as PrepTargetOverrides | undefined) || {};
   const tgt = useCallback(
     (key: PrepTargetKey) => getTarget(key, soloMode, prepTargetOverrides),
@@ -2740,7 +2858,7 @@ export default function CampaignEditor({
       const key = k as PrepTargetKey;
       const target = getTarget(key, soloMode, prepTargetOverrides);
       if (target === 0) continue;
-      const current = countFilled(key, state[key], state.player);
+      const current = countFilled(key, getFilteredPrepArray(key, state[key]), state.player);
       if (current < target) {
         candidates.push({
           id: key,
@@ -3550,7 +3668,10 @@ export default function CampaignEditor({
   if (get('__prepWizardOpen', false)) {
     return (
       <PrepWizardView
-        get={get}
+        get={(key, fb) => {
+          const raw = get(key, fb);
+          return getFilteredPrepArray(key as PrepTargetKey, raw);
+        }}
         setVal={setVal}
         soloMode={soloMode}
         overrides={prepTargetOverrides}
@@ -4038,7 +4159,15 @@ export default function CampaignEditor({
               </Section>
               <Section id="s3-scenes" title="3 · Outline Potential Scenes" methods={['shea']} done={done['s3-scenes']} onToggle={toggleDone} open={open['s3-scenes']} onToggleOpen={toggleOpen}>
                 <BookQuote source="Lazy DM (Perkins)">Be prepared to throw what you have away.</BookQuote>
-                <ListField items={get('scenes', [])} onChange={(v) => setVal('scenes', v)} placeholder="A scene" target={tgt('scenes')} />
+                <ListField
+                  items={(get('scenes', []) as string[]).filter(s => !usedPrep.usedScenes.has(s.trim()))}
+                  onChange={(v) => {
+                    const used = (get('scenes', []) as string[]).filter(s => usedPrep.usedScenes.has(s.trim()));
+                    setVal('scenes', [...used, ...v]);
+                  }}
+                  placeholder="A scene"
+                  target={tgt('scenes')}
+                />
                 <InspireGroup>
                   <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Inspire:</span>
                   <Inspire tableId="sideQuests" label="Side Quest" onPick={(e) => {
@@ -4052,7 +4181,16 @@ export default function CampaignEditor({
               <Section id="s4-secrets" title="4 · Define Secrets & Clues" methods={['shea']} done={done['s4-secrets']} onToggle={toggleDone} open={open['s4-secrets']} onToggleOpen={toggleOpen}>
                 <BookQuote source="Lazy DM ch. 6">Secrets and clues are the connective tissue of an adventure.</BookQuote>
                 <Pitfall>Tying a secret to a specific NPC means if players skip them, the secret never surfaces.</Pitfall>
-                <ListField items={get('secrets', [])} onChange={(v) => setVal('secrets', v)} placeholder="A single-sentence secret" rows={2} target={tgt('secrets')} />
+                <ListField
+                  items={(get('secrets', []) as string[]).filter(s => !usedPrep.usedSecrets.has(s.trim()))}
+                  onChange={(v) => {
+                    const used = (get('secrets', []) as string[]).filter(s => usedPrep.usedSecrets.has(s.trim()));
+                    setVal('secrets', [...used, ...v]);
+                  }}
+                  placeholder="A single-sentence secret"
+                  rows={2}
+                  target={tgt('secrets')}
+                />
                 <InspireGroup>
                   <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Inspire:</span>
                   <Inspire tableId="villainSchemes" label="Scheme" onPick={(e) => {
@@ -4068,11 +4206,12 @@ export default function CampaignEditor({
               </Section>
               <Section id="s5-loc" title="5 · Develop Fantastic Locations" methods={['shea']} done={done['s5-loc']} onToggle={toggleDone} open={open['s5-loc']} onToggleOpen={toggleOpen} icon={Map}>
                 <BookQuote source="Lazy DM ch. 7">When in doubt, go for scale.</BookQuote>
-                <TargetBar current={countFilled('locations', get('locations', []), get('player', {}))} target={tgt('locations')} source={TARGETS.locations.source} />
+                <TargetBar current={countFilled('locations', getFilteredPrepArray('locations', get('locations', [])), get('player', {}))} target={tgt('locations')} source={TARGETS.locations.source} />
                 {(get('locations', []) as any[])
-                  .map((l: any, index: number) => ({ l, index }))
-                  .map(({ l, index }) => {
-                    const entityId = l?.id ?? `loc-${index}`;
+                  .map((l: any, originalIndex: number) => ({ l, originalIndex }))
+                  .filter(({ l }) => !usedPrep.linkedLocIds.has(l.id) && !usedPrep.linkedLocNames.has(l.name))
+                  .map(({ l, originalIndex }) => {
+                    const entityId = l?.id ?? `loc-${originalIndex}`;
                     const highlighted = highlightEntityId === entityId;
                     const playerConfig = get('player', {});
                     const isShared = l.isPublic === true ||
@@ -4080,9 +4219,9 @@ export default function CampaignEditor({
                       playerConfig?.entityVisibility?.locations?.[l.id]?.mode === 'custom';
                     return (
                       <div
-                        key={index}
+                        key={originalIndex}
                         id={`entity-${entityId}`}
-                        data-cp-anchor={`location:${index}`}
+                        data-cp-anchor={`location:${originalIndex}`}
                         className={`transition-shadow rounded ${
                           highlighted ? 'ring-2 ring-crimson ring-offset-2 ring-offset-parchment-soft' : ''
                         } ${
@@ -4093,7 +4232,7 @@ export default function CampaignEditor({
                           data={l}
                           onChange={(v: any) => {
                             const next = [...(get('locations', []) as any[])];
-                            next[index] = v;
+                            next[originalIndex] = v;
                             setVal('locations', next);
                             
                             // Synchronize playerConfig.entityVisibility
@@ -4108,7 +4247,7 @@ export default function CampaignEditor({
                             ev.locations = bucket;
                             setVal('player', { ...curConfig, entityVisibility: ev });
                           }}
-                          onRemove={() => setVal('locations', (get('locations', []) as any[]).filter((_: any, j: number) => j !== index))}
+                          onRemove={() => setVal('locations', (get('locations', []) as any[]).filter((_: any, j: number) => j !== originalIndex))}
                         />
                       </div>
                     );
@@ -4136,11 +4275,12 @@ export default function CampaignEditor({
               </Section>
               <Section id="s6-npc" title="6 · Outline Important NPCs" methods={['shea', 'pr']} done={done['s6-npc']} onToggle={toggleDone} open={open['s6-npc']} onToggleOpen={toggleOpen}>
                 <BookQuote source="PR ch. 3">Villains form goals in response to PC goals.</BookQuote>
-                <TargetBar current={countFilled('npcs', get('npcs', []), get('player', {}))} target={tgt('npcs')} source={TARGETS.npcs.source} />
+                <TargetBar current={countFilled('npcs', getFilteredPrepArray('npcs', get('npcs', [])), get('player', {}))} target={tgt('npcs')} source={TARGETS.npcs.source} />
                 {(get('npcs', []) as any[])
-                  .map((n: any, index: number) => ({ n, index }))
-                  .map(({ n, index }) => {
-                    const entityId = n?.id ?? `npc-${index}`;
+                  .map((n: any, originalIndex: number) => ({ n, originalIndex }))
+                  .filter(({ n }) => !usedPrep.linkedNpcIds.has(n.id) && !usedPrep.linkedNpcNames.has(n.name))
+                  .map(({ n, originalIndex }) => {
+                    const entityId = n?.id ?? `npc-${originalIndex}`;
                     const highlighted = highlightEntityId === entityId;
                     const playerConfig = get('player', {});
                     const isShared = n.isPublic === true ||
@@ -4148,9 +4288,9 @@ export default function CampaignEditor({
                       playerConfig?.entityVisibility?.npcs?.[n.id]?.mode === 'custom';
                     return (
                       <div
-                        key={index}
+                        key={originalIndex}
                         id={`entity-${entityId}`}
-                        data-cp-anchor={`npc:${index}`}
+                        data-cp-anchor={`npc:${originalIndex}`}
                         className={`transition-shadow rounded ${
                           highlighted ? 'ring-2 ring-crimson ring-offset-2 ring-offset-parchment-soft' : ''
                         } ${
@@ -4161,7 +4301,7 @@ export default function CampaignEditor({
                           data={n}
                           onChange={(v: any) => {
                             const next = [...(get('npcs', []) as any[])];
-                            next[index] = v;
+                            next[originalIndex] = v;
                             setVal('npcs', next);
                             
                             // Synchronize playerConfig.entityVisibility
@@ -4176,7 +4316,7 @@ export default function CampaignEditor({
                             ev.npcs = bucket;
                             setVal('player', { ...curConfig, entityVisibility: ev });
                           }}
-                          onRemove={() => setVal('npcs', (get('npcs', []) as any[]).filter((_: any, j: number) => j !== index))}
+                          onRemove={() => setVal('npcs', (get('npcs', []) as any[]).filter((_: any, j: number) => j !== originalIndex))}
                         />
                       </div>
                     );
@@ -4220,23 +4360,28 @@ export default function CampaignEditor({
               <Section id="s7-mon" title="7 · Choose Relevant Monsters" methods={['shea']} done={done['s7-mon']} onToggle={toggleDone} open={open['s7-mon']} onToggleOpen={toggleOpen} icon={Swords}>
                 <SoloNote>Solo level-1 ~8-12 HP. CR 1/8 one-at-a-time. Narrative outs always.</SoloNote>
                 <ListField
-                  items={get('monsters', [])}
-                  onChange={(v) => setVal('monsters', v)}
+                  items={(get('monsters', []) as string[]).filter(m => !usedPrep.linkedMonsterIds.has(m) && !usedPrep.linkedMonsterNames.has(parseMonsterName(m)))}
+                  onChange={(v) => {
+                    const used = (get('monsters', []) as string[]).filter(m => usedPrep.linkedMonsterIds.has(m) || usedPrep.linkedMonsterNames.has(parseMonsterName(m)));
+                    setVal('monsters', [...used, ...v]);
+                  }}
                   placeholder="Monster — CR — use case"
                   target={tgt('monsters')}
                   rowIdFor={(i) => `monsters-${i}`}
                   highlightId={highlightEntityId}
                   isShared={(i) => {
-                    const m = get('monsters', [])[i];
+                    const visibleMonsters = (get('monsters', []) as string[]).filter(m => !usedPrep.linkedMonsterIds.has(m) && !usedPrep.linkedMonsterNames.has(parseMonsterName(m)));
+                    const m = visibleMonsters[i];
                     if (!m) return false;
-                    const name = typeof m === 'string' ? m.split(' — ')[0] : m.name || '';
+                    const name = typeof m === 'string' ? m.split(' — ')[0] : (m as any).name || '';
                     const playerLog = (get('playerLog', []) as any[]) || [];
                     return playerLog.some(entry => entry.text && entry.text.includes(`Encountered: ${name}`));
                   }}
                   onToggleShare={(i) => {
-                    const m = get('monsters', [])[i];
+                    const visibleMonsters = (get('monsters', []) as string[]).filter(m => !usedPrep.linkedMonsterIds.has(m) && !usedPrep.linkedMonsterNames.has(parseMonsterName(m)));
+                    const m = visibleMonsters[i];
                     if (!m) return;
-                    const name = typeof m === 'string' ? m.split(' — ')[0] : m.name || '';
+                    const name = typeof m === 'string' ? m.split(' — ')[0] : (m as any).name || '';
                     const playerLog = (get('playerLog', []) as any[]) || [];
                     const isCurrentlyShared = playerLog.some(entry => entry.text && entry.text.includes(`Encountered: ${name}`));
                     
@@ -4280,13 +4425,42 @@ export default function CampaignEditor({
               <Section id="s8-rew" title="8 · Select Magic Item Rewards" methods={['shea', 'pr']} done={done['s8-rew']} onToggle={toggleDone} open={open['s8-rew']} onToggleOpen={toggleOpen} icon={Gift}>
                 <BookQuote source="PR ch. 6">Your +1 needs to be actionable.</BookQuote>
                 <Example title="from PR">Sword from a stone. +1: right to rule Albion.</Example>
+                <TargetBar current={countFilled('items', getFilteredPrepArray('items', get('items', [])), get('player', {}))} target={tgt('items')} source={TARGETS.items.source} />
                 {(() => {
                   const allItems = (get('items', []) as any[]) || [];
-                  const unassignedItems = allItems.filter(item => !(typeof item === 'object' && item && !!item.assignedPlayerId));
-                  const assignedItems = allItems.filter(item => typeof item === 'object' && item && !!item.assignedPlayerId);
+                  const assignedItems = allItems.filter(item => {
+                    if (typeof item === 'object' && item) {
+                      const isAssigned = !!item.assignedPlayerId;
+                      const id = String(item.id || '').trim();
+                      const name = String(item.name || '').trim();
+                      const isLinked = usedPrep.linkedLootIds.has(id) || usedPrep.linkedLootNames.has(name);
+                      return isAssigned || isLinked;
+                    }
+                    if (typeof item === 'string') {
+                      const trimmed = item.trim();
+                      const isLinked = usedPrep.linkedLootIds.has(trimmed) || usedPrep.linkedLootNames.has(trimmed);
+                      return isLinked;
+                    }
+                    return false;
+                  });
+                  const visibleItems = allItems.filter(item => {
+                    if (typeof item === 'object' && item) {
+                      const isAssigned = !!item.assignedPlayerId;
+                      const id = String(item.id || '').trim();
+                      const name = String(item.name || '').trim();
+                      const isLinked = usedPrep.linkedLootIds.has(id) || usedPrep.linkedLootNames.has(name);
+                      return !isAssigned && !isLinked;
+                    }
+                    if (typeof item === 'string') {
+                      const trimmed = item.trim();
+                      const isLinked = usedPrep.linkedLootIds.has(trimmed) || usedPrep.linkedLootNames.has(trimmed);
+                      return !isLinked;
+                    }
+                    return true;
+                  });
                   return (
                     <ListField
-                      items={unassignedItems}
+                      items={visibleItems}
                       onChange={(nextUnassigned) => setVal('items', [...assignedItems, ...nextUnassigned])}
                       placeholder="Item · what +1 hook it delivers"
                       rows={2}
@@ -4316,8 +4490,11 @@ export default function CampaignEditor({
                     Coins, gems, art, trinkets, and other rewards — generated entries land here.
                   </p>
                   <ListField
-                    items={get('treasure', [])}
-                    onChange={(v) => setVal('treasure', v)}
+                    items={(get('treasure', []) as string[]).filter(t => !usedPrep.linkedLootIds.has(t.trim()) && !usedPrep.linkedLootNames.has(t.trim()))}
+                    onChange={(v) => {
+                      const used = (get('treasure', []) as string[]).filter(t => usedPrep.linkedLootIds.has(t.trim()) || usedPrep.linkedLootNames.has(t.trim()));
+                      setVal('treasure', [...used, ...v]);
+                    }}
                     placeholder="Treasure item — coins · gem · art · trinket"
                     rows={2}
                     rowIdFor={(i) => `treasure-${i}`}

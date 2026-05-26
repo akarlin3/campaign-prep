@@ -121,3 +121,135 @@ export function summarizeEvents(events: ChangeEvent[]): { kept: number; dismisse
   }
   return { kept, dismissed, starred };
 }
+
+export function cleanPrepLists(params: {
+  npcs: any[];
+  locations: any[];
+  monsters: string[];
+  items: any[];
+  treasure: string[];
+  scenes: string[];
+  secrets: string[];
+  sessionLogs: SessionLogEntry[];
+}): {
+  npcs: any[];
+  locations: any[];
+  monsters: string[];
+  items: any[];
+  treasure: string[];
+  scenes: string[];
+  secrets: string[];
+} {
+  const { sessionLogs } = params;
+
+  // 1. Gather all linked item IDs and names/snapshots from the session logs
+  const linkedNpcIds = new Set<string>();
+  const linkedNpcNames = new Set<string>();
+  const linkedLocIds = new Set<string>();
+  const linkedLocNames = new Set<string>();
+  const linkedMonsterIds = new Set<string>();
+  const linkedMonsterNames = new Set<string>();
+  const linkedLootIds = new Set<string>();
+  const linkedLootNames = new Set<string>();
+
+  const usedScenes = new Set<string>();
+  const usedSecrets = new Set<string>();
+
+  for (const entry of sessionLogs) {
+    // Collect used scenes
+    if (Array.isArray(entry.scenesUsed)) {
+      for (const scene of entry.scenesUsed) {
+        if (scene) usedScenes.add(scene.trim());
+      }
+    }
+    // Collect revealed secrets
+    if (Array.isArray(entry.secretsRevealed)) {
+      for (const secret of entry.secretsRevealed) {
+        if (secret) usedSecrets.add(secret.trim());
+      }
+    }
+
+    // Collect linked prep items
+    if (Array.isArray(entry.linkedPrepItems)) {
+      for (const item of entry.linkedPrepItems) {
+        if (!item) continue;
+        const id = (item.id || '').trim();
+        const name = (item.snapshotName || '').trim();
+
+        if (item.type === 'npc') {
+          if (id) linkedNpcIds.add(id);
+          if (name) linkedNpcNames.add(name);
+        } else if (item.type === 'location') {
+          if (id) linkedLocIds.add(id);
+          if (name) linkedLocNames.add(name);
+        } else if (item.type === 'encounter') {
+          if (id) linkedMonsterIds.add(id);
+          if (name) linkedMonsterNames.add(name);
+        } else if (item.type === 'loot') {
+          if (id) linkedLootIds.add(id);
+          if (name) linkedLootNames.add(name);
+        }
+      }
+    }
+  }
+
+  // 2. Filter NPCs
+  const npcs = params.npcs.filter(n => {
+    if (!n) return false;
+    const id = String(n.id || '').trim();
+    const name = String(n.name || '').trim();
+    return !linkedNpcIds.has(id) && !linkedNpcNames.has(name);
+  });
+
+  // 3. Filter Locations
+  const locations = params.locations.filter(l => {
+    if (!l) return false;
+    const id = String(l.id || '').trim();
+    const name = String(l.name || '').trim();
+    return !linkedLocIds.has(id) && !linkedLocNames.has(name);
+  });
+
+  // 4. Filter Monsters
+  const monsters = params.monsters.filter(m => {
+    if (!m) return false;
+    const trimmed = m.trim();
+    const cleanName = parseMonsterName(trimmed);
+    return !linkedMonsterIds.has(trimmed) && !linkedMonsterNames.has(cleanName) && !linkedMonsterNames.has(trimmed);
+  });
+
+  // 5. Filter Items (Magic items)
+  const items = params.items.filter(item => {
+    if (!item) return false;
+    if (typeof item === 'object') {
+      const id = String(item.id || '').trim();
+      const name = String(item.name || '').trim();
+      const isAssigned = !!item.assignedPlayerId;
+      return !isAssigned && !linkedLootIds.has(id) && !linkedLootNames.has(name);
+    } else if (typeof item === 'string') {
+      const trimmed = item.trim();
+      return !linkedLootIds.has(trimmed) && !linkedLootNames.has(trimmed);
+    }
+    return true;
+  });
+
+  // 6. Filter Treasure
+  const treasure = params.treasure.filter(t => {
+    if (!t) return false;
+    const trimmed = t.trim();
+    return !linkedLootIds.has(trimmed) && !linkedLootNames.has(trimmed);
+  });
+
+  // 7. Filter Scenes
+  const scenes = params.scenes.filter(s => {
+    if (!s) return false;
+    return !usedScenes.has(s.trim());
+  });
+
+  // 8. Filter Secrets
+  const secrets = params.secrets.filter(s => {
+    if (!s) return false;
+    return !usedSecrets.has(s.trim());
+  });
+
+  return { npcs, locations, monsters, items, treasure, scenes, secrets };
+}
