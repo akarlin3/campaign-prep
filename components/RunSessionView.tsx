@@ -66,7 +66,7 @@ export default function RunSessionView({
     scenes: true, secrets: true, npcs: true, locations: true,
     monsters: true, magicItems: true, goals: true, clocks: true,
   });
-  const [strongStartDone, setStrongStartDone] = useState(false);
+  const strongStartDone = !!get('__sessionStrongStartDelivered', false);
   const [toast, setToast] = useState<string | null>(null);
 
   // --- REAL-TIME PLAYER SHARING & AUTO-PUBLISH SYSTEM ---
@@ -477,8 +477,13 @@ export default function RunSessionView({
                       <button
                         onClick={() => {
                           const next = !strongStartDone;
-                          setStrongStartDone(next);
-                          if (next) pushEvent(makeEvent('other', 'Strong start delivered'));
+                          setVal('__sessionStrongStartDelivered', next);
+                          if (next) {
+                            pushEvent(makeEvent('other', 'Strong start delivered'));
+                          } else {
+                            const currentEvents = (get('__sessionChangeEvents', []) as ChangeEvent[]) || [];
+                            setVal('__sessionChangeEvents', currentEvents.filter(e => !(e.kind === 'other' && e.summary === 'Strong start delivered')));
+                          }
                         }}
                         className={`flex items-center gap-1 rounded-sm border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider ${
                           strongStartDone

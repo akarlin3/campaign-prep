@@ -1428,7 +1428,7 @@ function RunSessionInlineActive({
   const clocks = (get('clocks', []) as any[]) || [];
   const factions = (get('factions', []) as any[]) || [];
   const strongStart = ((get('strongStart', '') as string) || '').trim();
-  const [strongStartDone, setStrongStartDone] = useState(false);
+  const strongStartDone = !!get('__sessionStrongStartDelivered', false);
 
   const elapsed = formatElapsed(Date.now() - startedAt);
   const [, forceTick] = useState(0);
@@ -1571,8 +1571,13 @@ function RunSessionInlineActive({
                     <button
                       onClick={() => {
                         const next = !strongStartDone;
-                        setStrongStartDone(next);
-                        if (next) trackEvent('other', 'Strong start delivered');
+                        setVal('__sessionStrongStartDelivered', next);
+                        if (next) {
+                          trackEvent('other', 'Strong start delivered');
+                        } else {
+                          const currentEvents = (get('__sessionChangeEvents', []) as ChangeEvent[]) || [];
+                          setVal('__sessionChangeEvents', currentEvents.filter(e => !(e.kind === 'other' && e.summary === 'Strong start delivered')));
+                        }
                       }}
                       className={`text-[10px] px-2 py-0.5 rounded-sm border font-display uppercase tracking-wider flex items-center gap-1 ${
                         strongStartDone
@@ -2695,7 +2700,10 @@ export default function CampaignEditor({
     
     const keptEvents = events.filter((e: any) => !e.dismissed);
     const nextNumber = Math.max(0, ...existingEntries.map(e => e.number || 0)) + 1;
-    const entry = {
+    const strongStartDelivered = !!get('__sessionStrongStartDelivered', false);
+    const strongStartText = ((get('strongStart', '') as string) || '').trim();
+
+    const entry: any = {
       id: sessionId,
       number: nextNumber,
       date: new Date().toISOString().split('T')[0],
@@ -2713,6 +2721,9 @@ export default function CampaignEditor({
         return { goal: goalText || '', from: from || String(e.before ?? ''), to: to || String(e.after ?? '') };
       }),
     };
+    if (strongStartDelivered && strongStartText) {
+      entry.strongStart = strongStartText;
+    }
     
     const updatedSessionLog = [...existingEntries, entry];
     const { partyXP, partyInventory, updatedCharacters } = recalculatePartyState(updatedSessionLog, characters);
@@ -2747,6 +2758,9 @@ export default function CampaignEditor({
       items: updatedItems,
       treasure: updatedTreasure
     };
+    if (strongStartDelivered && strongStartText) {
+      nextState.strongStart = '';
+    }
     delete nextState.__activeSessionId;
     delete nextState.__sessionStartedAt;
     delete nextState.__sessionEndedAt;
@@ -2754,6 +2768,7 @@ export default function CampaignEditor({
     delete nextState.__sessionScratchpad;
     delete nextState.__sessionUsedScenes;
     delete nextState.__sessionItemsGiven;
+    delete nextState.__sessionStrongStartDelivered;
     nextState.__runSessionOpen = false;
     nextState = markSessionPlayed(nextState);
 
@@ -4950,6 +4965,8 @@ export default function CampaignEditor({
               items={get('items', [])}
               treasure={get('treasure', [])}
               characters={characters}
+              campaignStrongStart={get('strongStart', '') as string}
+              onStrongStartChange={(v) => setVal('strongStart', v)}
             />
           );
         })()}
