@@ -80,6 +80,7 @@ import PlayerModePanel from './PlayerModePanel';
 import { initPlayerMode } from '@/lib/playerMode/migration';
 import type { PlayerConfig } from '@/lib/playerMode/types';
 import type { PlayerLogEntry } from '@/lib/playerMode/sessionLog';
+import { makeEntityId } from '@/lib/playerMode/share';
 import CommandPalette, { type CommandItem } from './CommandPalette';
 import KeyboardShortcuts from './KeyboardShortcuts';
 import {
@@ -2626,7 +2627,7 @@ export default function CampaignEditor({
       const key = k as PrepTargetKey;
       const target = getTarget(key, soloMode, prepTargetOverrides);
       if (target === 0) continue;
-      const current = countFilled(key, state[key]);
+      const current = countFilled(key, state[key], state.player);
       if (current < target) {
         candidates.push({
           id: key,
@@ -3954,26 +3955,35 @@ export default function CampaignEditor({
               </Section>
               <Section id="s5-loc" title="5 · Develop Fantastic Locations" methods={['shea']} done={done['s5-loc']} onToggle={toggleDone} open={open['s5-loc']} onToggleOpen={toggleOpen} icon={Map}>
                 <BookQuote source="Lazy DM ch. 7">When in doubt, go for scale.</BookQuote>
-                <TargetBar current={countFilled('locations', get('locations', []))} target={tgt('locations')} source={TARGETS.locations.source} />
-                {(get('locations', []) as any[]).map((l: any, i: number) => {
-                  const entityId = l?.id ?? `loc-${i}`;
-                  const highlighted = highlightEntityId === entityId;
-                  return (
-                    <div
-                      key={i}
-                      id={`entity-${entityId}`}
-                      data-cp-anchor={`location:${i}`}
-                      className={`transition-shadow rounded ${highlighted ? 'ring-2 ring-crimson ring-offset-2 ring-offset-parchment-soft' : ''}`}
-                    >
-                      <LocationCard data={l} onChange={(v: any) => {
-                        const next = [...(get('locations', []) as any[])]; next[i] = v; setVal('locations', next);
-                      }} onRemove={() => setVal('locations', (get('locations', []) as any[]).filter((_: any, j: number) => j !== i))} />
-                    </div>
-                  );
-                })}
+                <TargetBar current={countFilled('locations', get('locations', []), get('player', {}))} target={tgt('locations')} source={TARGETS.locations.source} />
+                {(get('locations', []) as any[])
+                  .map((l: any, index: number) => ({ l, index }))
+                  .filter(({ l }) => {
+                    const playerConfig = get('player', {});
+                    const isShared = l.isPublic === true ||
+                      playerConfig?.entityVisibility?.locations?.[l.id]?.mode === 'party' ||
+                      playerConfig?.entityVisibility?.locations?.[l.id]?.mode === 'custom';
+                    return !isShared;
+                  })
+                  .map(({ l, index }) => {
+                    const entityId = l?.id ?? `loc-${index}`;
+                    const highlighted = highlightEntityId === entityId;
+                    return (
+                      <div
+                        key={index}
+                        id={`entity-${entityId}`}
+                        data-cp-anchor={`location:${index}`}
+                        className={`transition-shadow rounded ${highlighted ? 'ring-2 ring-crimson ring-offset-2 ring-offset-parchment-soft' : ''}`}
+                      >
+                        <LocationCard data={l} onChange={(v: any) => {
+                          const next = [...(get('locations', []) as any[])]; next[index] = v; setVal('locations', next);
+                        }} onRemove={() => setVal('locations', (get('locations', []) as any[]).filter((_: any, j: number) => j !== index))} />
+                      </div>
+                    );
+                  })}
                 <div className="flex items-center gap-2 flex-wrap">
                   <button onClick={() => {
-                    setVal('locations', [...(get('locations', []) as any[]), { name: '', type: '', aspects: ['', '', ''], factions: '' }]);
+                    setVal('locations', [...(get('locations', []) as any[]), { id: makeEntityId(), name: '', type: '', aspects: ['', '', ''], factions: '' }]);
                     trackEvent('location_added', 'Added a new location');
                   }} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
                     <Plus size={12} /> Add Location
@@ -3994,33 +4004,42 @@ export default function CampaignEditor({
               </Section>
               <Section id="s6-npc" title="6 · Outline Important NPCs" methods={['shea', 'pr']} done={done['s6-npc']} onToggle={toggleDone} open={open['s6-npc']} onToggleOpen={toggleOpen}>
                 <BookQuote source="PR ch. 3">Villains form goals in response to PC goals.</BookQuote>
-                <TargetBar current={countFilled('npcs', get('npcs', []))} target={tgt('npcs')} source={TARGETS.npcs.source} />
-                {(get('npcs', []) as any[]).map((n: any, i: number) => {
-                  const entityId = n?.id ?? `npc-${i}`;
-                  const highlighted = highlightEntityId === entityId;
-                  return (
-                    <div
-                      key={i}
-                      id={`entity-${entityId}`}
-                      data-cp-anchor={`npc:${i}`}
-                      className={`transition-shadow rounded ${highlighted ? 'ring-2 ring-crimson ring-offset-2 ring-offset-parchment-soft' : ''}`}
-                    >
-                      <NPCCard data={n} onChange={(v: any) => {
-                        const next = [...(get('npcs', []) as any[])]; next[i] = v; setVal('npcs', next);
-                      }} onRemove={() => setVal('npcs', (get('npcs', []) as any[]).filter((_: any, j: number) => j !== i))} />
-                    </div>
-                  );
-                })}
+                <TargetBar current={countFilled('npcs', get('npcs', []), get('player', {}))} target={tgt('npcs')} source={TARGETS.npcs.source} />
+                {(get('npcs', []) as any[])
+                  .map((n: any, index: number) => ({ n, index }))
+                  .filter(({ n }) => {
+                    const playerConfig = get('player', {});
+                    const isShared = n.isPublic === true ||
+                      playerConfig?.entityVisibility?.npcs?.[n.id]?.mode === 'party' ||
+                      playerConfig?.entityVisibility?.npcs?.[n.id]?.mode === 'custom';
+                    return !isShared;
+                  })
+                  .map(({ n, index }) => {
+                    const entityId = n?.id ?? `npc-${index}`;
+                    const highlighted = highlightEntityId === entityId;
+                    return (
+                      <div
+                        key={index}
+                        id={`entity-${entityId}`}
+                        data-cp-anchor={`npc:${index}`}
+                        className={`transition-shadow rounded ${highlighted ? 'ring-2 ring-crimson ring-offset-2 ring-offset-parchment-soft' : ''}`}
+                      >
+                        <NPCCard data={n} onChange={(v: any) => {
+                          const next = [...(get('npcs', []) as any[])]; next[index] = v; setVal('npcs', next);
+                        }} onRemove={() => setVal('npcs', (get('npcs', []) as any[]).filter((_: any, j: number) => j !== index))} />
+                      </div>
+                    );
+                  })}
                 <InspireGroup>
                   <span className="text-[10px] text-ink-mute font-display uppercase tracking-wider">Add new NPC seeded by:</span>
                   <Inspire tableId="villainArchetypes" label="Villain" onPick={(e) => {
-                    setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: 'Villain', faction: '', archetype: e, goal: '', method: '' }]);
+                    setVal('npcs', [...(get('npcs', []) as any[]), { id: makeEntityId(), name: '', type: 'Villain', faction: '', archetype: e, goal: '', method: '' }]);
                   }} />
                   <Inspire tableId="npcBackgroundConcepts" label="Background" onPick={(e) => {
-                    setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: '', faction: '', archetype: e, goal: '', method: '' }]);
+                    setVal('npcs', [...(get('npcs', []) as any[]), { id: makeEntityId(), name: '', type: '', faction: '', archetype: e, goal: '', method: '' }]);
                   }} />
                   <Inspire tableId="raceCharacterNotes" label="Species" onPick={(e) => {
-                    setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: '', faction: '', archetype: e, goal: '', method: '' }]);
+                    setVal('npcs', [...(get('npcs', []) as any[]), { id: makeEntityId(), name: '', type: '', faction: '', archetype: e, goal: '', method: '' }]);
                   }} />
                 </InspireGroup>
                 <p className="text-[10px] text-ink-mute italic font-serif -mt-1">
@@ -4028,7 +4047,7 @@ export default function CampaignEditor({
                 </p>
                 <div className="flex items-center gap-2 flex-wrap">
                   <button onClick={() => {
-                    setVal('npcs', [...(get('npcs', []) as any[]), { name: '', type: '', faction: '', archetype: '', goal: '', method: '' }]);
+                    setVal('npcs', [...(get('npcs', []) as any[]), { id: makeEntityId(), name: '', type: '', faction: '', archetype: '', goal: '', method: '' }]);
                     trackEvent('npc_added', 'Added a new NPC');
                   }} className="text-xs text-brass-deep hover:text-crimson flex items-center gap-1 font-display uppercase tracking-wider">
                     <Plus size={12} /> Add NPC
@@ -4079,15 +4098,22 @@ export default function CampaignEditor({
               <Section id="s8-rew" title="8 · Select Magic Item Rewards" methods={['shea', 'pr']} done={done['s8-rew']} onToggle={toggleDone} open={open['s8-rew']} onToggleOpen={toggleOpen} icon={Gift}>
                 <BookQuote source="PR ch. 6">Your +1 needs to be actionable.</BookQuote>
                 <Example title="from PR">Sword from a stone. +1: right to rule Albion.</Example>
-                <ListField
-                  items={get('items', [])}
-                  onChange={(v) => setVal('items', v)}
-                  placeholder="Item · what +1 hook it delivers"
-                  rows={2}
-                  target={tgt('items')}
-                  rowIdFor={(i) => `items-${i}`}
-                  highlightId={highlightEntityId}
-                />
+                {(() => {
+                  const allItems = (get('items', []) as any[]) || [];
+                  const unassignedItems = allItems.filter(item => !(typeof item === 'object' && item && !!item.assignedPlayerId));
+                  const assignedItems = allItems.filter(item => typeof item === 'object' && item && !!item.assignedPlayerId);
+                  return (
+                    <ListField
+                      items={unassignedItems}
+                      onChange={(nextUnassigned) => setVal('items', [...assignedItems, ...nextUnassigned])}
+                      placeholder="Item · what +1 hook it delivers"
+                      rows={2}
+                      target={tgt('items')}
+                      rowIdFor={(i) => `items-${i}`}
+                      highlightId={highlightEntityId}
+                    />
+                  );
+                })()}
                 {SECTION_GENERATORS.magicItems.length > 0 && (() => {
                   const lastUsed = getLastUsed(state, 'magicItems');
                   if (!lastUsed) return null;

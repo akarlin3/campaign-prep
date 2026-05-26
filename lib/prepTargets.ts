@@ -156,7 +156,28 @@ export function isFilled(key: PrepTargetKey, item: unknown): boolean {
   return fields.some(f => fieldHasContent(obj[f]));
 }
 
-export function countFilled(key: PrepTargetKey, items: unknown): number {
+export function countFilled(key: PrepTargetKey, items: unknown, playerConfig?: any): number {
   if (!Array.isArray(items)) return 0;
-  return items.filter(it => isFilled(key, it)).length;
+  return items.filter(it => {
+    if (!isFilled(key, it)) return false;
+    if (playerConfig) {
+      if (key === 'locations') {
+        const isShared = it.isPublic === true ||
+          playerConfig?.entityVisibility?.locations?.[it.id]?.mode === 'party' ||
+          playerConfig?.entityVisibility?.locations?.[it.id]?.mode === 'custom';
+        if (isShared) return false;
+      }
+      if (key === 'npcs') {
+        const isShared = it.isPublic === true ||
+          playerConfig?.entityVisibility?.npcs?.[it.id]?.mode === 'party' ||
+          playerConfig?.entityVisibility?.npcs?.[it.id]?.mode === 'custom';
+        if (isShared) return false;
+      }
+      if (key === 'items') {
+        const isShared = !!it.assignedPlayerId;
+        if (isShared) return false;
+      }
+    }
+    return true;
+  }).length;
 }

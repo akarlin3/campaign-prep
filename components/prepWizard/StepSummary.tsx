@@ -32,14 +32,14 @@ type Row = {
 // revealed secrets no longer count as fresh prep — while still surfacing the
 // raw total for context. Every other key counts only items with authored
 // content (blank rows / freshly-added empty cards don't satisfy the target).
-function countFor(key: PrepTargetKey, get: Get, logs: SessionLogEntry[]): { current: number; detail?: string } {
+function countFor(key: PrepTargetKey, get: Get, logs: SessionLogEntry[], playerConfig?: any): { current: number; detail?: string } {
   if (key === 'secrets') {
     const all = (get('secrets', []) as string[]) || [];
     const allFilled = all.filter(s => isFilled('secrets', s));
     const unrevealedFilled = unrevealedSecrets(allFilled, logs);
     return { current: unrevealedFilled.length, detail: `${allFilled.length} written` };
   }
-  return { current: countFilled(key, get(key, [])) };
+  return { current: countFilled(key, get(key, []), playerConfig) };
 }
 
 function CountLine({ label, current, target, detail }: { label: string; current: number; target: number; detail?: string }) {
@@ -67,12 +67,13 @@ export default function StepSummary({ get, soloMode, overrides, onBack, onSaveAn
   const filledGoals = pcGoals.filter(g => isFilled('pcGoals', g));
   const goalsActive = filledGoals.filter(g => !g.status || g.status === 'Active' || g.status === 'Progressed').length;
 
+  const playerConfig = get('player', {}) || {};
   const phaseRows = PHASE_GROUPS.map(group => ({
     phase: group.phase,
     title: group.title,
     rows: group.keys.map<Row>(key => {
       const target = getTarget(key, soloMode, overrides);
-      const { current, detail } = countFor(key, get, logs);
+      const { current, detail } = countFor(key, get, logs, playerConfig);
       return { key, label: TARGETS[key].label, current, target, detail };
     }),
   }));

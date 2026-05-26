@@ -5,6 +5,7 @@ import { getLastSessionLog, eventsOfKind } from '@/lib/prepWizard';
 import { normalizeItem, type PlayerConfig, type CampaignItem } from '@/lib/playerMode/types';
 import { Plus, Trash2, Gift } from 'lucide-react';
 import StepShell from './StepShell';
+import { countFilled } from '@/lib/prepTargets';
 
 type Get = (k: string, fb: any) => any;
 type SetVal = (k: string, v: any) => void;
@@ -29,14 +30,20 @@ export default function Step8MagicItems({ get, setVal, soloTarget, standardTarge
   const config = (get('player', {}) as PlayerConfig) || {};
   const roster = config.roster || [];
 
-  const updateItem = (i: number, patch: Partial<CampaignItem>) => {
-    const next = [...normalizedItems];
-    next[i] = { ...next[i], ...patch };
+  const unassignedItems = normalizedItems.filter(it => !it.assignedPlayerId);
+
+  const updateItem = (itemId: string, patch: Partial<CampaignItem>) => {
+    const next = normalizedItems.map(it => {
+      if (it.id === itemId) {
+        return { ...it, ...patch };
+      }
+      return it;
+    });
     setVal('items', next);
   };
 
-  const removeItem = (i: number) => {
-    const next = normalizedItems.filter((_, j) => j !== i);
+  const removeItem = (itemId: string) => {
+    const next = normalizedItems.filter(it => it.id !== itemId);
     setVal('items', next);
   };
 
@@ -101,15 +108,15 @@ export default function Step8MagicItems({ get, setVal, soloTarget, standardTarge
       <div className="flex items-center justify-between gap-2">
         <h3 className="font-display text-sm tracking-wide text-ink">Magic Item Rewards</h3>
         <span className="font-serif text-[11px] text-ink-mute">
-          {normalizedItems.filter(it => it.name.trim().length > 0).length} / {target} target
+          {countFilled('items', rawItems, config)} / {target} target
         </span>
       </div>
 
       <div className="space-y-3">
-        {normalizedItems.length === 0 && (
+        {unassignedItems.length === 0 && (
           <p className="font-serif text-xs italic text-ink-mute">No magic items prepped yet.</p>
         )}
-        {normalizedItems.map((item, i) => (
+        {unassignedItems.map((item) => (
           <div
             key={item.id}
             className="group relative rounded-lg border border-rule bg-parchment-soft/50 hover:bg-parchment-soft p-3.5 shadow-sm hover:shadow transition-all duration-200 space-y-2.5"
@@ -119,13 +126,13 @@ export default function Step8MagicItems({ get, setVal, soloTarget, standardTarge
                 <input
                   type="text"
                   value={item.name}
-                  onChange={(e) => updateItem(i, { name: e.target.value })}
+                  onChange={(e) => updateItem(item.id, { name: e.target.value })}
                   placeholder="Magic Item Name (e.g. +1 Flame Tongue Rapier)"
                   className="w-full rounded border border-rule bg-parchment px-2.5 py-1.5 font-display text-sm font-semibold text-ink placeholder:text-ink-faint focus:border-crimson focus:outline-none"
                 />
                 <textarea
                   value={item.description || ''}
-                  onChange={(e) => updateItem(i, { description: e.target.value })}
+                  onChange={(e) => updateItem(item.id, { description: e.target.value })}
                   placeholder="Provocative read-aloud description, atmospheric note, or mechanical effects..."
                   rows={2}
                   className="w-full resize-y rounded border border-rule bg-parchment px-2.5 py-1.5 font-serif text-xs text-ink-soft placeholder:text-ink-faint focus:border-crimson focus:outline-none"
@@ -137,7 +144,7 @@ export default function Step8MagicItems({ get, setVal, soloTarget, standardTarge
                     </span>
                     <select
                       value={item.assignedPlayerId || ''}
-                      onChange={(e) => updateItem(i, { assignedPlayerId: e.target.value || undefined })}
+                      onChange={(e) => updateItem(item.id, { assignedPlayerId: e.target.value || undefined })}
                       className="rounded border border-rule bg-parchment px-2 py-0.5 font-serif text-ink-soft focus:border-crimson focus:outline-none cursor-pointer"
                     >
                       <option value="">Unassigned</option>
@@ -153,7 +160,7 @@ export default function Step8MagicItems({ get, setVal, soloTarget, standardTarge
                       </span>
                       <select
                         value={item.playerVisibility || 'full'}
-                        onChange={(e) => updateItem(i, { playerVisibility: e.target.value as 'name-only' | 'full' })}
+                        onChange={(e) => updateItem(item.id, { playerVisibility: e.target.value as 'name-only' | 'full' })}
                         className="rounded border border-rule bg-parchment px-2 py-0.5 font-serif text-ink-soft focus:border-crimson focus:outline-none cursor-pointer"
                       >
                         <option value="full">Name & Description</option>
@@ -165,7 +172,7 @@ export default function Step8MagicItems({ get, setVal, soloTarget, standardTarge
               </div>
               <button
                 type="button"
-                onClick={() => removeItem(i)}
+                onClick={() => removeItem(item.id)}
                 className="p-1 rounded text-ink-mute hover:text-crimson hover:bg-crimson/5 transition-colors duration-150 flex-shrink-0"
                 title="Remove Item"
               >

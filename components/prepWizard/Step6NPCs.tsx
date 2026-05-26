@@ -5,17 +5,20 @@ import type { SessionLogEntry } from '@/lib/sessionLog';
 import { getLastSessionLog, eventsOfKind } from '@/lib/prepWizard';
 import StepShell from './StepShell';
 import { countFilled } from '@/lib/prepTargets';
+import { makeEntityId } from '@/lib/playerMode/share';
 
 type Get = (k: string, fb: any) => any;
 type SetVal = (k: string, v: any) => void;
 
 type NPC = {
+  id?: string;
   name?: string;
   type?: string;
   faction?: string;
   archetype?: string;
   goal?: string;
   method?: string;
+  isPublic?: boolean;
 };
 
 type Props = {
@@ -30,8 +33,15 @@ export default function Step6NPCs({ get, setVal, soloTarget, standardTarget, sol
   const logs = (get('sessionLogV2', []) as SessionLogEntry[]) || [];
   const last = getLastSessionLog(logs);
 
-  const npcs = (get('npcs', []) as NPC[]) || [];
-  const setNpcs = (next: NPC[]) => setVal('npcs', next);
+  const allNpcs = (get('npcs', []) as NPC[]) || [];
+  const playerConfig = get('player', {}) || {};
+  const isSharedNpc = (n: NPC) => {
+    return n.isPublic === true ||
+      playerConfig?.entityVisibility?.npcs?.[n.id ?? '']?.mode === 'party' ||
+      playerConfig?.entityVisibility?.npcs?.[n.id ?? '']?.mode === 'custom';
+  };
+  const unsharedNpcs = allNpcs.filter(n => !isSharedNpc(n));
+  const sharedNpcs = allNpcs.filter(n => isSharedNpc(n));
 
   const clocks = (get('clocks', []) as Array<{ faction?: string; filled?: number }>) || [];
 
@@ -47,7 +57,7 @@ export default function Step6NPCs({ get, setVal, soloTarget, standardTarget, sol
       .filter(c => (c.filled || 0) > 0 && (c.faction || '').trim().length > 0)
       .map(c => (c.faction || '').trim().toLowerCase())
   );
-  const factionTiedNpcs = npcs.filter(n => {
+  const factionTiedNpcs = allNpcs.filter(n => {
     const f = (n.faction || '').trim().toLowerCase();
     return f && advancingFactions.has(f);
   });
@@ -82,13 +92,18 @@ export default function Step6NPCs({ get, setVal, soloTarget, standardTarget, sol
     </div>
   ) : null;
 
-  const updateNpc = (i: number, patch: Partial<NPC>) => {
-    const next = [...npcs];
-    next[i] = { ...next[i], ...patch };
-    setNpcs(next);
+  const updateNpc = (unsharedIndex: number, patch: Partial<NPC>) => {
+    const nextUnshared = [...unsharedNpcs];
+    nextUnshared[unsharedIndex] = { ...nextUnshared[unsharedIndex], ...patch };
+    setVal('npcs', [...sharedNpcs, ...nextUnshared]);
   };
-  const removeNpc = (i: number) => setNpcs(npcs.filter((_, j) => j !== i));
-  const addNpc = () => setNpcs([...npcs, { name: '', type: '', faction: '', archetype: '', goal: '', method: '' }]);
+  const removeNpc = (unsharedIndex: number) => {
+    const nextUnshared = unsharedNpcs.filter((_, j) => j !== unsharedIndex);
+    setVal('npcs', [...sharedNpcs, ...nextUnshared]);
+  };
+  const addNpc = () => {
+    setVal('npcs', [...allNpcs, { id: makeEntityId(), name: '', type: '', faction: '', archetype: '', goal: '', method: '' }]);
+  };
 
   return (
     <StepShell
@@ -101,16 +116,16 @@ export default function Step6NPCs({ get, setVal, soloTarget, standardTarget, sol
       <div className="flex items-center justify-between gap-2">
         <h3 className="font-display text-sm tracking-wide text-ink">NPCs</h3>
         <span className="font-serif text-[11px] text-ink-mute">
-          {countFilled('npcs', npcs)} / {target} target
+          {countFilled('npcs', allNpcs, playerConfig)} / {target} target
         </span>
       </div>
 
       <div className="space-y-2">
-        {npcs.length === 0 && (
+        {unsharedNpcs.length === 0 && (
           <p className="font-serif text-xs italic text-ink-mute">No NPCs yet.</p>
         )}
-        {npcs.map((n, i) => (
-          <div key={i} className="space-y-2 rounded border border-rule bg-parchment-soft p-3">
+        {unsharedNpcs.map((n, i) => (
+          <div key={n.id ?? i} className="space-y-2 rounded border border-rule bg-parchment-soft p-3">
             <div className="flex items-start gap-2">
               <input
                 value={n.name || ''}

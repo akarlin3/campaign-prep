@@ -5,15 +5,18 @@ import type { SessionLogEntry } from '@/lib/sessionLog';
 import { getLastSessionLog, recentlyUsedScenes } from '@/lib/prepWizard';
 import StepShell from './StepShell';
 import { countFilled } from '@/lib/prepTargets';
+import { makeEntityId } from '@/lib/playerMode/share';
 
 type Get = (k: string, fb: any) => any;
 type SetVal = (k: string, v: any) => void;
 
 type Location = {
+  id?: string;
   name?: string;
   type?: string;
   aspects?: string[];
   factions?: string;
+  isPublic?: boolean;
 };
 
 type Props = {
@@ -27,8 +30,15 @@ type Props = {
 export default function Step5Locations({ get, setVal, soloTarget, standardTarget, soloMode }: Props) {
   const logs = (get('sessionLogV2', []) as SessionLogEntry[]) || [];
 
-  const locations = (get('locations', []) as Location[]) || [];
-  const setLocations = (next: Location[]) => setVal('locations', next);
+  const allLocations = (get('locations', []) as Location[]) || [];
+  const playerConfig = get('player', {}) || {};
+  const isSharedLoc = (l: Location) => {
+    return l.isPublic === true ||
+      playerConfig?.entityVisibility?.locations?.[l.id ?? '']?.mode === 'party' ||
+      playerConfig?.entityVisibility?.locations?.[l.id ?? '']?.mode === 'custom';
+  };
+  const unsharedLocations = allLocations.filter(l => !isSharedLoc(l));
+  const sharedLocations = allLocations.filter(l => isSharedLoc(l));
 
   const clocks = (get('clocks', []) as Array<{ text?: string; faction?: string; notes?: string }>) || [];
 
@@ -71,13 +81,18 @@ export default function Step5Locations({ get, setVal, soloTarget, standardTarget
     </div>
   ) : null;
 
-  const updateLoc = (i: number, patch: Partial<Location>) => {
-    const next = [...locations];
-    next[i] = { ...next[i], ...patch };
-    setLocations(next);
+  const updateLoc = (unsharedIndex: number, patch: Partial<Location>) => {
+    const nextUnshared = [...unsharedLocations];
+    nextUnshared[unsharedIndex] = { ...nextUnshared[unsharedIndex], ...patch };
+    setVal('locations', [...sharedLocations, ...nextUnshared]);
   };
-  const removeLoc = (i: number) => setLocations(locations.filter((_, j) => j !== i));
-  const addLoc = () => setLocations([...locations, { name: '', type: '', aspects: ['', '', ''], factions: '' }]);
+  const removeLoc = (unsharedIndex: number) => {
+    const nextUnshared = unsharedLocations.filter((_, j) => j !== unsharedIndex);
+    setVal('locations', [...sharedLocations, ...nextUnshared]);
+  };
+  const addLoc = () => {
+    setVal('locations', [...allLocations, { id: makeEntityId(), name: '', type: '', aspects: ['', '', ''], factions: '' }]);
+  };
 
   return (
     <StepShell
@@ -90,18 +105,18 @@ export default function Step5Locations({ get, setVal, soloTarget, standardTarget
       <div className="flex items-center justify-between gap-2">
         <h3 className="font-display text-sm tracking-wide text-ink">Locations</h3>
         <span className="font-serif text-[11px] text-ink-mute">
-          {countFilled('locations', locations)} / {target} target
+          {countFilled('locations', allLocations, playerConfig)} / {target} target
         </span>
       </div>
 
       <div className="space-y-2">
-        {locations.length === 0 && (
+        {unsharedLocations.length === 0 && (
           <p className="font-serif text-xs italic text-ink-mute">No locations yet.</p>
         )}
-        {locations.map((loc, i) => {
+        {unsharedLocations.map((loc, i) => {
           const aspects = loc.aspects || ['', '', ''];
           return (
-            <div key={i} className="space-y-2 rounded border border-rule bg-parchment-soft p-3">
+            <div key={loc.id ?? i} className="space-y-2 rounded border border-rule bg-parchment-soft p-3">
               <div className="flex items-start gap-2">
                 <input
                   value={loc.name || ''}
