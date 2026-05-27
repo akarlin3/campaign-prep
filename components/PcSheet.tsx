@@ -309,23 +309,20 @@ export default function PcSheet({
                 >
                   <option value="dm">DM-Owned NPC</option>
                   {roster.map((r: any) => {
-                    const isOccupiedByOther = !!otherPlayerOwnedPc && playMode === 'duet';
                     return (
                       <option
                         key={r.slotId}
                         value={r.slotId}
-                        disabled={isOccupiedByOther}
                       >
-                        Player: {r.displayName} {isOccupiedByOther ? '(Only 1 Player PC allowed)' : ''}
+                        Player: {r.displayName}
                       </option>
                     );
                   })}
                   {roster.length === 0 && (
                     <option
                       value="player-generic"
-                      disabled={!!otherPlayerOwnedPc && playMode === 'duet'}
                     >
-                      Player PC {!!otherPlayerOwnedPc && playMode === 'duet' ? '(Only 1 Player PC allowed)' : ''}
+                      Player PC
                     </option>
                   )}
                 </select>

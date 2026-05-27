@@ -73,6 +73,17 @@ function redactEntity(
   config: PlayerConfig,
   slotId: string,
 ): Record<string, unknown> | null {
+  // Bypasses redaction for PCs owned by the active player slot
+  if (
+    entityType === 'pcs' &&
+    entity.ownership &&
+    typeof entity.ownership === 'object' &&
+    (entity.ownership as any).ownerType === 'player' &&
+    (entity.ownership as any).playerSlotId === slotId
+  ) {
+    return { ...entity };
+  }
+
   const visibility: EntityVisibility | undefined =
     config.entityVisibility?.[entityType]?.[entity.id];
   const { entityVisible, visibleFields } = resolveVisibility({

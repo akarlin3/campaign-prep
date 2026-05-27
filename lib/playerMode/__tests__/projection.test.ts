@@ -190,5 +190,37 @@ describe('buildSlotProjection', () => {
     expect(proj.pcGoals![0].success).toBe('Cult stopped');
     expect(proj.pcGoals![0]).not.toHaveProperty('isPublic');
   });
+
+  it('projects the full unredacted PC sheet for player-owned PCs matching the active slot', () => {
+    const data = seedCampaignData();
+    data.pcs = [
+      {
+        id: 'pc1',
+        name: 'Aragorn',
+        level: 5,
+        ac: 15,
+        hp: { current: 40, max: 40, temp: 0 },
+        ownership: { ownerType: 'player', playerSlotId: 'slot-a' },
+        notes: 'Secret Aragorn notes',
+      } as any,
+      {
+        id: 'pc2',
+        name: 'Legolas',
+        level: 5,
+        ac: 14,
+        hp: { current: 30, max: 30, temp: 0 },
+        ownership: { ownerType: 'player', playerSlotId: 'slot-b' },
+      } as any,
+    ];
+
+    const proj = buildSlotProjection(data, 'C', 'slot-a');
+    const pcs = proj.entities.pcs ?? [];
+    expect(pcs).toHaveLength(1);
+    expect(pcs[0].id).toBe('pc1');
+    expect(pcs[0].name).toBe('Aragorn');
+    expect(pcs[0].notes).toBe('Secret Aragorn notes');
+    expect(pcs[0].hp).toEqual({ current: 40, max: 40, temp: 0 });
+    expect(pcs[0].ac).toBe(15);
+  });
 });
 
