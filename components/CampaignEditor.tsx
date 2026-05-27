@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { updateCampaign, deleteCampaign as deleteCampaignDoc, archiveCampaign, unarchiveCampaign, copyCampaign, type Campaign } from '@/lib/firebase/campaigns';
+import { startWritebackReconciler } from '@/lib/player/reconciler';
 import { updateWorld, createWorld, type World } from '@/lib/firebase/worlds';
 import { WORLD_KEYS } from '@/lib/worldData';
 import { getFirebaseAuth } from '@/lib/firebase/client';
@@ -1921,6 +1922,7 @@ export default function CampaignEditor({
   const [playMode, setPlayMode] = useState<'solo' | 'duet' | 'standard'>(() => {
     return campaign.data?.mode ?? (campaign.data?.__soloMode === true ? 'duet' : 'standard');
   });
+  const roster = state.player?.roster || [];
   const soloMode = playMode === 'solo' || playMode === 'duet';
   const [modeSwitcherOpen, setModeSwitcherOpen] = useState(false);
   const [oracleOpen, setOracleOpen] = useState(false);
@@ -2673,6 +2675,25 @@ export default function CampaignEditor({
       ...(nextMacros ? { pcMacros: nextMacros } : {}),
     }));
   };
+
+  const pcsRef = useRef(pcs);
+  useEffect(() => {
+    pcsRef.current = pcs;
+  }, [pcs]);
+
+  useEffect(() => {
+    if (playMode === 'solo') return;
+
+    const unsubscribe = startWritebackReconciler(
+      campaign.id,
+      () => pcsRef.current,
+      (nextPcs) => {
+        writePcs(nextPcs);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [campaign.id, playMode]);
 
   const addPc = () => {
     if (pcs.length >= PC_CAP) return;
@@ -4145,6 +4166,7 @@ export default function CampaignEditor({
                   onUpdate={updatePc}
                   onRemove={removePc}
                   onUploadClick={() => pcFileInputRef.current?.click()}
+                  roster={roster}
                 />
                 <input
                   ref={pcFileInputRef}

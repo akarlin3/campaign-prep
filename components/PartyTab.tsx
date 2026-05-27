@@ -1,9 +1,11 @@
 'use client';
 
+import { useState, useContext } from 'react';
 import { Plus, Users, FileUp } from 'lucide-react';
 import PcSheet from './PcSheet';
 import { LockedInline } from './LockedFeature';
 import { PC_CAP, type PlayerCharacter } from '@/lib/pc/types';
+import { CampaignPlayModeContext } from './CampaignPlayModeContext';
 
 type Props = {
   pcs: PlayerCharacter[];
@@ -16,13 +18,20 @@ type Props = {
   onUpdate: (pc: PlayerCharacter) => void;
   onRemove: (id: string) => void;
   onUploadClick?: () => void;
+  roster?: { slotId: string; displayName: string }[];
 };
 
 export default function PartyTab({
   pcs, openMap, isPro, uploading, uploadError,
   onToggleOpen, onAdd, onUpdate, onRemove, onUploadClick,
+  roster = [],
 }: Props) {
+  const playMode = useContext(CampaignPlayModeContext);
+  const [promptDismissed, setPromptDismissed] = useState(false);
   const atCap = pcs.length >= PC_CAP;
+
+  const showDuetPrompt = playMode === 'duet' && pcs.length === 1 && pcs[0].ownership?.ownerType !== 'player' && !promptDismissed;
+  const singlePc = pcs[0];
 
   return (
     <div className="space-y-3">
@@ -40,6 +49,37 @@ export default function PartyTab({
         combat.
       </p>
 
+      {showDuetPrompt && (
+        <div className="rounded border border-teal-500/30 bg-teal-950/10 p-3 shadow-sm backdrop-blur-sm animate-fade-in flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="space-y-1">
+            <h4 className="font-display text-sm tracking-wide text-teal-400 font-semibold">Duet Mode Setup</h4>
+            <p className="font-serif text-xs text-ink-soft">
+              Is <strong className="text-teal-400">{singlePc.name || 'Unnamed PC'}</strong> your player&apos;s character? Duet campaigns are designed around exactly one player-owned character.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 self-end sm:self-center">
+            <button
+              onClick={() => {
+                const firstSlotId = roster?.[0]?.slotId;
+                onUpdate({
+                  ...singlePc,
+                  ownership: { ownerType: 'player', playerSlotId: firstSlotId }
+                });
+              }}
+              className="rounded bg-teal-600 hover:bg-teal-500 px-2.5 py-1 text-xs font-display uppercase tracking-wider text-white transition-colors"
+            >
+              Set as Player PC
+            </button>
+            <button
+              onClick={() => setPromptDismissed(true)}
+              className="rounded border border-rule bg-transparent px-2.5 py-1 text-xs font-display uppercase tracking-wider text-ink-mute hover:bg-parchment-deep hover:text-ink transition-colors"
+            >
+              Keep as DM NPC
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-2">
         {pcs.map((pc) => (
           <div key={pc.id} data-cp-anchor={`pc:${pc.id}`}>
@@ -49,6 +89,8 @@ export default function PartyTab({
               onToggleOpen={() => onToggleOpen(pc.id)}
               onChange={onUpdate}
               onRemove={() => onRemove(pc.id)}
+              roster={roster}
+              allPcs={pcs}
             />
           </div>
         ))}

@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useContext } from 'react';
+import { CampaignPlayModeContext } from './CampaignPlayModeContext';
 import {
   ChevronDown, ChevronRight, X, Plus, Trash2, Download, Heart, Shield,
   Moon, Sun, Dice5,
@@ -27,6 +28,8 @@ type Props = {
   onToggleOpen: () => void;
   onChange: (next: PlayerCharacter) => void;
   onRemove: () => void;
+  roster?: { slotId: string; displayName: string }[];
+  allPcs?: PlayerCharacter[];
 };
 
 // ---- small primitives ---------------------------------------------------
@@ -87,8 +90,28 @@ const chipBtn = (active: boolean) =>
 
 // ---- main component -----------------------------------------------------
 
-export default function PcSheet({ pc, open, onToggleOpen, onChange, onRemove }: Props) {
+export default function PcSheet({
+  pc, open, onToggleOpen, onChange, onRemove,
+  roster = [],
+  allPcs = [],
+}: Props) {
+  const playMode = useContext(CampaignPlayModeContext);
   const totalLevel = useMemo(() => pcTotalLevel(pc), [pc]);
+
+  const isPlayerOwned = pc.ownership?.ownerType === 'player';
+  const ownerLabel = useMemo(() => {
+    if (!isPlayerOwned) return null;
+    const slotId = pc.ownership?.playerSlotId;
+    if (slotId && roster) {
+      const player = roster.find((r) => r.slotId === slotId);
+      if (player) return `Player: ${player.displayName}`;
+    }
+    return 'Player PC';
+  }, [isPlayerOwned, pc.ownership?.playerSlotId, roster]);
+
+  const otherPlayerOwnedPc = useMemo(() => {
+    return allPcs.find((p) => p.id !== pc.id && p.ownership?.ownerType === 'player');
+  }, [allPcs, pc.id]);
 
   // Patch helper: shallow-merges a partial and emits the new PC.
   const patch = (p: Partial<PlayerCharacter>) => onChange({ ...pc, ...p });
@@ -217,10 +240,21 @@ export default function PcSheet({ pc, open, onToggleOpen, onChange, onRemove }: 
           {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
         </button>
         <button onClick={onToggleOpen} className="min-w-0 flex-1 text-left">
-          <span className="font-display tracking-wide text-ink">{pc.name || 'Unnamed PC'}</span>
-          <span className="ml-2 font-serif text-xs italic text-ink-mute">
-            {[pc.race, classesLabel].filter(Boolean).join(' · ') || `Level ${pc.level}`}
-          </span>
+          <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5">
+            <span className="font-display tracking-wide text-ink">{pc.name || 'Unnamed PC'}</span>
+            {ownerLabel && (
+              <span className={`px-1.5 py-0.5 text-[9px] uppercase font-display tracking-wider font-semibold rounded border ${
+                playMode === 'duet'
+                  ? 'bg-teal-950/20 text-teal-400 border-teal-500/30'
+                  : 'bg-amber-950/20 text-amber-400 border-amber-500/30'
+              }`}>
+                {ownerLabel}
+              </span>
+            )}
+            <span className="font-serif text-xs italic text-ink-mute">
+              {[pc.race, classesLabel].filter(Boolean).join(' · ') || `Level ${pc.level}`}
+            </span>
+          </div>
         </button>
         <span className="flex items-center gap-1 font-serif text-[11px] text-ink-soft">
           <Heart size={11} className="text-crimson" /> {pc.hp.current}/{pc.hp.max}
@@ -258,6 +292,45 @@ export default function PcSheet({ pc, open, onToggleOpen, onChange, onRemove }: 
               <Label>Alignment</Label>
               <TextInput value={pc.alignment ?? ''} onChange={(v) => patch({ alignment: v })} placeholder="LG" />
             </div>
+            {playMode !== 'solo' && (
+              <div>
+                <Label>Ownership</Label>
+                <select
+                  value={pc.ownership?.ownerType === 'player' ? pc.ownership.playerSlotId || 'player-generic' : 'dm'}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === 'dm') {
+                      patch({ ownership: { ownerType: 'dm' } });
+                    } else {
+                      patch({ ownership: { ownerType: 'player', playerSlotId: val === 'player-generic' ? undefined : val } });
+                    }
+                  }}
+                  className="w-full border-b border-rule bg-transparent px-1 py-1 font-serif text-sm text-ink focus:border-crimson focus:outline-none cursor-pointer"
+                >
+                  <option value="dm">DM-Owned NPC</option>
+                  {roster.map((r: any) => {
+                    const isOccupiedByOther = !!otherPlayerOwnedPc && playMode === 'duet';
+                    return (
+                      <option
+                        key={r.slotId}
+                        value={r.slotId}
+                        disabled={isOccupiedByOther}
+                      >
+                        Player: {r.displayName} {isOccupiedByOther ? '(Only 1 Player PC allowed)' : ''}
+                      </option>
+                    );
+                  })}
+                  {roster.length === 0 && (
+                    <option
+                      value="player-generic"
+                      disabled={!!otherPlayerOwnedPc && playMode === 'duet'}
+                    >
+                      Player PC {!!otherPlayerOwnedPc && playMode === 'duet' ? '(Only 1 Player PC allowed)' : ''}
+                    </option>
+                  )}
+                </select>
+              </div>
+            )}
           </div>
 
           {/* Classes */}

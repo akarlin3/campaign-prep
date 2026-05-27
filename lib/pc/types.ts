@@ -105,6 +105,12 @@ export type PlayerCharacter = {
   bonds: string[];
   ideals: string[];
   flaws: string[];
+  ownership?: PcOwnership;
+};
+
+export type PcOwnership = {
+  ownerType: 'dm' | 'player';
+  playerSlotId?: string;
 };
 
 export const PC_CAP = 6;
