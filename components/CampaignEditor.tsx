@@ -818,7 +818,7 @@ function RunSessionInlineIdle({
           {recent.length > 0 && (
             <button
               type="button"
-              onClick={() => navigateTo({ mode: 'run', subview: 'log' })}
+              onClick={() => navigateTo({ mode: 'organize', subview: 'log' })}
               className="text-xs text-brass-deep hover:text-crimson font-display uppercase tracking-wider"
             >
               View All →
@@ -844,7 +844,7 @@ function RunSessionInlineIdle({
                   </div>
                   <button
                     type="button"
-                    onClick={() => navigateTo({ mode: 'run', subview: 'log' })}
+                    onClick={() => navigateTo({ mode: 'organize', subview: 'log' })}
                     className="text-[10px] px-2 py-0.5 rounded-sm border border-brass-deep/60 text-brass-deep hover:bg-brass hover:text-parchment font-display uppercase tracking-wider flex-shrink-0"
                   >
                     View
@@ -2380,7 +2380,7 @@ export default function CampaignEditor({
     { name: 'Premise', keys: ['pitch', 'genre', 'g-lines', 'g-mech'], labels: ['Quick Pitch', 'Genre Statement', 'Content Lines', 'Mechanics & System'] },
     { name: 'World', keys: ['g-world', 'facts', 'g-fnl'], labels: ['World Facts', 'Setting Facts', 'Req. Factions, NPCs & Locations'] },
     { name: 'Characters', keys: ['pc', 'goals'], labels: ['Player Characters', 'PC Goals'] },
-    { name: 'Fronts', keys: ['factions', 'conflicts', 'secrets', 'handouts'], labels: ['Factions', 'Active Conflicts', 'Secrets & Clues', 'Handouts / Lore'] },
+    { name: 'Fronts', keys: ['factions', 'conflicts', 'secrets'], labels: ['Factions', 'Active Conflicts', 'Secrets & Clues'] },
     { name: 'Per-Session', keys: ['s1-review', 's2-start', 's3-scenes', 's4-secrets', 's5-loc', 's6-npc', 's7-mon', 's8-rew'], labels: ['1. Review PCs', '2. Strong Start', '3. Outline Scenes', '4. Define Secrets', '5. Develop Locations', '6. Outline NPCs', '7. Choose Monsters', '8. Select Rewards'] },
   ];
 
@@ -2805,13 +2805,14 @@ export default function CampaignEditor({
     { mode: 'prep',    subview: 'ending',    label: 'Ending',         icon: Trophy,         keywords: ['ending', 'wrap', 'threads'] },
     { mode: 'prep',    subview: 'flow',      label: 'Prep Flow',   icon: ScrollText,      keywords: ['lazy dm', '8 step', 'next session'] },
     { mode: 'prep',    subview: 'wizard',    label: 'Prep Wizard', icon: ClipboardList,   keywords: ['guided', 'walkthrough'] },
+    { mode: 'organize', subview: 'players',   label: 'Players',     icon: Users,          keywords: ['invite', 'share', 'collaboration'] },
+    { mode: 'organize', subview: 'log',       label: 'Sessions',    icon: Calendar,        keywords: ['session log', 'recap'] },
     { mode: 'run',     subview: 'session',   label: 'Run Session', icon: Swords,          keywords: ['active', 'table'] },
     { mode: 'run',     subview: 'lookup',    label: 'Lookup',      icon: Search,          keywords: ['quick reference'] },
     { mode: 'run',     subview: 'dice',      label: 'Dice',        icon: Dice5 },
     { mode: 'run',     subview: 'spells',    label: 'Spells',      icon: Sparkles },
     { mode: 'run',     subview: 'dmref',     label: 'DM Ref',      icon: BookOpen,        keywords: ['rules', 'madness', 'travel'] },
     { mode: 'run',     subview: 'chase',     label: 'Chase',       icon: Footprints,      keywords: ['chase tracker'] },
-    { mode: 'run',     subview: 'log',       label: 'Sessions',    icon: Calendar,        keywords: ['session log', 'recap'] },
     { mode: 'library', subview: 'generators',label: 'Generators',  icon: Wand2,           keywords: ['tavern', 'treasure', 'shop', 'dungeon', 'settlement', 'trinket', 'names', 'locations'] },
     { mode: 'library', subview: 'monsters',  label: 'Monsters',    icon: Skull,           keywords: ['stat block', 'bestiary'] },
     { mode: 'library', subview: 'traps',     label: 'Traps',       icon: Hash },
@@ -2863,7 +2864,7 @@ export default function CampaignEditor({
     }
 
     items.push(
-      { id: 'act:new-session', label: 'New session log', group: 'Actions', icon: Plus, run: () => { addSessionLog(); navigateTo({ mode: 'run', subview: 'log' }); } },
+      { id: 'act:new-session', label: 'New session log', group: 'Actions', icon: Plus, run: () => { addSessionLog(); navigateTo({ mode: 'organize', subview: 'log' }); } },
       { id: 'act:export', label: 'Export campaign JSON', group: 'Actions', icon: Download, run: () => exportJSON() },
       { id: 'act:import', label: 'Import campaign JSON', group: 'Actions', icon: Upload, run: () => fileInputRef.current?.click() },
       { id: 'act:add-character', label: 'Add character', group: 'Actions', icon: User, run: () => { addCharacter(); const v = viewForSection('pc'); navigateTo({ mode: v.mode, subview: v.subview, sectionId: 'pc' }); } },
@@ -2989,7 +2990,7 @@ export default function CampaignEditor({
         sublabel: log.date || undefined,
         group: 'Sessions',
         icon: Calendar,
-        run: () => navigateTo({ mode: 'run', subview: 'log', sessionId: log.id, anchor: `session:${log.id}` }),
+        run: () => navigateTo({ mode: 'organize', subview: 'log', sessionId: log.id, anchor: `session:${log.id}` }),
       });
     });
 
@@ -3643,10 +3644,7 @@ export default function CampaignEditor({
                   }}
                 />
               </Section>
-              <Section id="handouts" title="Handouts / Lore (Public)" methods={[]} done={done.handouts} onToggle={toggleDone} open={open.handouts} onToggleOpen={toggleOpen}>
-                <div className="text-[10px] text-ink-mute uppercase font-display tracking-wider mb-2">Visible to players via invite link</div>
-                <Field value={get('handouts', '')} onChange={(v) => setVal('handouts', v)} placeholder="Notes, rumors, or handouts that players can see..." rows={6} />
-              </Section>
+
               <Section id="factions" title="Factions" methods={['pr', 'ccd']} done={done.factions} onToggle={toggleDone} open={open.factions} onToggleOpen={toggleOpen} icon={Users}>
                 <BookQuote source="PR ch. 2">Think of factions, not individual NPCs, as the GM-controlled counterparts of the party.</BookQuote>
                 <Pitfall>Factions whose goals don't overlap with PC goals are just colour.</Pitfall>
@@ -4186,7 +4184,7 @@ export default function CampaignEditor({
             </Phase>
             )}
 
-            {mode === 'plan' && subview === 'players' && state.player && (
+            {mode === 'organize' && subview === 'players' && state.player && (
               <PlayerModePanel
                 campaignId={campaign.id}
                 campaignName={name}
@@ -4606,7 +4604,7 @@ export default function CampaignEditor({
           />;
         })()}
 
-        {mode === 'run' && subview === 'log' && (() => {
+        {mode === 'organize' && subview === 'log' && (() => {
           const handleSessionLogChange = (updatedEntries: SessionLogEntry[]) => {
             const { partyXP, partyInventory, updatedCharacters } = recalculatePartyState(updatedEntries, characters);
             setState(s => ({
