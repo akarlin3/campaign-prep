@@ -75,7 +75,7 @@ function PlayerPcSheetCard({ pc, token, slotId }: { pc: any; token: string; slot
 
   useEffect(() => {
     setLocalHp(pc.hp?.current ?? 0);
-  }, [pc.hp?.current]);
+  }, [pc.hp]);
 
   useEffect(() => {
     setLocalTempHp(pc.hp?.temp ?? 0);

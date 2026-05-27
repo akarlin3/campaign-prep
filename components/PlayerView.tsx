@@ -15,10 +15,10 @@ export default function PlayerView({ campaign, userEmail }: { campaign: Campaign
 
   const playlistUrl = campaign.data.__sessionPlaylist || '';
   const characters = Array.isArray(campaign.data.characters) ? campaign.data.characters : [];
-  const sessionLogs = Array.isArray(campaign.data.sessionLogs) ? campaign.data.sessionLogs : [];
-  const sessionLogsV2 = Array.isArray(campaign.data.sessionLogV2) ? campaign.data.sessionLogV2 : [];
-  const npcs = Array.isArray(campaign.data.npcs) ? campaign.data.npcs.filter(n => n.isPublic) : [];
-  const locations = Array.isArray(campaign.data.locations) ? campaign.data.locations.filter(l => l.isPublic) : [];
+  const sessionLogs = useMemo(() => Array.isArray(campaign.data.sessionLogs) ? campaign.data.sessionLogs : [], [campaign.data.sessionLogs]);
+  const sessionLogsV2 = useMemo(() => Array.isArray(campaign.data.sessionLogV2) ? campaign.data.sessionLogV2 : [], [campaign.data.sessionLogV2]);
+  const npcs = useMemo(() => Array.isArray(campaign.data.npcs) ? campaign.data.npcs.filter(n => n.isPublic) : [], [campaign.data.npcs]);
+  const locations = useMemo(() => Array.isArray(campaign.data.locations) ? campaign.data.locations.filter(l => l.isPublic) : [], [campaign.data.locations]);
   const handouts = campaign.data.handouts || '';
 
   React.useEffect(() => {

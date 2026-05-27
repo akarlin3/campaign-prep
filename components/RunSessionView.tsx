@@ -72,8 +72,8 @@ export default function RunSessionView({
   const [toast, setToast] = useState<string | null>(null);
 
   // --- REAL-TIME PLAYER SHARING & AUTO-PUBLISH SYSTEM ---
-  const playerConfig = (get('player', {}) as PlayerConfig) || {};
-  const playerLog = (get('playerLog', []) as PlayerLogEntry[]) || [];
+  const playerConfig = useMemo(() => (get('player', {}) as PlayerConfig) || {}, [get]);
+  const playerLog = useMemo(() => (get('playerLog', []) as PlayerLogEntry[]) || [], [get]);
 
   const [publishState, setPublishState] = useState<'idle' | 'publishing' | 'done' | 'error'>('idle');
   const publishTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -122,6 +122,7 @@ export default function RunSessionView({
       })();
     }, 1500);
     return () => { if (publishTimer.current) clearTimeout(publishTimer.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [publishSignature, campaignId, campaignName]);
 
   // Generic helper to post narrative clues/events to the player feed

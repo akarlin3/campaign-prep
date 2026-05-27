@@ -44,7 +44,7 @@ export default function PrepWizardView({
   const completed = (get('__prepWizardCompleted', []) as number[]) || [];
   const notes = (get('__prepWizardStepNotes', {}) as Record<string, string>) || {};
 
-  const logs = (get('sessionLogV2', []) as SessionLogEntry[]) || [];
+  const logs = useMemo(() => (get('sessionLogV2', []) as SessionLogEntry[]) || [], [get]);
   const sessionNumber = useMemo(() => nextSessionNumber(logs), [logs]);
 
   const setStep = (n: number) => setVal('__prepWizardStep', Math.max(1, Math.min(SUMMARY_STEP, n)));

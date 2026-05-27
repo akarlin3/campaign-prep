@@ -138,7 +138,7 @@ export default function CampaignListPage() {
         .filter((e) => e.archived)
         .sort((a, b) => b.sortKey - a.sortKey),
     };
-  }, [campaigns]);
+  }, [campaigns, user]);
 
   const handleCreate = () => {
     // Defer the Firestore write until the user finishes the setup wizard

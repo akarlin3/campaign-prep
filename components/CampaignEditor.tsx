@@ -1893,6 +1893,7 @@ export default function CampaignEditor({
   const [name, setName] = useState(campaign.name);
   const [initialMigration] = useState(() => migrateSessionLogs(campaign.data || {}));
   const [state, setState] = useState<Record<string, any>>(() => initPlayerMode(migrateCharacters(initialMigration.initialState)).data);
+  const characters = (state.characters as Character[]) || [];
   const [done, setDone] = useState<Record<string, boolean>>(campaign.done || {});
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [openLogs, setOpenLogs] = useState<Record<string, boolean>>(
@@ -1951,6 +1952,7 @@ export default function CampaignEditor({
       };
       runMigration();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [campaign.id, campaign.data]);
 
   const [progressOpen, setProgressOpen] = useState(false);
@@ -2179,7 +2181,7 @@ export default function CampaignEditor({
     setState(s => markOpened(s));
   }, []);
 
-  const get = (k: string, fb: any) => state[k] !== undefined ? state[k] : fb;
+  const get = useCallback((k: string, fb: any) => state[k] !== undefined ? state[k] : fb, [state]);
   const setVal = (k: string, v: any) => setState(s => ({ ...s, [k]: v }));
 
   // tourUid for checking tutorial tour views. For the campaign owner, this is
@@ -2203,8 +2205,8 @@ export default function CampaignEditor({
   }, [playMode, tourUid]);
 
   // --- AUTO-PUBLISH SYSTEM FOR PLAYER SHARING ---
-  const playerConfig = (get('player', {}) as PlayerConfig) || {};
-  const playerLog = (get('playerLog', []) as PlayerLogEntry[]) || [];
+  const playerConfig = useMemo(() => (get('player', {}) as PlayerConfig) || {}, [get]);
+  const playerLog = useMemo(() => (get('playerLog', []) as PlayerLogEntry[]) || [], [get]);
 
   const publishSignature = useMemo(
     () => JSON.stringify({
@@ -2249,7 +2251,7 @@ export default function CampaignEditor({
     }, 1500);
     return () => clearTimeout(timer);
   }, [publishSignature, campaign.id, name, playerLog, playerConfig, get]);
-  const getUsedPrep = () => {
+  const usedPrep = useMemo(() => {
     const sessionLogsV2 = (get('sessionLogV2', [])) || [];
     const linkedNpcIds = new Set<string>();
     const linkedNpcNames = new Set<string>();
@@ -2304,9 +2306,9 @@ export default function CampaignEditor({
       linkedLootIds, linkedLootNames,
       usedScenes, usedSecrets
     };
-  };
-  const usedPrep = getUsedPrep();
-  const getFilteredPrepArray = (key: PrepTargetKey, rawArray: any[]) => {
+  }, [get]);
+
+  const getFilteredPrepArray = useCallback((key: PrepTargetKey, rawArray: any[]) => {
     if (!Array.isArray(rawArray)) return rawArray;
     if (key === 'scenes') {
       return rawArray.filter((s: string) => !usedPrep.usedScenes.has(s.trim()));
@@ -2341,8 +2343,8 @@ export default function CampaignEditor({
       });
     }
     return rawArray;
-  };
-  const prepTargetOverrides = (state[OVERRIDES_STATE_KEY] as PrepTargetOverrides | undefined) || {};
+  }, [usedPrep]);
+  const prepTargetOverrides = useMemo(() => (state[OVERRIDES_STATE_KEY] as PrepTargetOverrides | undefined) || {}, [state]);
   const tgt = useCallback(
     (key: PrepTargetKey) => getTarget(key, soloMode, prepTargetOverrides),
     [soloMode, prepTargetOverrides],
@@ -2467,7 +2469,7 @@ export default function CampaignEditor({
     }
     
     router.push(`/campaign/${campaign.id}/recap/${sessionId}`);
-  }, [state, get, name, playMode, soloMode, done, saveToDB, campaign.id, router]);
+  }, [state, get, name, playMode, soloMode, done, saveToDB, campaign.id, router, characters]);
   const toggleDone = (id: string) => setDone(d => ({ ...d, [id]: !d[id] }));
   const toggleOpen = (id: string) => setOpen(o => ({ ...o, [id]: !o[id] }));
   const togglePhase = (id: string) => setPhaseOpen(p => ({ ...p, [id]: !p[id] }));
@@ -2573,7 +2575,7 @@ export default function CampaignEditor({
       return a.current - b.current;
     });
     return candidates[0] ?? null;
-  }, [state, soloMode, prepTargetOverrides]);
+  }, [state, soloMode, prepTargetOverrides, getFilteredPrepArray]);
 
   const jumpToNextUp = useCallback(() => {
     if (!nextUp) return;
@@ -2617,7 +2619,6 @@ export default function CampaignEditor({
     showUndoToast(`Deleted "${title}" — Press ⌘Z to undo`, 5000);
   };
 
-  const characters = (state.characters as Character[]) || [];
   const addCharacter = () => {
     const fresh = { ...emptyCharacter(), id: makeCharacterId() };
     setVal('characters', [...characters, fresh]);
@@ -2872,12 +2873,12 @@ export default function CampaignEditor({
 
   // Confirm tab/route changes while a save error is outstanding. Returns true
   // if the navigation should proceed.
-  const confirmUnsavedNav = (): boolean => {
+  const confirmUnsavedNav = useCallback((): boolean => {
     if (syncState !== 'error') return true;
     return window.confirm(
       'Your last change failed to save. Switching may lose unsaved data. Switch anyway?',
     );
-  };
+  }, [syncState]);
 
   const ToolBtn = ({ onClick, children, danger = false, title }: { onClick: () => void; children: React.ReactNode; danger?: boolean; title?: string }) => (
     <button onClick={onClick} title={title} className={`text-xs px-3 py-1 rounded border font-display uppercase tracking-wider flex items-center gap-1.5 transition-colors ${
@@ -2973,7 +2974,6 @@ export default function CampaignEditor({
       const { relationships, changed } = pruneExpiredSuggestions(s.relationships);
       return changed ? { ...s, relationships } : s;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const navigateToEntity = useCallback((type: WikiEntityType, id: string) => {
@@ -3131,7 +3131,7 @@ export default function CampaignEditor({
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [paletteOpen, shortcutsOpen, syncState, syncError, mode, subview]);
+  }, [paletteOpen, shortcutsOpen, syncState, syncError, mode, subview, confirmUnsavedNav, showUndoToast]);
 
   const VIEW_META: Array<{ mode: Mode; subview: string; label: string; icon: any; keywords?: string[] }> = [
     { mode: 'plan',    subview: 'pitch',     label: 'Premise',     icon: Compass,         keywords: ['hook', 'givens', 'truths'] },

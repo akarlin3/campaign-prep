@@ -413,7 +413,6 @@ function useForceLayout(
   const [positions, setPositions] = useState<Record<string, { x: number; y: number }>>(cachedPositions);
 
   // Recompute when node set changes.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const nodeKey = useMemo(() => nodes.map(n => n.id).sort().join(','), [nodes]);
   const edgeKey = useMemo(() => edges.map(e => `${e.fromId}-${e.toId}`).sort().join(','), [edges]);
 

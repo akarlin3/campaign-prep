@@ -205,6 +205,7 @@ function AccountPageBody() {
       router.replace('/account');
       handleBackup();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params, user]);
 
   useEffect(() => {
