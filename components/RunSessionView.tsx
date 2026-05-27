@@ -5,7 +5,7 @@ import {
   ArrowLeft, Flag, Dice5, Sparkles, ChevronDown, ChevronRight, Check,
   Eye, EyeOff, Plus, Swords, NotebookPen, Target, Map, Users, ScrollText,
   Skull, Gem, Zap, BookOpen, Pin, PinOff, Wand2, Loader2, X, Wrench, ChevronUp, Clock,
-  Music, ExternalLink, Play, Pause, Volume2, VolumeX,
+  Music, ExternalLink, Play, Pause, Volume2, VolumeX, SkipBack, SkipForward,
 } from 'lucide-react';
 import { TABLES, rollTable } from '@/lib/inspirationTables';
 import InitiativePanel from './InitiativePanel';
@@ -357,6 +357,8 @@ export default function RunSessionView({
           onChangePlaylist={(next) => setVal('__sessionPlaylist', next)}
           isPlayingProp={!!get('__sessionPlaylistPlaying', false)}
           onChangePlaying={(next) => setVal('__sessionPlaylistPlaying', next)}
+          playlists={(get('__sessionPlaylists', []) as Array<{ id: string; name: string; url: string }>)}
+          onChangePlaylists={(next) => setVal('__sessionPlaylists', next)}
         />
       </PanelShell>
 
@@ -1554,18 +1556,29 @@ function parseYoutubeUrl(urlOrId: string): { playlistId: string | null; videoId:
   return { playlistId, videoId };
 }
 
+const DEFAULT_SCENARIOS = [
+  { id: 'tavern', name: '🍻 Tavern Ambiance', url: 'https://www.youtube.com/playlist?list=PL2V6X2N_s14E9F7-M6WcI_qJ202w9420v' },
+  { id: 'combat', name: '⚔ Epic Combat', url: 'https://www.youtube.com/playlist?list=PL6T1g8k3J46yEPLfA1w_1uT8F52093h41' },
+  { id: 'dungeon', name: '🧭 Dark Dungeon', url: 'https://www.youtube.com/playlist?list=PL6T1g8k3J46zZf94pD59j3U6h3s12L1H1' },
+  { id: 'creepy', name: '💀 Eerie Suspense', url: 'https://www.youtube.com/playlist?list=PL6T1g8k3J46yE258c7tZ1A2rO02W1H1H1' },
+];
+
 export function MusicPlayer({
   playlistUrl,
   onChangePlaylist,
   readOnly = false,
   isPlayingProp,
   onChangePlaying,
+  playlists,
+  onChangePlaylists,
 }: {
   playlistUrl: string;
   onChangePlaylist?: (v: string) => void;
   readOnly?: boolean;
   isPlayingProp?: boolean;
   onChangePlaying?: (v: boolean) => void;
+  playlists?: Array<{ id: string; name: string; url: string }>;
+  onChangePlaylists?: (v: Array<{ id: string; name: string; url: string }>) => void;
 }) {
   const [inputUrl, setInputUrl] = useState(playlistUrl);
   const [error, setError] = useState('');
@@ -1577,6 +1590,38 @@ export function MusicPlayer({
   const [playerState, setPlayerState] = useState<'unstarted' | 'playing' | 'paused' | 'buffering' | 'ended' | 'unknown'>('unknown');
   const [ytPlayer, setYtPlayer] = useState<any>(null);
   const [isApiReady, setIsApiReady] = useState(false);
+
+  // Playlists scenario management
+  const activePlaylists = playlists && playlists.length > 0 ? playlists : DEFAULT_SCENARIOS;
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newScenarioName, setNewScenarioName] = useState('');
+  const [newScenarioUrl, setNewScenarioUrl] = useState('');
+
+  const handleSavePlaylist = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newScenarioName.trim() || !newScenarioUrl.trim()) return;
+    const nextPlaylists = [
+      ...activePlaylists,
+      {
+        id: `pl_${Date.now()}`,
+        name: newScenarioName.trim(),
+        url: newScenarioUrl.trim(),
+      },
+    ];
+    if (onChangePlaylists) {
+      onChangePlaylists(nextPlaylists);
+    }
+    setNewScenarioName('');
+    setNewScenarioUrl('');
+    setShowAddForm(false);
+  };
+
+  const handleDeletePlaylist = (id: string) => {
+    const nextPlaylists = activePlaylists.filter((pl) => pl.id !== id);
+    if (onChangePlaylists) {
+      onChangePlaylists(nextPlaylists);
+    }
+  };
 
   useEffect(() => {
     setInputUrl(playlistUrl);
@@ -1754,6 +1799,102 @@ export function MusicPlayer({
     }
   };
 
+  const renderScenarios = () => {
+    if (readOnly) return null;
+    return (
+      <div className="space-y-2 rounded-lg border border-rule/60 bg-parchment/40 p-3 shadow-inner">
+        <div className="flex items-center justify-between">
+          <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep font-semibold">
+            Scenario Playlists
+          </span>
+          <button
+            type="button"
+            onClick={() => setShowAddForm(true)}
+            className="text-[9px] px-2 py-0.5 rounded border border-brass-deep/45 bg-brass/10 hover:bg-brass text-brass-deep hover:text-parchment font-display uppercase tracking-wider transition-all"
+          >
+            + Add Scenario
+          </button>
+        </div>
+
+        {showAddForm && (
+          <form onSubmit={handleSavePlaylist} className="mt-2 space-y-2 border border-rule/50 bg-parchment p-2.5 rounded shadow-sm">
+            <div className="text-[10px] font-display uppercase tracking-wider text-brass-deep font-semibold">
+              Add Custom Scenario
+            </div>
+            <div className="space-y-1">
+              <input
+                type="text"
+                required
+                placeholder="Scenario Name (e.g. Boss Battle)"
+                value={newScenarioName}
+                onChange={(e) => setNewScenarioName(e.target.value)}
+                className="w-full rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-[11px] text-ink focus:border-crimson focus:outline-none"
+              />
+              <input
+                type="text"
+                required
+                placeholder="YouTube Playlist or Video URL"
+                value={newScenarioUrl}
+                onChange={(e) => setNewScenarioUrl(e.target.value)}
+                className="w-full rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-[11px] text-ink focus:border-crimson focus:outline-none"
+              />
+            </div>
+            <div className="flex justify-end gap-1.5 pt-1">
+              <button
+                type="button"
+                onClick={() => setShowAddForm(false)}
+                className="text-[9px] px-2 py-0.5 rounded border border-rule hover:bg-parchment-deep font-display uppercase tracking-wider text-ink-soft transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="text-[9px] px-2 py-0.5 rounded border border-crimson/50 bg-crimson/10 hover:bg-crimson hover:text-parchment font-display uppercase tracking-wider text-crimson transition-all"
+              >
+                Save
+              </button>
+            </div>
+          </form>
+        )}
+
+        <div className="grid grid-cols-2 gap-2">
+          {activePlaylists.map((pl) => {
+            const isActive = playlistUrl === pl.url;
+            return (
+              <div
+                key={pl.id}
+                className={`group relative flex items-center justify-between rounded border p-2 transition-all text-xs font-serif ${
+                  isActive
+                    ? 'border-crimson/50 bg-crimson/5 text-crimson font-medium shadow-sm'
+                    : 'border-rule bg-parchment/65 hover:bg-parchment text-ink-soft'
+                }`}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onChangePlaylist) onChangePlaylist(pl.url);
+                  }}
+                  className="flex-1 text-left truncate pr-5 font-serif"
+                  title={pl.name}
+                >
+                  {pl.name}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeletePlaylist(pl.id)}
+                  className="absolute right-1 text-ink-mute hover:text-crimson opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Delete scenario"
+                >
+                  <X size={11} />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   if (playlistId || videoId) {
     let embedUrl = '';
     if (playlistId) {
@@ -1879,12 +2020,27 @@ export function MusicPlayer({
             {/* Main controls */}
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3 flex-wrap">
+                {/* Skip Back (GM Only) */}
+                {!readOnly && (
+                  <button
+                    type="button"
+                    onClick={() => ytPlayer?.previousVideo()}
+                    disabled={!isApiReady || !ytPlayer}
+                    className="flex items-center justify-center w-8 h-8 rounded-full border border-rule bg-parchment hover:bg-parchment-deep text-brass-deep transition-all disabled:opacity-50"
+                    aria-label="Previous song"
+                  >
+                    <SkipBack size={14} fill="currentColor" />
+                  </button>
+                )}
+
                 {/* Play/Pause Button */}
                 <button
                   type="button"
                   onClick={togglePlay}
-                  disabled={!isApiReady}
-                  className="flex items-center justify-center w-9 h-9 rounded-full bg-crimson text-parchment hover:bg-wine hover:scale-105 active:scale-95 transition-all shadow-md disabled:opacity-50"
+                  disabled={!isApiReady || readOnly}
+                  className={`flex items-center justify-center w-9 h-9 rounded-full bg-crimson text-parchment transition-all shadow-md disabled:opacity-50 ${
+                    readOnly ? 'cursor-default pointer-events-none' : 'hover:bg-wine hover:scale-105 active:scale-95'
+                  }`}
                   aria-label={isPlaying ? 'Pause music' : 'Play music'}
                 >
                   {!isApiReady ? (
@@ -1895,6 +2051,19 @@ export function MusicPlayer({
                     <Play size={16} className="ml-0.5" fill="currentColor" />
                   )}
                 </button>
+
+                {/* Skip Forward (GM Only) */}
+                {!readOnly && (
+                  <button
+                    type="button"
+                    onClick={() => ytPlayer?.nextVideo()}
+                    disabled={!isApiReady || !ytPlayer}
+                    className="flex items-center justify-center w-8 h-8 rounded-full border border-rule bg-parchment hover:bg-parchment-deep text-brass-deep transition-all disabled:opacity-50"
+                    aria-label="Next song"
+                  >
+                    <SkipForward size={14} fill="currentColor" />
+                  </button>
+                )}
 
                 {/* Play on YouTube Music External Link */}
                 <a
@@ -1943,6 +2112,9 @@ export function MusicPlayer({
           </div>
         </div>
 
+        {/* Scenarios / Multiple Playlists List */}
+        {renderScenarios()}
+
         {/* Bulletproof hidden off-screen iframe */}
         <div className="absolute overflow-hidden" style={{ width: '1px', height: '1px', opacity: 0.01, left: '-9999px', top: '-9999px' }}>
           <iframe
@@ -1971,30 +2143,35 @@ export function MusicPlayer({
   }
 
   return (
-    <form onSubmit={handleConnect} className="space-y-2">
-      <p className="font-serif text-xs italic text-ink-mute">
-        Enter a YouTube playlist or video link to play background ambiance or battle tracks during play.
-      </p>
-      <div className="flex gap-1.5">
-        <input
-          type="text"
-          value={inputUrl}
-          onChange={(e) => {
-            setInputUrl(e.target.value);
-            if (error) setError('');
-          }}
-          placeholder="Paste YouTube playlist URL, video, or ID..."
-          className="flex-1 rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-xs text-ink placeholder:italic placeholder:text-ink-faint focus:border-crimson focus:outline-none"
-        />
-        <button
-          type="submit"
-          disabled={!inputUrl.trim()}
-          className="rounded border border-brass-deep/60 bg-brass/10 px-3 py-1 font-display text-[11px] uppercase tracking-wider text-brass-deep hover:bg-brass hover:text-parchment disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          Connect
-        </button>
-      </div>
-      {error && <p className="px-1 font-serif text-[10px] italic text-crimson">{error}</p>}
-    </form>
+    <div className="space-y-4">
+      <form onSubmit={handleConnect} className="space-y-2">
+        <p className="font-serif text-xs italic text-ink-mute">
+          Enter a YouTube playlist or video link to play background ambiance or battle tracks during play.
+        </p>
+        <div className="flex gap-1.5">
+          <input
+            type="text"
+            value={inputUrl}
+            onChange={(e) => {
+              setInputUrl(e.target.value);
+              if (error) setError('');
+            }}
+            placeholder="Paste YouTube playlist URL, video, or ID..."
+            className="flex-1 rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-xs text-ink placeholder:italic placeholder:text-ink-faint focus:border-crimson focus:outline-none"
+          />
+          <button
+            type="submit"
+            disabled={!inputUrl.trim()}
+            className="rounded border border-brass-deep/60 bg-brass/10 px-3 py-1 font-display text-[11px] uppercase tracking-wider text-brass-deep hover:bg-brass hover:text-parchment disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Connect
+          </button>
+        </div>
+        {error && <p className="px-1 font-serif text-[10px] italic text-crimson">{error}</p>}
+      </form>
+
+      {/* Scenarios / Multiple Playlists List */}
+      {renderScenarios()}
+    </div>
   );
 }

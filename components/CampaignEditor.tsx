@@ -1548,6 +1548,8 @@ function RunSessionInlineActive({
               onChangePlaylist={(next) => setVal('__sessionPlaylist', next)}
               isPlayingProp={!!get('__sessionPlaylistPlaying', false)}
               onChangePlaying={(next) => setVal('__sessionPlaylistPlaying', next)}
+              playlists={(get('__sessionPlaylists', []) as Array<{ id: string; name: string; url: string }>)}
+              onChangePlaylists={(next) => setVal('__sessionPlaylists', next)}
             />
           </PanelShell>
 
