@@ -259,5 +259,6 @@ export function buildSlotProjection(
     maps,
     playlistUrl: data.__sessionPlaylist || '',
     playlistPlaying: !!data.__sessionPlaylistPlaying,
+    playlistIndex: typeof data.__sessionPlaylistIndex === 'number' ? data.__sessionPlaylistIndex : 0,
   };
 }

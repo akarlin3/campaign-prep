@@ -113,6 +113,7 @@ export type SlotProjection = {
   maps?: import('@/lib/maps/playerProjection').PlayerMap[];
   playlistUrl?: string;
   playlistPlaying?: boolean;
+  playlistIndex?: number;
 };
 
 export type CampaignItem = {
@@ -150,6 +151,7 @@ export type PlayerModeData = Partial<Record<PlayerEntityType, PlayerEntity[]>> &
   maps?: unknown;
   __sessionPlaylist?: string;
   __sessionPlaylistPlaying?: boolean;
+  __sessionPlaylistIndex?: number;
 };
 
 export function normalizeItem(it: string | Record<string, any>, index: number): CampaignItem {

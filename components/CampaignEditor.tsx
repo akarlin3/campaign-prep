@@ -1545,11 +1545,16 @@ function RunSessionInlineActive({
           <PanelShell title="Session Music" icon={Music} open={musicOpen} onToggle={() => setMusicOpen(!musicOpen)}>
             <MusicPlayer
               playlistUrl={(get('__sessionPlaylist', '') as string)}
-              onChangePlaylist={(next) => setVal('__sessionPlaylist', next)}
+              onChangePlaylist={(next) => {
+                setVal('__sessionPlaylist', next);
+                setVal('__sessionPlaylistIndex', 0);
+              }}
               isPlayingProp={!!get('__sessionPlaylistPlaying', false)}
               onChangePlaying={(next) => setVal('__sessionPlaylistPlaying', next)}
               playlists={(get('__sessionPlaylists', []) as Array<{ id: string; name: string; url: string }>)}
               onChangePlaylists={(next) => setVal('__sessionPlaylists', next)}
+              playlistIndexProp={(get('__sessionPlaylistIndex', 0) as number)}
+              onChangePlaylistIndex={(next) => setVal('__sessionPlaylistIndex', next)}
             />
           </PanelShell>
 
@@ -2302,6 +2307,7 @@ export default function CampaignEditor({
       m: get('maps', []),
       playlist: get('__sessionPlaylist', ''),
       playing: !!get('__sessionPlaylistPlaying', false),
+      index: get('__sessionPlaylistIndex', 0),
     }),
     [playerConfig, get, playerLog],
   );
@@ -2325,6 +2331,7 @@ export default function CampaignEditor({
             maps: get('maps', []),
             __sessionPlaylist: get('__sessionPlaylist', '') as string,
             __sessionPlaylistPlaying: !!get('__sessionPlaylistPlaying', false),
+            __sessionPlaylistIndex: get('__sessionPlaylistIndex', 0) as number,
           };
           await publishProjections(campaign.id, name || 'Campaign', dataToPublish);
         } catch (e) {

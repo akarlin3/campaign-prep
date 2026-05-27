@@ -85,8 +85,9 @@ export default function PlayerModePanel({
       g: data.pcGoals,
       playlist: data.__sessionPlaylist || '',
       playing: !!data.__sessionPlaylistPlaying,
+      index: data.__sessionPlaylistIndex || 0,
     }),
-    [config, data.npcs, data.locations, data.factions, data.characters, data.clocks, data.handouts, data.playerLog, data.items, data.pcGoals, data.__sessionPlaylist, data.__sessionPlaylistPlaying],
+    [config, data.npcs, data.locations, data.factions, data.characters, data.clocks, data.handouts, data.playerLog, data.items, data.pcGoals, data.__sessionPlaylist, data.__sessionPlaylistPlaying, data.__sessionPlaylistIndex],
   );
   useEffect(() => {
     if (!config?.shareToken) return;
@@ -104,6 +105,7 @@ export default function PlayerModePanel({
         player: config,
         __sessionPlaylist: data.__sessionPlaylist || '',
         __sessionPlaylistPlaying: !!data.__sessionPlaylistPlaying,
+        __sessionPlaylistIndex: data.__sessionPlaylistIndex || 0,
       });
       setPublishState('done');
       setTimeout(() => setPublishState('idle'), 2000);

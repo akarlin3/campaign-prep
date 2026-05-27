@@ -438,6 +438,7 @@ export default function PlayerCampaignView({
   const toggleChar = (id: string) => setOpenCharIds((s) => ({ ...s, [id]: !s[id] }));
   const activePlaylistUrl = playlistUrl || projection?.playlistUrl;
   const activePlaylistPlaying = projection?.playlistPlaying ?? false;
+  const activePlaylistIndex = projection?.playlistIndex ?? 0;
 
   useEffect(() => {
     const unsub = subscribeSlotProjection(token, slotId, setProjection, () => setProjection(null));
@@ -583,6 +584,7 @@ export default function PlayerCampaignView({
                   playlistUrl={activePlaylistUrl}
                   readOnly={true}
                   isPlayingProp={activePlaylistPlaying}
+                  playlistIndexProp={activePlaylistIndex}
                 />
               </div>
             )}

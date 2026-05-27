@@ -91,6 +91,7 @@ export default function RunSessionView({
       i: get('items', []),
       playlist: get('__sessionPlaylist', ''),
       playing: !!get('__sessionPlaylistPlaying', false),
+      index: get('__sessionPlaylistIndex', 0),
     }),
     [playerConfig, get, playerLog],
   );
@@ -115,6 +116,7 @@ export default function RunSessionView({
             maps: get('maps', []),
             __sessionPlaylist: get('__sessionPlaylist', '') as string,
             __sessionPlaylistPlaying: !!get('__sessionPlaylistPlaying', false),
+            __sessionPlaylistIndex: get('__sessionPlaylistIndex', 0) as number,
           };
           await publishProjections(campaignId, campaignName || 'Campaign', dataToPublish);
           setPublishState('done');
@@ -354,11 +356,16 @@ export default function RunSessionView({
       <PanelShell title="Session Music" icon={Music} open={musicOpen} onToggle={() => setMusicOpen(!musicOpen)}>
         <MusicPlayer
           playlistUrl={(get('__sessionPlaylist', '') as string)}
-          onChangePlaylist={(next) => setVal('__sessionPlaylist', next)}
+          onChangePlaylist={(next) => {
+            setVal('__sessionPlaylist', next);
+            setVal('__sessionPlaylistIndex', 0);
+          }}
           isPlayingProp={!!get('__sessionPlaylistPlaying', false)}
           onChangePlaying={(next) => setVal('__sessionPlaylistPlaying', next)}
           playlists={(get('__sessionPlaylists', []) as Array<{ id: string; name: string; url: string }>)}
           onChangePlaylists={(next) => setVal('__sessionPlaylists', next)}
+          playlistIndexProp={(get('__sessionPlaylistIndex', 0) as number)}
+          onChangePlaylistIndex={(next) => setVal('__sessionPlaylistIndex', next)}
         />
       </PanelShell>
 
@@ -1571,6 +1578,8 @@ export function MusicPlayer({
   onChangePlaying,
   playlists,
   onChangePlaylists,
+  playlistIndexProp,
+  onChangePlaylistIndex,
 }: {
   playlistUrl: string;
   onChangePlaylist?: (v: string) => void;
@@ -1579,6 +1588,8 @@ export function MusicPlayer({
   onChangePlaying?: (v: boolean) => void;
   playlists?: Array<{ id: string; name: string; url: string }>;
   onChangePlaylists?: (v: Array<{ id: string; name: string; url: string }>) => void;
+  playlistIndexProp?: number;
+  onChangePlaylistIndex?: (index: number) => void;
 }) {
   const [inputUrl, setInputUrl] = useState(playlistUrl);
   const [error, setError] = useState('');
@@ -1651,6 +1662,19 @@ export function MusicPlayer({
     }
   }, [isPlayingProp, ytPlayer, isApiReady]);
 
+  // Command underlying YT Player when playlistIndexProp changes
+  useEffect(() => {
+    if (!ytPlayer || !isApiReady) return;
+    try {
+      const currentIndex = ytPlayer.getPlaylistIndex();
+      if (typeof playlistIndexProp === 'number' && playlistIndexProp !== currentIndex && playlistIndexProp >= 0) {
+        ytPlayer.playVideoAt(playlistIndexProp);
+      }
+    } catch (e) {
+      console.warn('Failed to sync YT player playlist index with prop state', e);
+    }
+  }, [playlistIndexProp, ytPlayer, isApiReady]);
+
   const { playlistId, videoId } = parseYoutubeUrl(playlistUrl);
 
   const iframeId = `yt-audio-player-iframe`;
@@ -1687,6 +1711,14 @@ export function MusicPlayer({
                 setPlayerState('playing');
                 setIsPlaying(true);
                 onChangePlaying?.(true);
+                try {
+                  const idx = event.target.getPlaylistIndex();
+                  if (typeof idx === 'number' && idx >= 0) {
+                    onChangePlaylistIndex?.(idx);
+                  }
+                } catch (err) {
+                  console.warn('Could not read playlist index on state change', err);
+                }
               } else if (event.data === states.PAUSED) {
                 setPlayerState('paused');
                 setIsPlaying(false);
@@ -2033,24 +2065,24 @@ export function MusicPlayer({
                   </button>
                 )}
 
-                {/* Play/Pause Button */}
-                <button
-                  type="button"
-                  onClick={togglePlay}
-                  disabled={!isApiReady || readOnly}
-                  className={`flex items-center justify-center w-9 h-9 rounded-full bg-crimson text-parchment transition-all shadow-md disabled:opacity-50 ${
-                    readOnly ? 'cursor-default pointer-events-none' : 'hover:bg-wine hover:scale-105 active:scale-95'
-                  }`}
-                  aria-label={isPlaying ? 'Pause music' : 'Play music'}
-                >
-                  {!isApiReady ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : isPlaying ? (
-                    <Pause size={16} fill="currentColor" />
-                  ) : (
-                    <Play size={16} className="ml-0.5" fill="currentColor" />
-                  )}
-                </button>
+                {/* Play/Pause Button (GM Only) */}
+                {!readOnly && (
+                  <button
+                    type="button"
+                    onClick={togglePlay}
+                    disabled={!isApiReady}
+                    className="flex items-center justify-center w-9 h-9 rounded-full bg-crimson text-parchment hover:bg-wine hover:scale-105 active:scale-95 transition-all shadow-md disabled:opacity-50"
+                    aria-label={isPlaying ? 'Pause music' : 'Play music'}
+                  >
+                    {!isApiReady ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : isPlaying ? (
+                      <Pause size={16} fill="currentColor" />
+                    ) : (
+                      <Play size={16} className="ml-0.5" fill="currentColor" />
+                    )}
+                  </button>
+                )}
 
                 {/* Skip Forward (GM Only) */}
                 {!readOnly && (
