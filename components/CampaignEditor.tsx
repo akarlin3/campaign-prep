@@ -2291,7 +2291,10 @@ export default function CampaignEditor({
   const playerConfig = useMemo(() => (get('player', {}) as PlayerConfig) || {}, [get]);
   const playerLog = useMemo(() => (get('playerLog', []) as PlayerLogEntry[]) || [], [get]);
 
-  const publishSignature = useMemo(
+  const prevContentSignatureRef = useRef('');
+  const prevMusicSignatureRef = useRef('');
+
+  const contentSignature = useMemo(
     () => JSON.stringify({
       p: playerConfig,
       n: get('npcs', []),
@@ -2304,15 +2307,32 @@ export default function CampaignEditor({
       i: get('items', []),
       g: get('pcGoals', []),
       m: get('maps', []),
-      playlist: get('__sessionPlaylist', ''),
-      playing: !!get('__sessionPlaylistPlaying', false),
-      index: get('__sessionPlaylistIndex', 0),
     }),
     [playerConfig, get, playerLog],
   );
 
+  const musicSignature = useMemo(
+    () => JSON.stringify({
+      playlist: get('__sessionPlaylist', ''),
+      playing: !!get('__sessionPlaylistPlaying', false),
+      index: get('__sessionPlaylistIndex', 0),
+    }),
+    [get],
+  );
+
   useEffect(() => {
     if (!playerConfig?.shareToken || !campaign.id) return;
+
+    const contentChanged = prevContentSignatureRef.current !== contentSignature;
+    const musicChanged = prevMusicSignatureRef.current !== musicSignature;
+
+    prevContentSignatureRef.current = contentSignature;
+    prevMusicSignatureRef.current = musicSignature;
+
+    if (!contentChanged && !musicChanged) return;
+
+    const delay = (!contentChanged && musicChanged) ? 100 : 1500;
+
     const timer = setTimeout(() => {
       void (async () => {
         try {
@@ -2337,9 +2357,10 @@ export default function CampaignEditor({
           console.error('[CampaignEditor] auto-publish failed', e);
         }
       })();
-    }, 1500);
+    }, delay);
+
     return () => clearTimeout(timer);
-  }, [publishSignature, campaign.id, name, playerLog, playerConfig, get]);
+  }, [contentSignature, musicSignature, campaign.id, name, playerLog, playerConfig, get]);
   const usedPrep = useMemo(() => {
     const sessionLogsV2 = (get('sessionLogV2', [])) || [];
     const linkedNpcIds = new Set<string>();

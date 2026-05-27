@@ -78,7 +78,10 @@ export default function RunSessionView({
   const [publishState, setPublishState] = useState<'idle' | 'publishing' | 'done' | 'error'>('idle');
   const publishTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const publishSignature = useMemo(
+  const prevContentSignatureRef = useRef('');
+  const prevMusicSignatureRef = useRef('');
+
+  const contentSignature = useMemo(
     () => JSON.stringify({
       p: playerConfig,
       n: get('npcs', []),
@@ -89,15 +92,32 @@ export default function RunSessionView({
       h: get('handouts', ''),
       s: playerLog,
       i: get('items', []),
-      playlist: get('__sessionPlaylist', ''),
-      playing: !!get('__sessionPlaylistPlaying', false),
-      index: get('__sessionPlaylistIndex', 0),
     }),
     [playerConfig, get, playerLog],
   );
 
+  const musicSignature = useMemo(
+    () => JSON.stringify({
+      playlist: get('__sessionPlaylist', ''),
+      playing: !!get('__sessionPlaylistPlaying', false),
+      index: get('__sessionPlaylistIndex', 0),
+    }),
+    [get],
+  );
+
   useEffect(() => {
     if (!playerConfig?.shareToken || !campaignId) return;
+
+    const contentChanged = prevContentSignatureRef.current !== contentSignature;
+    const musicChanged = prevMusicSignatureRef.current !== musicSignature;
+
+    prevContentSignatureRef.current = contentSignature;
+    prevMusicSignatureRef.current = musicSignature;
+
+    if (!contentChanged && !musicChanged) return;
+
+    const delay = (!contentChanged && musicChanged) ? 100 : 1500;
+
     if (publishTimer.current) clearTimeout(publishTimer.current);
     publishTimer.current = setTimeout(() => {
       void (async () => {
@@ -126,10 +146,11 @@ export default function RunSessionView({
           setPublishState('error');
         }
       })();
-    }, 1500);
+    }, delay);
+
     return () => { if (publishTimer.current) clearTimeout(publishTimer.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [publishSignature, campaignId, campaignName]);
+  }, [contentSignature, musicSignature, campaignId, campaignName]);
 
   // Generic helper to post narrative clues/events to the player feed
   const shareToPlayerLog = (text: string, mentions: Mention[] = []) => {
@@ -1668,31 +1689,45 @@ export function MusicPlayer({
     try {
       const currentIndex = ytPlayer.getPlaylistIndex();
       if (typeof playlistIndexProp === 'number' && playlistIndexProp !== currentIndex && playlistIndexProp >= 0) {
-        ytPlayer.playVideoAt(playlistIndexProp);
+        if (isPlayingProp) {
+          ytPlayer.playVideoAt(playlistIndexProp);
+        } else {
+          ytPlayer.cueVideoAt(playlistIndexProp);
+        }
       }
     } catch (e) {
       console.warn('Failed to sync YT player playlist index with prop state', e);
     }
-  }, [playlistIndexProp, ytPlayer, isApiReady]);
+  }, [playlistIndexProp, ytPlayer, isApiReady, isPlayingProp]);
 
   const { playlistId, videoId } = parseYoutubeUrl(playlistUrl);
 
   const iframeId = `yt-audio-player-iframe`;
 
-  // Dynamic YT Iframe Player API Loader & Binder
+  // Dynamic YT Iframe Player API Loader & Binder (Stable mount / single init)
   useEffect(() => {
-    if (!playlistId && !videoId) return;
+    if (ytPlayer || (!playlistId && !videoId)) return;
 
     let player: any = null;
     let timer: NodeJS.Timeout;
 
     const initPlayer = () => {
-      const iframeElement = document.getElementById(iframeId);
-      if (!iframeElement) return;
+      const element = document.getElementById(iframeId);
+      if (!element) return;
 
       try {
         // @ts-ignore
         player = new window.YT.Player(iframeId, {
+          height: '1',
+          width: '1',
+          videoId: videoId || undefined,
+          playerVars: {
+            listType: playlistId ? 'playlist' : undefined,
+            list: playlistId || undefined,
+            enablejsapi: 1,
+            autoplay: isPlayingProp ? 1 : 0,
+            index: playlistIndexProp || 0,
+          },
           events: {
             onReady: () => {
               setYtPlayer(player);
@@ -1757,7 +1792,6 @@ export function MusicPlayer({
         initPlayer();
       };
     } else {
-      // API already loaded, wait for the DOM to render the iframe then initialize
       timer = setTimeout(() => {
         initPlayer();
       }, 500);
@@ -1777,7 +1811,29 @@ export function MusicPlayer({
       setIsApiReady(false);
       setPlayerState('unknown');
     };
-  }, [playlistId, videoId, readOnly]);
+  }, [playlistId, videoId, ytPlayer]);
+
+  // React to playlist/video changes in-place on the stable player instance
+  useEffect(() => {
+    if (!ytPlayer || !isApiReady) return;
+    try {
+      if (playlistId) {
+        if (isPlayingProp) {
+          ytPlayer.loadPlaylist(playlistId, playlistIndexProp || 0);
+        } else {
+          ytPlayer.cuePlaylist(playlistId, playlistIndexProp || 0);
+        }
+      } else if (videoId) {
+        if (isPlayingProp) {
+          ytPlayer.loadVideoById(videoId);
+        } else {
+          ytPlayer.cueVideoById(videoId);
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load/cue new video/playlist in-place', e);
+    }
+  }, [playlistId, videoId, ytPlayer, isApiReady]);
 
   const handleConnect = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1993,16 +2049,9 @@ export function MusicPlayer({
           />
         </div>
 
-        {/* Bulletproof hidden off-screen iframe */}
+        {/* Bulletproof hidden off-screen container */}
         <div className="absolute overflow-hidden" style={{ width: '1px', height: '1px', opacity: 0.01, left: '-9999px', top: '-9999px' }}>
-          <iframe
-            id={iframeId}
-            src={embedUrl}
-            title="YouTube Music Player"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-            className="border-0 w-full h-full"
-          />
+          <div id={iframeId} />
         </div>
       </div>
     );
@@ -2230,16 +2279,9 @@ export function MusicPlayer({
         {/* Scenarios / Multiple Playlists List */}
         {renderScenarios()}
 
-        {/* Bulletproof hidden off-screen iframe */}
+        {/* Bulletproof hidden off-screen container */}
         <div className="absolute overflow-hidden" style={{ width: '1px', height: '1px', opacity: 0.01, left: '-9999px', top: '-9999px' }}>
-          <iframe
-            id={iframeId}
-            src={embedUrl}
-            title="YouTube Music Player"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-            className="border-0 w-full h-full"
-          />
+          <div id={iframeId} />
         </div>
 
         <p className="px-1 font-serif text-[10px] italic leading-normal text-ink-mute">
