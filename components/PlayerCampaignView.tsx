@@ -5,10 +5,12 @@
 // No edit affordances; mobile-first.
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollText, Users, Map, Flag, Clock, BookOpen, UserCircle, Gift, Compass, Target, Heart, Plus, X } from 'lucide-react';
+import { ScrollText, Users, Map, Flag, Clock, BookOpen, UserCircle, Gift, Compass, Target, Heart, Plus, X, Music, ChevronDown, ChevronRight } from 'lucide-react';
 import { subscribeSlotProjection } from '@/lib/playerMode/playerClient';
 import type { SlotProjection } from '@/lib/playerMode/types';
 import PlayerMapView from '@/components/maps/PlayerMapView';
+import CharacterCard from './CharacterCard';
+import { MusicPlayer } from './RunSessionView';
 
 type AnyRec = Record<string, unknown>;
 
@@ -417,12 +419,23 @@ function PlayerPcSheetCard({ pc, token, slotId }: { pc: any; token: string; slot
 
 export default function PlayerCampaignView({
   token, slotId, displayName, campaignName, onSwitch,
+  playlistUrl, sessionRecaps, unredactedCharacters,
 }: {
-  token: string; slotId: string; displayName: string; campaignName: string; onSwitch: () => void;
+  token: string;
+  slotId: string;
+  displayName: string;
+  campaignName: string;
+  onSwitch: () => void;
+  playlistUrl?: string;
+  sessionRecaps?: Array<{ id: string; title: string; date: string; body: string }>;
+  unredactedCharacters?: any[];
 }) {
   const [projection, setProjection] = useState<SlotProjection | null | undefined>(undefined);
   const [active, setActive] = useState<string>('');
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
+  const [musicOpen, setMusicOpen] = useState(true);
+  const [openCharIds, setOpenCharIds] = useState<Record<string, boolean>>({});
+  const toggleChar = (id: string) => setOpenCharIds((s) => ({ ...s, [id]: !s[id] }));
 
   useEffect(() => {
     const unsub = subscribeSlotProjection(token, slotId, setProjection, () => setProjection(null));
@@ -434,10 +447,15 @@ export default function PlayerCampaignView({
     const out: { id: string; label: string; icon: React.ReactNode }[] = [];
     for (const [type, meta] of Object.entries(TYPE_META)) {
       const items = projection.entities[type as keyof SlotProjection['entities']];
-      if (items && items.length > 0) out.push({ id: type, label: meta.label, icon: meta.icon });
+      if ((items && items.length > 0) || (type === 'characters' && unredactedCharacters && unredactedCharacters.length > 0)) {
+        out.push({ id: type, label: meta.label, icon: meta.icon });
+      }
     }
     if (projection.maps && projection.maps.length > 0) out.push({ id: 'maps', label: 'Maps', icon: <Map size={15} /> });
     if (projection.sessionLog.length > 0) out.push({ id: 'log', label: 'Log', icon: <ScrollText size={15} /> });
+    if (sessionRecaps && sessionRecaps.length > 0) {
+      out.push({ id: 'recaps', label: 'Recaps', icon: <ScrollText size={15} /> });
+    }
     if (projection.handouts) out.push({ id: 'handouts', label: 'Handouts', icon: <BookOpen size={15} /> });
     if (projection.items && projection.items.length > 0) {
       out.push({ id: 'items', label: 'My Items', icon: <Gift size={15} /> });
@@ -527,6 +545,43 @@ export default function PlayerCampaignView({
             <button onClick={onSwitch} className="font-display text-[10px] uppercase tracking-wider text-crimson hover:text-wine">Switch player</button>
           </div>
         </header>
+
+        {/* Live Session Music (Pulsing Widget) */}
+        {playlistUrl && (
+          <div className="bg-parchment-soft border border-rule rounded-lg shadow-page p-4 space-y-3">
+            <button
+              onClick={() => setMusicOpen(!musicOpen)}
+              className="flex w-full items-center justify-between text-left focus:outline-none"
+            >
+              <div className="flex items-center gap-2">
+                <div className="relative flex items-center justify-center">
+                  <Music className="text-crimson" size={18} />
+                  <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-crimson opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-crimson"></span>
+                  </span>
+                </div>
+                <div>
+                  <div className="font-display text-[10px] uppercase tracking-wider text-brass-deep">
+                    Session Ambiance
+                  </div>
+                  <h2 className="font-display text-sm tracking-wide text-ink">Live Music from GM</h2>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-[11px] font-serif text-ink-mute italic">
+                  {musicOpen ? 'Hide player' : 'Show player'}
+                </span>
+                {musicOpen ? <ChevronDown size={16} className="text-ink-mute" /> : <ChevronRight size={16} className="text-ink-mute" />}
+              </div>
+            </button>
+            {musicOpen && (
+              <div className="border-t border-rule/60 pt-3">
+                <MusicPlayer playlistUrl={playlistUrl} readOnly={true} />
+              </div>
+            )}
+          </div>
+        )}
 
         {alertMessage && (
           <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded relative font-serif text-sm flex items-center justify-between shadow-card" role="alert">
@@ -746,6 +801,40 @@ export default function PlayerCampaignView({
                       </div>
                     );
                   })}
+                </div>
+              ) : active === 'characters' ? (
+                <div className="space-y-4">
+                  {unredactedCharacters && unredactedCharacters.length > 0 ? (
+                    unredactedCharacters.map((c: any, i: number) => (
+                      <CharacterCard
+                        key={c.id || i}
+                        data={c}
+                        open={!!openCharIds[c.id || i]}
+                        soloMode={false}
+                        onToggleOpen={() => toggleChar(c.id || i)}
+                        onChange={() => {}} // Read-only
+                        onRemove={() => {}}
+                      />
+                    ))
+                  ) : (
+                    (projection.entities.characters ?? []).map((e) => (
+                      <EntityCard key={e.id as string} entity={e} />
+                    ))
+                  )}
+                </div>
+              ) : active === 'recaps' ? (
+                <div className="space-y-6">
+                  {sessionRecaps?.map((log: any, i: number) => (
+                    <div key={log.id || i} className="bg-parchment-soft border border-rule rounded p-4 shadow-card">
+                      <div className="flex justify-between items-baseline mb-3 border-b border-rule pb-2">
+                        <h3 className="font-display text-lg tracking-wide text-ink">{log.title || 'Untitled Session'}</h3>
+                        <span className="font-serif text-sm text-ink-mute italic">{log.date}</span>
+                      </div>
+                      <div className="font-serif text-sm text-ink-soft whitespace-pre-wrap leading-relaxed">
+                        {log.body || 'No notes.'}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2">

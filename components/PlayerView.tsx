@@ -4,7 +4,7 @@
 // with the unauthenticated green link view. It reads the GM-published redacted
 // SlotProjection from Firestore using the campaign's shareToken and presents the slot picker.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { type Campaign } from '@/lib/firebase/campaigns';
 import { subscribeShareMeta } from '@/lib/playerMode/playerClient';
@@ -19,6 +19,33 @@ export default function PlayerView({ campaign, userEmail }: { campaign: Campaign
   const shareToken = campaign.data?.player?.shareToken;
   const [meta, setMeta] = useState<ShareMeta | null | undefined>(undefined);
   const [slotId, setSlotId] = useState<string | null>(null);
+
+  const playlistUrl = campaign.data?.__sessionPlaylist || '';
+  const characters = useMemo(() => Array.isArray(campaign.data?.characters) ? campaign.data.characters : [], [campaign.data?.characters]);
+  const sessionLogs = useMemo(() => Array.isArray(campaign.data?.sessionLogs) ? campaign.data.sessionLogs : [], [campaign.data?.sessionLogs]);
+  const sessionLogsV2 = useMemo(() => Array.isArray(campaign.data?.sessionLogV2) ? campaign.data.sessionLogV2 : [], [campaign.data?.sessionLogV2]);
+
+  const allRecaps = useMemo(() => {
+    const list: Array<{ id: string; title: string; date: string; body: string }> = [];
+    sessionLogs.forEach(l => {
+      list.push({
+        id: l.id,
+        title: l.title || 'Untitled Session',
+        date: l.date || '',
+        body: l.body || 'No notes.',
+      });
+    });
+    sessionLogsV2.forEach((l: any) => {
+      if (list.some(x => x.id === l.id)) return;
+      list.push({
+        id: l.id,
+        title: l.title || `Session ${l.number || ''}`,
+        date: l.date || '',
+        body: l.recap || 'No notes.',
+      });
+    });
+    return list.sort((a, b) => b.date.localeCompare(a.date));
+  }, [sessionLogs, sessionLogsV2]);
 
   useEffect(() => {
     if (!shareToken) return;
@@ -99,6 +126,9 @@ export default function PlayerView({ campaign, userEmail }: { campaign: Campaign
           displayName={slot?.displayName ?? 'Player'}
           campaignName={meta.campaignName}
           onSwitch={switchPlayer}
+          playlistUrl={playlistUrl}
+          sessionRecaps={allRecaps}
+          unredactedCharacters={characters}
         />
       </div>
     );
