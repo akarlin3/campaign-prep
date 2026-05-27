@@ -8,6 +8,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { User, X, Sparkles, Plus, Check, ChevronDown, ChevronRight, Eye, EyeOff } from 'lucide-react';
 import { TABLES, sampleTable } from '@/lib/inspirationTables';
+import { LockedInline } from '@/components/LockedFeature';
+import { VoiceProfilePicker } from '@/components/voice/VoiceProfilePicker';
 import RelationshipsSection from '@/components/wiki/RelationshipsSection';
 
 export const M = {
@@ -409,7 +411,7 @@ export const NPCFieldRow = ({
   </div>
 );
 
-export const NPCCard = ({ data, onChange, onRemove, defaultDetailsOpen = false }: any) => {
+export const NPCCard = ({ data, onChange, onRemove, defaultDetailsOpen = false, isPro = false }: any) => {
   const [showDetails, setShowDetails] = useState<boolean>(
     defaultDetailsOpen ||
     !!(data.appearance || data.abilities || data.talent || data.mannerism ||
@@ -485,6 +487,19 @@ export const NPCCard = ({ data, onChange, onRemove, defaultDetailsOpen = false }
         </div>
       )}
       <RelationshipsSection entityType="npc" entityId={data.id} entityName={data.name} />
+      {isPro ? (
+        <VoiceProfilePicker
+          npcName={data.name || 'this NPC'}
+          npcId={data.id}
+          value={data.voiceProfile}
+          onChange={(profile: any) => onChange({ ...data, voiceProfile: profile })}
+        />
+      ) : (
+        <div className="flex items-center justify-between gap-2 rounded border border-rule bg-parchment-soft px-2.5 py-1.5">
+          <span className="font-display text-[10px] uppercase tracking-wider text-ink-mute">Speak This NPC's Lines</span>
+          <LockedInline label="Voice" />
+        </div>
+      )}
     </div>
   );
 };
