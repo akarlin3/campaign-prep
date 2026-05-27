@@ -1615,6 +1615,9 @@ export function MusicPlayer({
   const { playlistId, videoId } = parseYoutubeUrl(playlistUrl);
   const hasContent = !!playlistId || !!videoId;
 
+  const volumeKey = readOnly ? 'gmbuilder_player_music_player_volume' : 'gmbuilder_gm_music_player_volume';
+  const mutedKey = readOnly ? 'gmbuilder_player_music_player_muted' : 'gmbuilder_gm_music_player_muted';
+
   const [inputUrl, setInputUrl] = useState(playlistUrl);
   const [error, setError] = useState('');
 
@@ -1664,19 +1667,19 @@ export function MusicPlayer({
   // Load persisted volume & mute state from localStorage on client-side mount
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const savedVolume = window.localStorage.getItem('gmbuilder_music_player_volume');
+      const savedVolume = window.localStorage.getItem(volumeKey);
       if (savedVolume !== null) {
         const parsed = parseInt(savedVolume, 10);
         if (!isNaN(parsed)) {
           setVolume(parsed);
         }
       }
-      const savedMuted = window.localStorage.getItem('gmbuilder_music_player_muted');
+      const savedMuted = window.localStorage.getItem(mutedKey);
       if (savedMuted !== null) {
         setIsMuted(savedMuted === 'true');
       }
     }
-  }, []);
+  }, [volumeKey, mutedKey]);
 
   // Playlists scenario management
   const activePlaylists = playlists && playlists.length > 0 ? playlists : DEFAULT_SCENARIOS;
@@ -1978,7 +1981,7 @@ export function MusicPlayer({
     const nextMuted = !isMuted;
     setIsMuted(nextMuted);
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem('gmbuilder_music_player_muted', String(nextMuted));
+      window.localStorage.setItem(mutedKey, String(nextMuted));
     }
     if (ytPlayer) {
       if (nextMuted) {
@@ -1993,7 +1996,7 @@ export function MusicPlayer({
     const nextVolume = parseInt(e.target.value, 10);
     setVolume(nextVolume);
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem('gmbuilder_music_player_volume', String(nextVolume));
+      window.localStorage.setItem(volumeKey, String(nextVolume));
     }
     if (ytPlayer) {
       ytPlayer.setVolume(nextVolume);
@@ -2001,7 +2004,7 @@ export function MusicPlayer({
         ytPlayer.unMute();
         setIsMuted(false);
         if (typeof window !== 'undefined') {
-          window.localStorage.setItem('gmbuilder_music_player_muted', 'false');
+          window.localStorage.setItem(mutedKey, 'false');
         }
       }
     }
@@ -2383,14 +2386,14 @@ export function MusicPlayer({
               </div>
 
               {/* Volume Controls */}
-              <div className="flex items-center gap-2 max-w-[130px] flex-1">
+              <div className="flex items-center gap-2.5 w-32 sm:w-44 flex-shrink-0 justify-end">
                 <button
                   type="button"
                   onClick={toggleMute}
-                  className="text-ink-mute hover:text-crimson transition-colors p-1"
+                  className="text-ink-mute hover:text-crimson transition-colors p-1 flex-shrink-0 focus:outline-none"
                   aria-label={isMuted ? 'Unmute' : 'Mute'}
                 >
-                  {isMuted || volume === 0 ? <VolumeX size={14} /> : <Volume2 size={14} />}
+                  {isMuted || volume === 0 ? <VolumeX size={15} /> : <Volume2 size={15} />}
                 </button>
                 <input
                   type="range"
@@ -2398,7 +2401,7 @@ export function MusicPlayer({
                   max="100"
                   value={isMuted ? 0 : volume}
                   onChange={handleVolumeChange}
-                  className="w-full accent-crimson h-1 bg-rule/50 rounded-lg appearance-none cursor-pointer disabled:opacity-50"
+                  className="w-full accent-crimson h-1 bg-rule/50 rounded-lg appearance-none cursor-pointer disabled:opacity-50 focus:outline-none"
                 />
               </div>
             </div>
