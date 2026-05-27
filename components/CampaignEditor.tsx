@@ -2416,6 +2416,7 @@ export default function CampaignEditor({
   const contentSignature = useMemo(
     () => JSON.stringify({
       p: playerConfig,
+      pcs: get('pcs', []),
       n: get('npcs', []),
       l: get('locations', []),
       f: get('factions', []),
@@ -2457,6 +2458,7 @@ export default function CampaignEditor({
         try {
           const dataToPublish = {
             player: playerConfig,
+            pcs: get('pcs', []),
             npcs: get('npcs', []),
             locations: get('locations', []),
             factions: get('factions', []),
