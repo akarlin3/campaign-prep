@@ -12,7 +12,7 @@ import {
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
 import { readFileSync } from 'fs';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore';
 
 const PROJECT_ID = 'player-mode-rules-test';
 const hasEmulator = !!process.env.FIRESTORE_EMULATOR_HOST;
@@ -118,5 +118,27 @@ d('Player Mode Firestore rules', () => {
     await assertSucceeds(setDoc(doc(db, 'playerShares', 'any-token'), {
       campaignId: CAMPAIGN_ID, campaignName: 'Test Campaign', tokenVersion: 1, roster: [],
     }));
+  });
+
+  it('owning GM can read their campaign’s pcWritebacks subcollection', async () => {
+    const db = env.authenticatedContext(GM_UID).firestore();
+    await assertSucceeds(getDocs(collection(db, 'campaigns', CAMPAIGN_ID, 'pcWritebacks')));
+  });
+
+  it('owning GM can write to their campaign’s pcWritebacks subcollection', async () => {
+    const db = env.authenticatedContext(GM_UID).firestore();
+    await assertSucceeds(setDoc(doc(db, 'campaigns', CAMPAIGN_ID, 'pcWritebacks', 'slot-1'), {
+      pcId: 'pc-1', slotId: 'slot-1', updates: {}, updatedAt: 12345
+    }));
+  });
+
+  it('non-owner GM cannot read pcWritebacks of someone else’s campaign', async () => {
+    const db = env.authenticatedContext(OTHER_GM_UID).firestore();
+    await assertFails(getDocs(collection(db, 'campaigns', CAMPAIGN_ID, 'pcWritebacks')));
+  });
+
+  it('unauthenticated client cannot read pcWritebacks', async () => {
+    const db = env.unauthenticatedContext().firestore();
+    await assertFails(getDocs(collection(db, 'campaigns', CAMPAIGN_ID, 'pcWritebacks')));
   });
 });

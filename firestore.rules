@@ -65,8 +65,7 @@ service cloud.firestore {
         && resource.data.userId == request.auth.uid;
 
       match /pcWritebacks/{playerSlotId} {
-        allow read, write: if request.auth != null
-          && get(/databases/$(database)/documents/campaigns/$(campaignId)).data.userId == request.auth.uid;
+        allow read, write: if ownsCampaign(campaignId);
       }
     }
 
