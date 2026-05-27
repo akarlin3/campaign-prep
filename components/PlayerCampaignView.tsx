@@ -601,7 +601,13 @@ export default function PlayerCampaignView({
   }, [projection, tabs]);
 
   useEffect(() => {
-    if (tabs.length > 0 && !tabs.some((t) => t.id === active)) setActive(tabs[0].id);
+    // Only set the default active tab on initial load when 'active' is unset.
+    // If a tab temporarily disappears from the calculated 'tabs' list due to
+    // Firestore synchronization latency, we preserve the active selection
+    // to prevent the player from losing their place in the UI.
+    if (tabs.length > 0 && !active) {
+      setActive(tabs[0].id);
+    }
   }, [tabs, active]);
 
   const isEmpty = projection && tabs.length === 0;
