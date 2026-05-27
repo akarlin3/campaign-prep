@@ -209,6 +209,7 @@ export function buildSlotProjection(
       });
     }
   }
+  projectedItems.sort((a, b) => a.name.localeCompare(b.name));
 
   // Project planning & worldbuilding aspects redacted by planningVisibility choices.
   const pv = config.planningVisibility ?? {};

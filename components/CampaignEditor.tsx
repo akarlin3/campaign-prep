@@ -1358,9 +1358,22 @@ function RunSessionInlineActive({
                               value={item.assignedPlayerId || ''}
                               onChange={(e) => {
                                 const slotId = e.target.value || undefined;
-                                const nextItems = [...magicItemsList];
-                                nextItems[i] = { ...item, assignedPlayerId: slotId };
-                                setVal('items', nextItems);
+                                const allItems = [...((get('items', []) as any[]) || [])];
+                                const targetIndex = allItems.findIndex((it) => {
+                                  if (typeof it === 'object' && it && typeof item === 'object' && item) {
+                                    return it.id === item.id || (it.name === item.name && it.description === item.description);
+                                  }
+                                  return it === item || it === item.name;
+                                });
+                                if (targetIndex !== -1) {
+                                  const originalItem = allItems[targetIndex];
+                                  if (typeof originalItem === 'object' && originalItem) {
+                                    allItems[targetIndex] = { ...originalItem, assignedPlayerId: slotId };
+                                  } else {
+                                    allItems[targetIndex] = { name: item.name, description: item.description, assignedPlayerId: slotId };
+                                  }
+                                  setVal('items', allItems);
+                                }
 
                                 if (givenItems.includes(item.name)) {
                                   const currentEvents = (get('__sessionChangeEvents', []) as ChangeEvent[]) || [];
@@ -1397,9 +1410,22 @@ function RunSessionInlineActive({
                                 value={item.playerVisibility || 'full'}
                                 onChange={(e) => {
                                   const vis = e.target.value as 'name-only' | 'full';
-                                  const nextItems = [...magicItemsList];
-                                  nextItems[i] = { ...item, playerVisibility: vis };
-                                  setVal('items', nextItems);
+                                  const allItems = [...((get('items', []) as any[]) || [])];
+                                  const targetIndex = allItems.findIndex((it) => {
+                                    if (typeof it === 'object' && it && typeof item === 'object' && item) {
+                                      return it.id === item.id || (it.name === item.name && it.description === item.description);
+                                    }
+                                    return it === item || it === item.name;
+                                  });
+                                  if (targetIndex !== -1) {
+                                    const originalItem = allItems[targetIndex];
+                                    if (typeof originalItem === 'object' && originalItem) {
+                                      allItems[targetIndex] = { ...originalItem, playerVisibility: vis };
+                                    } else {
+                                      allItems[targetIndex] = { name: item.name, description: item.description, playerVisibility: vis };
+                                    }
+                                    setVal('items', allItems);
+                                  }
                                 }}
                                 className="rounded border border-rule bg-parchment px-1.5 py-0.5 text-ink-soft cursor-pointer focus:outline-none"
                               >
