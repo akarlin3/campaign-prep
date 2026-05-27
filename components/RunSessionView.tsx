@@ -1720,13 +1720,9 @@ export function MusicPlayer({
         player = new window.YT.Player(iframeId, {
           height: '1',
           width: '1',
-          videoId: videoId || undefined,
           playerVars: {
-            listType: playlistId ? 'playlist' : undefined,
-            list: playlistId || undefined,
             enablejsapi: 1,
             autoplay: isPlayingProp ? 1 : 0,
-            index: playlistIndexProp || 0,
           },
           events: {
             onReady: () => {
@@ -1736,7 +1732,18 @@ export function MusicPlayer({
                 setVolume(player.getVolume() || 100);
                 setIsMuted(player.isMuted() || false);
                 if (playlistId) {
+                  if (isPlayingProp) {
+                    player.loadPlaylist(playlistId, playlistIndexProp || 0);
+                  } else {
+                    player.cuePlaylist(playlistId, playlistIndexProp || 0);
+                  }
                   player.setShuffle(true);
+                } else if (videoId) {
+                  if (isPlayingProp) {
+                    player.loadVideoById(videoId);
+                  } else {
+                    player.cueVideoById(videoId);
+                  }
                 }
               } catch (err) {
                 console.warn('Could not read initial player settings', err);
@@ -1783,7 +1790,7 @@ export function MusicPlayer({
 
     // Load API dynamically
     // @ts-ignore
-    if (!window.YT) {
+    if (!window.YT || !window.YT.Player) {
       const tag = document.createElement('script');
       tag.src = 'https://www.youtube.com/iframe_api';
       const firstScriptTag = document.getElementsByTagName('script')[0];
