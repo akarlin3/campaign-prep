@@ -1,11 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { type Campaign, approvePlayer, rejectPlayer, removePlayer } from '@/lib/firebase/campaigns';
 import { Users, Check, X, Copy, CheckCircle2, Trash2 } from 'lucide-react';
 
 export default function PlayersManager({ campaign }: { campaign: Campaign }) {
   const [copied, setCopied] = useState(false);
+  const [alignRight, setAlignRight] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
   const pendingPlayers = campaign.pendingPlayers || [];
   const playerIds = campaign.playerIds || [];
+
+  const updateAlignment = () => {
+    if (!containerRef.current || typeof window === 'undefined') return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const spaceToRight = window.innerWidth - rect.left;
+    // The popup width is w-72 (288px). We use 300px to allow for scrollbars and padding.
+    setAlignRight(spaceToRight < 300);
+  };
+
+  useEffect(() => {
+    updateAlignment();
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', updateAlignment);
+      return () => window.removeEventListener('resize', updateAlignment);
+    }
+  }, []);
 
   const handleCopyLink = () => {
     if (typeof window === 'undefined') return;
@@ -43,7 +62,11 @@ export default function PlayersManager({ campaign }: { campaign: Campaign }) {
   };
 
   return (
-    <div className="relative group inline-block">
+    <div
+      ref={containerRef}
+      onMouseEnter={updateAlignment}
+      className="relative group inline-block"
+    >
       <button className="text-xs font-display uppercase tracking-wider flex items-center gap-1.5 transition-colors px-3 py-1.5 rounded bg-moss/10 text-moss hover:bg-moss hover:text-parchment border border-moss/40 shadow-sm">
         <Users size={14} />
         {playerIds.length === 0 ? 'Invite players' : `Players (${playerIds.length})`}
@@ -54,7 +77,7 @@ export default function PlayersManager({ campaign }: { campaign: Campaign }) {
         )}
       </button>
 
-      <div className="absolute right-0 top-full mt-2 w-72 rounded-lg border border-rule bg-parchment shadow-xl z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
+      <div className={`absolute ${alignRight ? 'right-0' : 'left-0'} top-full mt-2 w-72 rounded-lg border border-rule bg-parchment shadow-xl z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all`}>
         <div className="p-3 border-b border-rule bg-parchment-soft rounded-t-lg">
           <div className="font-display text-sm tracking-wide text-ink mb-2">Invite Link</div>
           <button
