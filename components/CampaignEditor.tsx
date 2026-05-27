@@ -4153,6 +4153,7 @@ export default function CampaignEditor({
                   onUpdate={updatePc}
                   onRemove={removePc}
                   onUploadClick={() => pcFileInputRef.current?.click()}
+                  roster={roster}
                 />
                 <input
                   ref={pcFileInputRef}

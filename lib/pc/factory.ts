@@ -15,6 +15,7 @@ import {
   type InventoryItem,
   type PcClass,
   type PlayerCharacter,
+  type PcOwnership,
   type SkillName,
   type SpellSlot,
   type SpellSlotLevel,
@@ -63,6 +64,7 @@ export function emptyPc(): PlayerCharacter {
     bonds: [],
     ideals: [],
     flaws: [],
+    ownership: { ownerType: 'dm' },
   };
 }
 
@@ -190,6 +192,16 @@ function normSpellSlots(
   return any ? out : undefined;
 }
 
+function normOwnership(v: unknown): PcOwnership {
+  if (!v || typeof v !== 'object') return { ownerType: 'dm' };
+  const o = v as Record<string, unknown>;
+  const ownerType = o.ownerType === 'player' ? 'player' : 'dm';
+  return {
+    ownerType,
+    ...(o.playerSlotId ? { playerSlotId: asStr(o.playerSlotId) } : {}),
+  };
+}
+
 export function normalizePc(input: unknown): PlayerCharacter {
   const base = emptyPc();
   if (!input || typeof input !== 'object') return base;
@@ -259,6 +271,7 @@ export function normalizePc(input: unknown): PlayerCharacter {
     bonds: asStrArr(o.bonds),
     ideals: asStrArr(o.ideals),
     flaws: asStrArr(o.flaws),
+    ownership: normOwnership(o.ownership),
   };
 }
 
