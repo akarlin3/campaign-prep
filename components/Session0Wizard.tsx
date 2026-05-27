@@ -40,7 +40,10 @@ export default function Session0Wizard({
 
   // Screen 1: Name and Mode
   const [name, setName] = useState(initialName || 'New Campaign');
-  const [wizardSoloMode, setWizardSoloMode] = useState<boolean>(initialSoloMode);
+  const [wizardPlayMode, setWizardPlayMode] = useState<'solo' | 'duet' | 'standard'>(
+    initialSoloMode ? 'duet' : 'standard'
+  );
+  const wizardSoloMode = wizardPlayMode === 'solo' || wizardPlayMode === 'duet';
 
   // Screen 2: Pitch
   const [pitch, setPitch] = useState('');
@@ -51,10 +54,10 @@ export default function Session0Wizard({
   );
   const [truths, setTruths] = useState<string[]>(['', '', '', '', '', '']);
 
-  // Sync truthsMode when wizardSoloMode changes
+  // Sync truthsMode when wizardPlayMode changes
   useEffect(() => {
-    setTruthsMode(wizardSoloMode ? 'three' : 'six');
-  }, [wizardSoloMode]);
+    setTruthsMode(wizardPlayMode === 'solo' ? 'three' : 'six');
+  }, [wizardPlayMode]);
 
   // Screen 4: Solo Character
   const [pcName, setPcName] = useState('');
@@ -98,6 +101,7 @@ export default function Session0Wizard({
 
   const buildPatch = (): WizardPatch => {
     const patch: WizardPatch = {
+      mode: wizardPlayMode,
       soloMode: wizardSoloMode,
     };
     if (!skipped[1] && name.trim()) patch.name = name.trim();
@@ -188,39 +192,75 @@ export default function Session0Wizard({
 
                 <div className="space-y-2">
                   <div className="font-display text-xs uppercase tracking-wider text-brass-deep">Choose Campaign Type</div>
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                     {/* Solo Card */}
                     <button
                       type="button"
-                      onClick={() => setWizardSoloMode(true)}
+                      onClick={() => setWizardPlayMode('solo')}
                       className={`flex flex-col justify-between rounded border p-4 text-left transition-all duration-200 hover:shadow-md ${
-                        wizardSoloMode
-                          ? 'border-crimson bg-crimson/5 shadow-sm ring-1 ring-crimson/30'
-                          : 'border-rule bg-parchment hover:border-brass/60'
+                        wizardPlayMode === 'solo'
+                          ? 'border-pink-500 bg-pink-500/5 shadow-sm ring-1 ring-pink-500/30'
+                          : 'border-rule bg-parchment hover:border-pink-500/60'
                       }`}
                     >
                       <div>
                         <div className="mb-2 flex items-center gap-2">
-                          <div className={`rounded p-1.5 ${wizardSoloMode ? 'bg-crimson/15 text-crimson' : 'bg-parchment-deep text-ink-soft'}`}>
+                          <div className={`rounded p-1.5 ${wizardPlayMode === 'solo' ? 'bg-pink-500/15 text-pink-500' : 'bg-parchment-deep text-ink-soft'}`}>
                             <User size={18} />
                           </div>
                           <span className="font-display font-semibold tracking-wide text-ink">Solo Campaign</span>
                         </div>
                         <p className="mb-3 font-serif text-xs italic leading-relaxed text-ink-soft">
-                          Designed for 1 player (either GM-less or with 1 GM). Streamlined requirements and tailored guidelines for lone survival.
+                          Zero-player GM-less oracle-driven TTRPG. You act as both the GM and the single protagonist.
                         </p>
                         <ul className="list-inside list-disc space-y-1 pl-1 font-sans text-[11px] text-ink-soft">
                           <li><strong>3</strong> World Truths recommended</li>
-                          <li><strong>1</strong> Central Player Character focus</li>
-                          <li>Sidekick companions enabled</li>
-                          <li>Lighter, faster preparation targets</li>
+                          <li><strong>1</strong> Central Protagonist (DM-owned)</li>
+                          <li>Pink aesthetic theme</li>
+                          <li>Wells Oracle floating tool active</li>
                         </ul>
                       </div>
                       <div className="mt-4 flex items-center gap-1.5 self-end">
                         <span className={`rounded border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider ${
-                          wizardSoloMode ? 'border-crimson bg-crimson/10 text-crimson' : 'border-rule text-ink-mute'
+                          wizardPlayMode === 'solo' ? 'border-pink-500 bg-pink-500/10 text-pink-500' : 'border-rule text-ink-mute'
                         }`}>
-                          {wizardSoloMode ? 'Selected' : 'Select'}
+                          {wizardPlayMode === 'solo' ? 'Selected' : 'Select'}
+                        </span>
+                      </div>
+                    </button>
+
+                    {/* Duet Card */}
+                    <button
+                      type="button"
+                      onClick={() => setWizardPlayMode('duet')}
+                      className={`flex flex-col justify-between rounded border p-4 text-left transition-all duration-200 hover:shadow-md ${
+                        wizardPlayMode === 'duet'
+                          ? 'border-teal-500 bg-teal-500/5 shadow-sm ring-1 ring-teal-500/30'
+                          : 'border-rule bg-parchment hover:border-teal-500/60'
+                      }`}
+                    >
+                      <div>
+                        <div className="mb-2 flex items-center gap-2">
+                          <div className={`rounded p-1.5 ${wizardPlayMode === 'duet' ? 'bg-teal-500/15 text-teal-500' : 'bg-parchment-deep text-ink-soft'}`}>
+                            <Users size={18} />
+                          </div>
+                          <span className="font-display font-semibold tracking-wide text-ink">Duet Campaign</span>
+                        </div>
+                        <p className="mb-3 font-serif text-xs italic leading-relaxed text-ink-soft">
+                          Designed for 1 GM + exactly 1 Player. Streamlined requirements and Player Mode sync enabled.
+                        </p>
+                        <ul className="list-inside list-disc space-y-1 pl-1 font-sans text-[11px] text-ink-soft">
+                          <li><strong>6</strong> World Truths recommended</li>
+                          <li><strong>1</strong> Player-owned character sheet</li>
+                          <li>Teal aesthetic theme</li>
+                          <li>Live player sync dashboard</li>
+                        </ul>
+                      </div>
+                      <div className="mt-4 flex items-center gap-1.5 self-end">
+                        <span className={`rounded border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider ${
+                          wizardPlayMode === 'duet' ? 'border-teal-500 bg-teal-500/10 text-teal-500' : 'border-rule text-ink-mute'
+                        }`}>
+                          {wizardPlayMode === 'duet' ? 'Selected' : 'Select'}
                         </span>
                       </div>
                     </button>
@@ -228,16 +268,16 @@ export default function Session0Wizard({
                     {/* Group Card */}
                     <button
                       type="button"
-                      onClick={() => setWizardSoloMode(false)}
+                      onClick={() => setWizardPlayMode('standard')}
                       className={`flex flex-col justify-between rounded border p-4 text-left transition-all duration-200 hover:shadow-md ${
-                        !wizardSoloMode
-                          ? 'border-crimson bg-crimson/5 shadow-sm ring-1 ring-crimson/30'
-                          : 'border-rule bg-parchment hover:border-brass/60'
+                        wizardPlayMode === 'standard'
+                          ? 'border-amber-500 bg-amber-500/5 shadow-sm ring-1 ring-amber-500/30'
+                          : 'border-rule bg-parchment hover:border-amber-500/60'
                       }`}
                     >
                       <div>
                         <div className="mb-2 flex items-center gap-2">
-                          <div className={`rounded p-1.5 ${!wizardSoloMode ? 'bg-crimson/15 text-crimson' : 'bg-parchment-deep text-ink-soft'}`}>
+                          <div className={`rounded p-1.5 ${wizardPlayMode === 'standard' ? 'bg-amber-500/15 text-amber-500' : 'bg-parchment-deep text-ink-soft'}`}>
                             <Users size={18} />
                           </div>
                           <span className="font-display font-semibold tracking-wide text-ink">Group Campaign</span>
@@ -247,16 +287,16 @@ export default function Session0Wizard({
                         </p>
                         <ul className="list-inside list-disc space-y-1 pl-1 font-sans text-[11px] text-ink-soft">
                           <li><strong>6</strong> World Truths recommended</li>
-                          <li>Full Player Character roster</li>
+                          <li>Full Player Character roster (Standard)</li>
+                          <li>Amber aesthetic theme</li>
                           <li>Traditional Session 0 safety tools</li>
-                          <li>Standard scale preparation targets</li>
                         </ul>
                       </div>
                       <div className="mt-4 flex items-center gap-1.5 self-end">
                         <span className={`rounded border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider ${
-                          !wizardSoloMode ? 'border-crimson bg-crimson/10 text-crimson' : 'border-rule text-ink-mute'
+                          wizardPlayMode === 'standard' ? 'border-amber-500 bg-amber-500/10 text-amber-500' : 'border-rule text-ink-mute'
                         }`}>
-                          {!wizardSoloMode ? 'Selected' : 'Select'}
+                          {wizardPlayMode === 'standard' ? 'Selected' : 'Select'}
                         </span>
                       </div>
                     </button>

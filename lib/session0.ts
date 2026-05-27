@@ -2,7 +2,8 @@ import { emptyCharacter, makeCharacterId, type Character } from './character-sch
 
 export type WizardPatch = {
   name?: string;
-  soloMode?: boolean;
+  soloMode?: boolean; // legacy
+  mode?: 'solo' | 'duet' | 'standard'; // new mode
   pitch?: string;
   truths?: string[];
   pc?: { name: string; concept: string; goal: string };
@@ -32,7 +33,11 @@ export function applySession0Patch(
 ): Record<string, any> {
   const next: Record<string, any> = { ...base, __session0Done: true };
 
-  if (patch.soloMode !== undefined) next.__soloMode = patch.soloMode;
+  const finalMode = patch.mode ?? (patch.soloMode === true ? 'duet' : 'standard');
+  next.mode = finalMode;
+  next.__soloMode = finalMode === 'solo' || finalMode === 'duet';
+  next.modeMigratedAt = Date.now();
+
   if (patch.pitch) next.pitch = patch.pitch;
 
   if (patch.truths && patch.truths.length > 0) {
@@ -40,10 +45,16 @@ export function applySession0Patch(
     next.gWorld = [...existing, ...patch.truths];
   }
 
-  if (patch.soloMode) {
+  const isSoloOrDuet = finalMode === 'solo' || finalMode === 'duet';
+  if (isSoloOrDuet) {
     if (patch.pc) {
       const existingChars = Array.isArray(base.characters) ? (base.characters as Character[]) : [];
-      next.characters = [...existingChars, makeWizardPC(patch.pc.name, patch.pc.concept)];
+      const newPc = makeWizardPC(patch.pc.name, patch.pc.concept);
+      // In duet mode, mark the protagonist as player-owned. In solo, marked as dm-owned.
+      newPc.ownership = {
+        ownerType: finalMode === 'duet' ? 'player' : 'dm',
+      };
+      next.characters = [...existingChars, newPc];
       if (patch.pc.goal) {
         const existingGoals = Array.isArray(base.pcGoals) ? (base.pcGoals as any[]) : [];
         next.pcGoals = [...existingGoals, { text: patch.pc.goal, timeframe: 'short', success: '', failure: '', linked: '' }];
@@ -54,6 +65,9 @@ export function applySession0Patch(
     const newChars = patch.pcs.map((p) => {
       const char = makeWizardPC(p.name, p.concept || '');
       char.player = p.player || '';
+      char.ownership = {
+        ownerType: 'player',
+      };
       return char;
     });
     next.characters = [...existingChars, ...newChars];

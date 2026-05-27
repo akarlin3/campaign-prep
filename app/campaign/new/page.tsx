@@ -35,7 +35,7 @@ function NewCampaignFlow() {
     creatingRef.current = true;
     try {
       const name = (patch.name && patch.name.trim()) || 'Untitled Campaign';
-      const data = applySession0Patch({ __soloMode: patch.soloMode ?? true }, patch);
+      const data = applySession0Patch({ mode: patch.mode ?? (patch.soloMode === true ? 'duet' : 'standard') }, patch);
       const id = await createCampaignFromWizard(user.uid, { name, data, worldId });
       router.replace(`/campaign/${id}`);
     } catch (e: any) {
