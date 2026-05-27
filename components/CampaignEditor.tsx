@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation';
 import { updateCampaign, deleteCampaign as deleteCampaignDoc, archiveCampaign, unarchiveCampaign, copyCampaign, type Campaign } from '@/lib/firebase/campaigns';
 import { startWritebackReconciler } from '@/lib/player/reconciler';
-import { updateWorld, createWorld, type World } from '@/lib/firebase/worlds';
+import { updateWorld, createWorld, deleteWorld, type World } from '@/lib/firebase/worlds';
 import { WORLD_KEYS } from '@/lib/worldData';
 import { getFirebaseAuth } from '@/lib/firebase/client';
 import {
@@ -2791,6 +2791,9 @@ export default function CampaignEditor({
     });
     if (!ok) return;
     try {
+      if (campaign.worldId) {
+        await deleteWorld(campaign.worldId);
+      }
       await deleteCampaignDoc(campaign.id);
       router.push('/campaign');
     } catch (err: any) {

@@ -10,7 +10,7 @@ import {
   copyCampaign,
   type Campaign,
 } from '@/lib/firebase/campaigns';
-import { subscribeToUserWorlds, type World } from '@/lib/firebase/worlds';
+import { subscribeToUserWorlds, deleteWorld, type World } from '@/lib/firebase/worlds';
 import { Plus, ScrollText, Pin, Archive, ArchiveRestore, Trash2, ChevronDown, ChevronRight, MoreHorizontal, ExternalLink, Copy, Cloud, X } from 'lucide-react';
 import { AccountMenu } from '@/components/AccountMenu';
 import { useConfirm } from '@/components/ConfirmDialog';
@@ -172,7 +172,14 @@ export default function CampaignListPage() {
       isDestructive: true,
     });
     if (!ok) return;
-    try { await deleteCampaign(c.id); } catch (e: any) { setError(e?.message || 'Delete failed'); }
+    try {
+      if (c.worldId) {
+        await deleteWorld(c.worldId);
+      }
+      await deleteCampaign(c.id);
+    } catch (e: any) {
+      setError(e?.message || 'Delete failed');
+    }
   };
   const handleCopy = async (c: Campaign) => {
     const ok = await confirmDialog({
