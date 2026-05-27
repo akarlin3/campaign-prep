@@ -70,6 +70,7 @@ const LogisticsTab = dynamic(() => import('./LogisticsTab'));
 const NPCRelationshipWeb = dynamic(() => import('./NPCRelationshipWeb'));
 const FactionEngineTab = dynamic(() => import('./FactionEngineTab'));
 const LivingWorldTab = dynamic(() => import('./world/LivingWorldTab'));
+const MapsTab = dynamic(() => import('./maps/MapsTab'));
 import { WhileYouWereAway } from './world/WhileYouWereAway';
 import { emptyLogistics, type LogisticsState } from './LogisticsTab';
 import { emptyGraph, type RelationshipGraphState } from './NPCRelationshipWeb';
@@ -2132,6 +2133,7 @@ export default function CampaignEditor({
       s: playerLog,
       i: get('items', []),
       g: get('pcGoals', []),
+      m: get('maps', []),
     }),
     [playerConfig, get, playerLog],
   );
@@ -2152,6 +2154,7 @@ export default function CampaignEditor({
             playerLog,
             items: get('items', []),
             pcGoals: get('pcGoals', []),
+            maps: get('maps', []),
           };
           await publishProjections(campaign.id, name || 'Campaign', dataToPublish);
         } catch (e) {
@@ -4702,6 +4705,15 @@ export default function CampaignEditor({
             grounded in your campaign. The only during-play AI feature.
           </LockedPanel>
         ))}
+
+        {mode === 'run' && subview === 'maps' && (
+          <MapsTab
+            data={state}
+            isPro={isPro}
+            onMapsChange={(maps) => setVal('maps', maps)}
+            onDataChange={setState}
+          />
+        )}
 
         {mode === 'run' && subview === 'lookup' && (() => {
           const playerConfig = (get('player', {}) as any) || {};
