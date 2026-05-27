@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { type Campaign, approvePlayer, rejectPlayer } from '@/lib/firebase/campaigns';
-import { Users, Check, X, Copy, CheckCircle2 } from 'lucide-react';
+import { type Campaign, approvePlayer, rejectPlayer, removePlayer } from '@/lib/firebase/campaigns';
+import { Users, Check, X, Copy, CheckCircle2, Trash2 } from 'lucide-react';
 
 export default function PlayersManager({ campaign }: { campaign: Campaign }) {
   const [copied, setCopied] = useState(false);
@@ -28,6 +28,17 @@ export default function PlayersManager({ campaign }: { campaign: Campaign }) {
       await rejectPlayer(campaign.id, user);
     } catch (e) {
       console.error('Failed to reject player', e);
+    }
+  };
+
+  const handleRemove = async (uid: string) => {
+    const email = campaign.playerEmails?.[uid] || uid;
+    if (typeof window !== 'undefined' && window.confirm(`Are you sure you want to remove ${email} from this campaign?`)) {
+      try {
+        await removePlayer(campaign.id, uid);
+      } catch (e) {
+        console.error('Failed to remove player', e);
+      }
     }
   };
 
@@ -80,6 +91,31 @@ export default function PlayersManager({ campaign }: { campaign: Campaign }) {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {playerIds.length > 0 && (
+          <div className="p-3 border-b border-rule max-h-48 overflow-y-auto">
+            <div className="font-display text-xs tracking-wide text-ink-soft uppercase mb-2">Approved Players</div>
+            <div className="space-y-2">
+              {playerIds.map((uid) => {
+                const email = campaign.playerEmails?.[uid] || `User (${uid.slice(0, 8)})`;
+                return (
+                  <div key={uid} className="flex items-center justify-between text-sm">
+                    <span className="text-ink truncate max-w-[190px]" title={email}>
+                      {email}
+                    </span>
+                    <button
+                      onClick={() => handleRemove(uid)}
+                      className="p-1 text-crimson hover:bg-crimson/10 rounded transition-colors"
+                      title="Remove player"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

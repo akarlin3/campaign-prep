@@ -23,6 +23,7 @@ export type Campaign = {
   archivedAt?: Timestamp | null;
   playerIds: string[];
   pendingPlayers: { uid: string; email: string }[];
+  playerEmails?: Record<string, string>;
 };
 
 const campaignsCol = () => collection(getDb(), 'campaigns');
@@ -203,7 +204,7 @@ export async function copyCampaign(campaignId: string, newName?: string) {
   return ref.id;
 }
 
-import { arrayRemove } from 'firebase/firestore';
+import { arrayRemove, deleteField } from 'firebase/firestore';
 
 export async function requestJoinCampaign(campaignId: string, user: { uid: string; email: string }) {
   const ref = doc(getDb(), 'campaigns', campaignId);
@@ -215,6 +216,7 @@ export async function approvePlayer(campaignId: string, user: { uid: string; ema
   await withRetry(() => updateDoc(ref, {
     pendingPlayers: arrayRemove(user),
     playerIds: arrayUnion(user.uid),
+    [`playerEmails.${user.uid}`]: user.email,
     updatedAt: serverTimestamp()
   }));
 }
@@ -223,6 +225,15 @@ export async function rejectPlayer(campaignId: string, user: { uid: string; emai
   const ref = doc(getDb(), 'campaigns', campaignId);
   await withRetry(() => updateDoc(ref, {
     pendingPlayers: arrayRemove(user),
+    updatedAt: serverTimestamp()
+  }));
+}
+
+export async function removePlayer(campaignId: string, uid: string) {
+  const ref = doc(getDb(), 'campaigns', campaignId);
+  await withRetry(() => updateDoc(ref, {
+    playerIds: arrayRemove(uid),
+    [`playerEmails.${uid}`]: deleteField(),
     updatedAt: serverTimestamp()
   }));
 }
