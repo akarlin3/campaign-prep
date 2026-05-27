@@ -1749,7 +1749,6 @@ export function MusicPlayer({
           playerVars: {
             enablejsapi: 1,
             autoplay: isPlayingPropRef.current ? 1 : 0,
-            origin: typeof window !== 'undefined' ? window.location.origin : undefined,
           },
           events: {
             onReady: () => {
@@ -2125,12 +2124,12 @@ export function MusicPlayer({
     let embedUrl = '';
     if (playlistId) {
       if (videoId) {
-        embedUrl = `https://www.youtube.com/embed/${videoId}?list=${playlistId}&enablejsapi=1&origin=${typeof window !== 'undefined' ? encodeURIComponent(window.location.origin) : ''}`;
+        embedUrl = `https://www.youtube.com/embed/${videoId}?list=${playlistId}&enablejsapi=1`;
       } else {
-        embedUrl = `https://www.youtube.com/embed/videoseries?list=${playlistId}&enablejsapi=1&origin=${typeof window !== 'undefined' ? encodeURIComponent(window.location.origin) : ''}`;
+        embedUrl = `https://www.youtube.com/embed/videoseries?list=${playlistId}&enablejsapi=1`;
       }
     } else if (videoId) {
-      embedUrl = `https://www.youtube.com/embed/${videoId}?enablejsapi=1&origin=${typeof window !== 'undefined' ? encodeURIComponent(window.location.origin) : ''}`;
+      embedUrl = `https://www.youtube.com/embed/${videoId}?enablejsapi=1`;
     }
 
     return (
@@ -2189,12 +2188,12 @@ export function MusicPlayer({
     let embedUrl = '';
     if (playlistId) {
       if (videoId) {
-        embedUrl = `https://www.youtube.com/embed/${videoId}?list=${playlistId}&enablejsapi=1&origin=${typeof window !== 'undefined' ? encodeURIComponent(window.location.origin) : ''}`;
+        embedUrl = `https://www.youtube.com/embed/${videoId}?list=${playlistId}&enablejsapi=1`;
       } else {
-        embedUrl = `https://www.youtube.com/embed/videoseries?list=${playlistId}&enablejsapi=1&origin=${typeof window !== 'undefined' ? encodeURIComponent(window.location.origin) : ''}`;
+        embedUrl = `https://www.youtube.com/embed/videoseries?list=${playlistId}&enablejsapi=1`;
       }
     } else if (videoId) {
-      embedUrl = `https://www.youtube.com/embed/${videoId}?enablejsapi=1&origin=${typeof window !== 'undefined' ? encodeURIComponent(window.location.origin) : ''}`;
+      embedUrl = `https://www.youtube.com/embed/${videoId}?enablejsapi=1`;
     }
 
     let externalUrl = '';
