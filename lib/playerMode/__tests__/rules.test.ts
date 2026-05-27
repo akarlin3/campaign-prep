@@ -23,7 +23,7 @@ let env: RulesTestEnvironment;
 const GM_UID = 'gm-uid';
 const OTHER_GM_UID = 'other-gm-uid';
 const CAMPAIGN_ID = 'camp1';
-const SHARE_TOKEN = 'share-token-abc';
+const SHARE_TOKEN = 'share-token-abcdefghijklmnop';
 
 d('Player Mode Firestore rules', () => {
   beforeAll(async () => {

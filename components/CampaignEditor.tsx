@@ -2821,18 +2821,21 @@ export default function CampaignEditor({
   }, [pcs]);
 
   useEffect(() => {
-    if (playMode === 'solo') return;
+    if (worldOnlyMode || playMode === 'solo') return;
 
     const unsubscribe = startWritebackReconciler(
       campaign.id,
       () => pcsRef.current,
       (nextPcs) => {
         writePcs(nextPcs);
+      },
+      (err) => {
+        console.error('Failed to reconcile player writebacks:', err);
       }
     );
 
     return () => unsubscribe();
-  }, [campaign.id, playMode]);
+  }, [campaign.id, playMode, worldOnlyMode]);
 
   const addPc = () => {
     if (pcs.length >= PC_CAP) return;

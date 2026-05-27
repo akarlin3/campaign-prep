@@ -21,54 +21,59 @@ function setNestedField(pc: PlayerCharacter, fieldPath: string, value: any): Pla
 export function startWritebackReconciler(
   campaignId: string,
   getCurrentPcs: () => PlayerCharacter[],
-  onPcsUpdate: (nextPcs: PlayerCharacter[]) => void
+  onPcsUpdate: (nextPcs: PlayerCharacter[]) => void,
+  onError?: (err: Error) => void
 ) {
   const db = getDb();
   const writebacksCol = collection(db, 'campaigns', campaignId, 'pcWritebacks');
 
-  return onSnapshot(writebacksCol, async (snap) => {
-    if (snap.empty) return;
+  return onSnapshot(
+    writebacksCol,
+    async (snap) => {
+      if (snap.empty) return;
 
-    const currentPcs = getCurrentPcs();
-    let updatedPcs = [...currentPcs];
-    let changed = false;
-    const batch = writeBatch(db);
+      const currentPcs = getCurrentPcs();
+      let updatedPcs = [...currentPcs];
+      let changed = false;
+      const batch = writeBatch(db);
 
-    for (const changeDoc of snap.docs) {
-      const data = changeDoc.data();
-      const pcId = data.pcId;
-      const updates = data.updates || {};
+      for (const changeDoc of snap.docs) {
+        const data = changeDoc.data();
+        const pcId = data.pcId;
+        const updates = data.updates || {};
 
-      const pcIndex = updatedPcs.findIndex((p) => p.id === pcId);
-      if (pcIndex !== -1) {
-        let pc = updatedPcs[pcIndex];
-        for (const [field, value] of Object.entries(updates)) {
-          pc = setNestedField(pc, field, value);
-          changed = true;
+        const pcIndex = updatedPcs.findIndex((p) => p.id === pcId);
+        if (pcIndex !== -1) {
+          let pc = updatedPcs[pcIndex];
+          for (const [field, value] of Object.entries(updates)) {
+            pc = setNestedField(pc, field, value);
+            changed = true;
+          }
+          updatedPcs[pcIndex] = pc;
         }
-        updatedPcs[pcIndex] = pc;
+
+        // Add deletion of this writeback doc to the batch
+        batch.delete(changeDoc.ref);
       }
 
-      // Add deletion of this writeback doc to the batch
-      batch.delete(changeDoc.ref);
-    }
+      if (changed) {
+        try {
+          // Apply local state update first for immediate response
+          onPcsUpdate(updatedPcs);
 
-    if (changed) {
-      try {
-        // Apply local state update first for immediate response
-        onPcsUpdate(updatedPcs);
+          // Update the main campaign doc
+          const campaignRef = doc(db, 'campaigns', campaignId);
+          batch.update(campaignRef, {
+            'data.pcs': updatedPcs,
+          });
 
-        // Update the main campaign doc
-        const campaignRef = doc(db, 'campaigns', campaignId);
-        batch.update(campaignRef, {
-          'data.pcs': updatedPcs,
-        });
-
-        // Commit batch (updates campaign and deletes reconciled writebacks in one transaction)
-        await batch.commit();
-      } catch (err) {
-        console.error('Failed to reconcile player writebacks:', err);
+          // Commit batch (updates campaign and deletes reconciled writebacks in one transaction)
+          await batch.commit();
+        } catch (err) {
+          console.error('Failed to reconcile player writebacks:', err);
+        }
       }
-    }
-  });
+    },
+    onError
+  );
 }
