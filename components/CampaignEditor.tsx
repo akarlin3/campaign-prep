@@ -2374,8 +2374,6 @@ export default function CampaignEditor({
     partyLevel,
   };
 
-  const completedCount = Object.values(done || {}).filter(Boolean).length;
-  
   const PREP_GROUPS = [
     { name: 'Premise', keys: ['pitch', 'genre', 'g-lines', 'g-mech'], labels: ['Quick Pitch', 'Genre Statement', 'Content Lines', 'Mechanics & System'] },
     { name: 'World', keys: ['g-world', 'facts', 'g-fnl'], labels: ['World Facts', 'Setting Facts', 'Req. Factions, NPCs & Locations'] },
@@ -2383,6 +2381,9 @@ export default function CampaignEditor({
     { name: 'Fronts', keys: ['factions', 'conflicts', 'secrets'], labels: ['Factions', 'Active Conflicts', 'Secrets & Clues'] },
     { name: 'Per-Session', keys: ['s1-review', 's2-start', 's3-scenes', 's4-secrets', 's5-loc', 's6-npc', 's7-mon', 's8-rew'], labels: ['1. Review PCs', '2. Strong Start', '3. Outline Scenes', '4. Define Secrets', '5. Develop Locations', '6. Outline NPCs', '7. Choose Monsters', '8. Select Rewards'] },
   ];
+
+  const totalPrepSteps = PREP_GROUPS.reduce((acc, g) => acc + g.keys.length, 0);
+  const completedCount = PREP_GROUPS.reduce((acc, g) => acc + g.keys.filter(k => done?.[k]).length, 0);
 
   // Lowest-progress prep target — drives the "Next Up" pill at the top of the
   // Prep Flow tab. Picks the section with the largest gap to target, with
@@ -3383,7 +3384,7 @@ export default function CampaignEditor({
                   className="flex items-center gap-1.5 rounded-full border border-moss/45 bg-moss/5 px-2.5 py-1 hover:bg-moss/10 transition-colors"
                 >
                   <div className="font-display text-[10px] uppercase tracking-wider text-moss flex items-center gap-1">
-                    {completedCount} Steps Done <ChevronDown size={10} className={`transition-transform ${progressOpen ? 'rotate-180' : ''}`} />
+                    {completedCount}/{totalPrepSteps} Steps Done <ChevronDown size={10} className={`transition-transform ${progressOpen ? 'rotate-180' : ''}`} />
                   </div>
                 </button>
                 {progressOpen && (
