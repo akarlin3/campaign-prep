@@ -23,6 +23,8 @@ import SidekickAddPanel from './SidekickAddPanel';
 import type { HomebrewMonster } from './MonstersTab';
 import SummonButton from './SummonButton';
 import SummonModal from './SummonModal';
+import WellsOracle from './WellsOracle';
+import type { OracleRoll } from '@/lib/oracle/wells';
 import { normalizeItem } from '@/lib/playerMode/types';
 
 const SpellsTab = dynamic(() => import('./SpellsTab'));
@@ -4875,6 +4877,14 @@ export default function CampaignEditor({
       )}
 
       {/* finalizerModal removed */}
+
+      <WellsOracle
+        log={get('oracleLog', []) as OracleRoll[]}
+        onLog={(next) => setVal('oracleLog', next)}
+        chaos={get('__oracleChaos', 5) as number}
+        onChaosChange={(c) => setVal('__oracleChaos', c)}
+        raised={get('__runSessionOpen', false)}
+      />
 
       <CommandPalette
         open={paletteOpen}
