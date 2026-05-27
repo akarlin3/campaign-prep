@@ -23,6 +23,11 @@ const garamond = EB_Garamond({
 export const metadata: Metadata = {
   title: 'Gamemaster Assistant',
   description: 'TTRPG campaign prep — Lazy DM · CCD · Proactive Roleplaying',
+  icons: {
+    icon: '/icons/base-icon.svg',
+    shortcut: '/icons/base-icon.svg',
+    apple: '/icons/base-icon.svg',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
