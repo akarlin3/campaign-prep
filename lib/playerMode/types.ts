@@ -111,6 +111,7 @@ export type SlotProjection = {
   // Player-visible maps: only layers flagged visibleToPlayers, with GM-only
   // fields (marker notes, entity links, edge travel times) already stripped.
   maps?: import('@/lib/maps/playerProjection').PlayerMap[];
+  playlistUrl?: string;
 };
 
 export type CampaignItem = {

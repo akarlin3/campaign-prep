@@ -436,6 +436,7 @@ export default function PlayerCampaignView({
   const [musicOpen, setMusicOpen] = useState(true);
   const [openCharIds, setOpenCharIds] = useState<Record<string, boolean>>({});
   const toggleChar = (id: string) => setOpenCharIds((s) => ({ ...s, [id]: !s[id] }));
+  const activePlaylistUrl = playlistUrl || projection?.playlistUrl;
 
   useEffect(() => {
     const unsub = subscribeSlotProjection(token, slotId, setProjection, () => setProjection(null));
@@ -547,7 +548,7 @@ export default function PlayerCampaignView({
         </header>
 
         {/* Live Session Music (Pulsing Widget) */}
-        {playlistUrl && (
+        {activePlaylistUrl && (
           <div className="bg-parchment-soft border border-rule rounded-lg shadow-page p-4 space-y-3">
             <button
               onClick={() => setMusicOpen(!musicOpen)}
@@ -577,7 +578,7 @@ export default function PlayerCampaignView({
             </button>
             {musicOpen && (
               <div className="border-t border-rule/60 pt-3">
-                <MusicPlayer playlistUrl={playlistUrl} readOnly={true} />
+                <MusicPlayer playlistUrl={activePlaylistUrl} readOnly={true} />
               </div>
             )}
           </div>
