@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Volume2, Play, Loader2, Sparkles, X } from 'lucide-react';
 import { getFirebaseAuth } from '@/lib/firebase/client';
 import { OPENAI_VOICES } from '@/lib/voice/openai-voices';
+import { useVoiceOptional } from './VoiceProvider';
 import type { VoiceListEntry, VoiceProfile, VoiceProvider } from '@/lib/voice/types';
 
 const PAGE_SIZE = 8;
@@ -23,11 +24,14 @@ async function idToken(): Promise<string> {
 
 type Props = {
   npcName: string;
+  npcId?: string;
   value: VoiceProfile | undefined;
   onChange: (profile: VoiceProfile | undefined) => void;
 };
 
-export function VoiceProfilePicker({ npcName, value, onChange }: Props) {
+export function VoiceProfilePicker({ npcName, npcId, value, onChange }: Props) {
+  const voice = useVoiceOptional();
+  const generatedCount = npcId ? (voice?.cachedCount(npcId) ?? 0) : 0;
   const [draft, setDraft] = useState<VoiceProfile>(value ?? DEFAULT_PROFILE);
   const [voices, setVoices] = useState<VoiceListEntry[]>([]);
   const [listLoading, setListLoading] = useState(false);
@@ -158,6 +162,11 @@ export function VoiceProfilePicker({ npcName, value, onChange }: Props) {
       <div className="flex items-center justify-between">
         <span className="flex items-center gap-1.5 font-display text-xs uppercase tracking-wider text-ink">
           <Volume2 size={12} /> Voice
+          {generatedCount > 0 && (
+            <span className="font-serif text-[10px] normal-case tracking-normal text-ink-mute">
+              · {generatedCount} {generatedCount === 1 ? 'line' : 'lines'} cached
+            </span>
+          )}
         </span>
         {value && (
           <button

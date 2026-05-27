@@ -1,4 +1,4 @@
-import { levenshtein } from '@/lib/scene/mentions';
+import { levenshtein } from '../scene/mentions';
 
 export type ParsedNpcLine = {
   npcId: string;

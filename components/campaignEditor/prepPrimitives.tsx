@@ -488,6 +488,7 @@ export const NPCCard = ({ data, onChange, onRemove, defaultDetailsOpen = false, 
       {isPro ? (
         <VoiceProfilePicker
           npcName={data.name || 'this NPC'}
+          npcId={data.id}
           value={data.voiceProfile}
           onChange={(profile: any) => onChange({ ...data, voiceProfile: profile })}
         />

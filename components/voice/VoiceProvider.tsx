@@ -40,6 +40,8 @@ export type VoiceContextValue = {
   /** Resolve an NPC's voice profile, or null when it has none. */
   npcVoiceProfile: (npcId: string) => VoiceProfile | null;
   npcName: (npcId: string) => string;
+  /** How many of this NPC's lines are currently cached. */
+  cachedCount: (npcId: string) => number;
   /** Whether a line is already cached (no network call needed to speak it). */
   isCached: (npcId: string, line: string) => Promise<boolean>;
   /** Generate-or-fetch then play a single line. Resolves when playback ends. */
@@ -133,6 +135,11 @@ export function VoiceProvider({
     const p = npcsRef.current.find((n) => n.id === npcId)?.voiceProfile;
     return p && p.provider && p.voiceId ? p : null;
   }, []);
+
+  const cachedCount = useCallback(
+    (npcId: string) => voiceCache.filter((e) => e.npcId === npcId).length,
+    [voiceCache],
+  );
 
   const isCached = useCallback(async (npcId: string, line: string) => {
     const profile = npcsRef.current.find((n) => n.id === npcId)?.voiceProfile;
@@ -284,6 +291,7 @@ export function VoiceProvider({
       usage,
       npcVoiceProfile,
       npcName,
+      cachedCount,
       isCached,
       speak,
       speakSequence,
@@ -299,6 +307,7 @@ export function VoiceProvider({
       usage,
       npcVoiceProfile,
       npcName,
+      cachedCount,
       isCached,
       speak,
       speakSequence,
