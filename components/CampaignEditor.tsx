@@ -2821,20 +2821,44 @@ export default function CampaignEditor({
   }, [pcs]);
 
   useEffect(() => {
-    if (worldOnlyMode || playMode === 'solo') return;
+    if (worldOnlyMode || campaign.id === 'world-stub' || playMode === 'solo') return;
 
-    const unsubscribe = startWritebackReconciler(
-      campaign.id,
-      () => pcsRef.current,
-      (nextPcs) => {
-        writePcs(nextPcs);
-      },
-      (err) => {
-        console.error('Failed to reconcile player writebacks:', err);
+    let unsubscribe: (() => void) | null = null;
+    let retryCount = 0;
+    let timeoutId: NodeJS.Timeout;
+
+    const start = () => {
+      try {
+        unsubscribe = startWritebackReconciler(
+          campaign.id,
+          () => pcsRef.current,
+          (nextPcs) => {
+            writePcs(nextPcs);
+          },
+          (err) => {
+            console.warn(`Failed to reconcile player writebacks (attempt ${retryCount + 1}):`, err.message);
+            if (retryCount < 3) {
+              retryCount++;
+              timeoutId = setTimeout(() => {
+                if (unsubscribe) unsubscribe();
+                start();
+              }, 1000 * retryCount); // Exponential backoff (1s, 2s, 3s)
+            } else {
+              console.error('Failed to reconcile player writebacks after maximum retries:', err);
+            }
+          }
+        );
+      } catch (err) {
+        console.error('Failed to start writeback reconciler:', err);
       }
-    );
+    };
 
-    return () => unsubscribe();
+    start();
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, [campaign.id, playMode, worldOnlyMode]);
 
   const addPc = () => {
