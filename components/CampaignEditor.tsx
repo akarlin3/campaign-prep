@@ -11,7 +11,7 @@ import {
   User, Users, Map, Swords, Gift, Layers, Calendar, Target, Trophy, Clock,
   Download, Upload, ScrollText, ArrowLeft, ArrowRight, Cloud, CloudOff,
   FileUp, Sparkles, Play, Search, BookOpen, Dice5, Wand2, Skull, Footprints, Hash, ClipboardList, Wrench, SlidersHorizontal, Copy,
-  Compass, NotebookPen, Zap, Gem, Globe, Music, Eye, EyeOff,
+  Compass, NotebookPen, Zap, Gem, Globe, Music, Eye, EyeOff, Bot,
 } from 'lucide-react';
 import { CR_TO_XP, encounterMultiplier, difficultyForSolo, parseLevelFromClassLevel } from '@/lib/encounterMath';
 import dynamic from 'next/dynamic';
@@ -45,6 +45,7 @@ import type { EntityRef } from '@/lib/generators/types';
 import { applySummonAction, type SummonSaveAction } from '@/lib/generators/summon-actions';
 import VivifyPanel, { type VivifyHistoryEntry } from './VivifyPanel';
 import SceneModePanel from './SceneModePanel';
+import CampaignAssistant from './CampaignAssistant';
 import { SCENE_SESSIONS_KEY, type SceneEntry } from '@/lib/scene/types';
 import { sceneToMarkdown } from '@/lib/scene/export';
 import ChaseTracker from './ChaseTracker';
@@ -2866,6 +2867,7 @@ export default function CampaignEditor({
     { mode: 'organize', subview: 'players',   label: 'Players',     icon: Users,          keywords: ['invite', 'share', 'collaboration'] },
     { mode: 'organize', subview: 'log',       label: 'Sessions',    icon: Calendar,        keywords: ['session log', 'recap'] },
     { mode: 'run',     subview: 'session',   label: 'Run Session', icon: Swords,          keywords: ['active', 'table'] },
+    { mode: 'run',     subview: 'assistant', label: 'Assistant',   icon: Bot,             keywords: ['ai', 'chat', 'prep', 'plan', 'agent'] },
     { mode: 'run',     subview: 'lookup',    label: 'Lookup',      icon: Search,          keywords: ['quick reference'] },
     { mode: 'run',     subview: 'logged',    label: 'Logged',      icon: ScrollText,      keywords: ['saved', 'library', 'generators', 'log'] },
     { mode: 'run',     subview: 'dice',      label: 'Dice',        icon: Dice5 },
@@ -4701,6 +4703,21 @@ export default function CampaignEditor({
             Run a location turn-by-turn at the table: pick where you are and who&apos;s present, then describe what
             your PC does. Claude voices the NPCs in character, paints the sensory beat, and suggests what to roll —
             grounded in your campaign. The only during-play AI feature.
+          </LockedPanel>
+        ))}
+
+        {mode === 'run' && subview === 'assistant' && (isPro ? (
+          <CampaignAssistant
+            data={state}
+            campaignName={name}
+            setData={(next) => setState(next)}
+          />
+        ) : (
+          <LockedPanel title="Campaign Assistant">
+            A persistent chat agent with read access to your whole campaign — NPCs, factions, secrets,
+            sessions, world clock — and write access via proposals you approve. It plans your next
+            session, surfaces neglected entities, drafts new content, and answers &quot;what should
+            happen next?&quot;
           </LockedPanel>
         ))}
 
