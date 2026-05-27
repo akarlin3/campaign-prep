@@ -7,6 +7,7 @@ import {
   TARGETS,
   type PrepTargetKey,
   type PrepTargetOverrides,
+  type CampaignPlayMode,
 } from '@/lib/prepTargets';
 
 type Props = {
@@ -16,13 +17,13 @@ type Props = {
   onSave: (next: PrepTargetOverrides) => void;
 };
 
-type DraftRow = { standard: string; solo: string };
+type DraftRow = { standard: string; duet: string; solo: string };
 type Draft = Record<PrepTargetKey, DraftRow>;
 
 const MIN = 0;
 const MAX = 99;
 
-function bookDefault(key: PrepTargetKey, mode: 'standard' | 'solo'): number {
+function bookDefault(key: PrepTargetKey, mode: CampaignPlayMode): number {
   return TARGETS[key][mode];
 }
 
@@ -36,6 +37,7 @@ function buildDraft(overrides: PrepTargetOverrides): Draft {
     const o = overrides[key];
     draft[key] = {
       standard: toDraftValue(o?.standard, bookDefault(key, 'standard')),
+      duet: toDraftValue(o?.duet, bookDefault(key, 'duet')),
       solo: toDraftValue(o?.solo, bookDefault(key, 'solo')),
     };
   });
@@ -54,12 +56,15 @@ function draftToOverrides(draft: Draft): PrepTargetOverrides {
   const out: PrepTargetOverrides = {};
   (Object.keys(TARGETS) as PrepTargetKey[]).forEach((key) => {
     const std = parseDraft(draft[key].standard, bookDefault(key, 'standard'));
+    const duet = parseDraft(draft[key].duet, bookDefault(key, 'duet'));
     const solo = parseDraft(draft[key].solo, bookDefault(key, 'solo'));
     const stdDiff = std !== bookDefault(key, 'standard');
+    const duetDiff = duet !== bookDefault(key, 'duet');
     const soloDiff = solo !== bookDefault(key, 'solo');
-    if (!stdDiff && !soloDiff) return;
+    if (!stdDiff && !duetDiff && !soloDiff) return;
     out[key] = {};
     if (stdDiff) out[key]!.standard = std;
+    if (duetDiff) out[key]!.duet = duet;
     if (soloDiff) out[key]!.solo = solo;
   });
   return out;
@@ -88,7 +93,7 @@ export default function PrepTargetsModal({ open, initialOverrides, onClose, onSa
 
   if (!open) return null;
 
-  const updateCell = (key: PrepTargetKey, mode: 'standard' | 'solo', value: string) => {
+  const updateCell = (key: PrepTargetKey, mode: CampaignPlayMode, value: string) => {
     setDraft((d) => ({ ...d, [key]: { ...d[key], [mode]: value } }));
   };
   const resetRow = (key: PrepTargetKey) => {
@@ -96,6 +101,7 @@ export default function PrepTargetsModal({ open, initialOverrides, onClose, onSa
       ...d,
       [key]: {
         standard: String(bookDefault(key, 'standard')),
+        duet: String(bookDefault(key, 'duet')),
         solo: String(bookDefault(key, 'solo')),
       },
     }));
@@ -119,7 +125,7 @@ export default function PrepTargetsModal({ open, initialOverrides, onClose, onSa
       aria-label="Prep target settings"
     >
       <div
-        className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-rule bg-parchment shadow-page"
+        className="flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-lg border border-rule bg-parchment shadow-page"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-rule px-4 py-3">
@@ -140,12 +146,15 @@ export default function PrepTargetsModal({ open, initialOverrides, onClose, onSa
         </div>
 
         <div className="flex-1 space-y-5 overflow-y-auto px-4 py-3">
-          <div className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-x-3 border-b border-rule pb-1 font-display text-[10px] uppercase tracking-wider text-ink-mute">
+          <div className="grid grid-cols-[1fr_auto_auto_auto_auto] items-center gap-x-4 border-b border-rule pb-1 font-display text-[10px] uppercase tracking-wider text-ink-mute">
             <span>Category</span>
-            <span className="flex w-16 items-center justify-center gap-1 text-center text-wine">
+            <span className="flex w-16 items-center justify-center gap-1 text-center text-pink-500 font-bold">
               <User size={10} /> Solo
             </span>
-            <span className="flex w-16 items-center justify-center gap-1 text-center text-brass-deep">
+            <span className="flex w-16 items-center justify-center gap-1 text-center text-teal-500 font-bold">
+              <Users size={10} /> Duet
+            </span>
+            <span className="flex w-16 items-center justify-center gap-1 text-center text-amber-500 font-bold">
               <Users size={10} /> Group
             </span>
             <span className="w-6" />
@@ -153,22 +162,23 @@ export default function PrepTargetsModal({ open, initialOverrides, onClose, onSa
 
           {PHASE_GROUPS.map((group) => (
             <section key={group.phase} className="space-y-2">
-              <h3 className="font-display text-[10px] uppercase tracking-wider text-brass-deep">
+              <h3 className="font-display text-[10px] uppercase tracking-wider text-brass-deep border-b border-rule/30 pb-0.5">
                 {group.title}
               </h3>
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 {group.keys.map((key) => {
                   const spec = TARGETS[key];
                   const row = draft[key];
                   const isOverridden =
                     parseDraft(row.standard, spec.standard) !== spec.standard ||
+                    parseDraft(row.duet, spec.duet) !== spec.duet ||
                     parseDraft(row.solo, spec.solo) !== spec.solo;
                   return (
                     <div
                       key={key}
-                      className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-x-3"
+                      className="grid grid-cols-[1fr_auto_auto_auto_auto] items-center gap-x-4"
                     >
-                      <div className="min-w-0">
+                      <div className="min-w-0 pr-2">
                         <div className="truncate font-serif text-sm text-ink">{spec.label}</div>
                         <div className="truncate font-serif text-[10px] italic text-ink-mute">
                           {spec.source}
@@ -178,21 +188,28 @@ export default function PrepTargetsModal({ open, initialOverrides, onClose, onSa
                         value={row.solo}
                         suggested={spec.solo}
                         onChange={(v) => updateCell(key, 'solo', v)}
-                        accent="wine"
+                        accent="pink"
                         ariaLabel={`${spec.label} — solo target`}
+                      />
+                      <NumberCell
+                        value={row.duet}
+                        suggested={spec.duet}
+                        onChange={(v) => updateCell(key, 'duet', v)}
+                        accent="teal"
+                        ariaLabel={`${spec.label} — duet target`}
                       />
                       <NumberCell
                         value={row.standard}
                         suggested={spec.standard}
                         onChange={(v) => updateCell(key, 'standard', v)}
-                        accent="brass"
+                        accent="amber"
                         ariaLabel={`${spec.label} — group target`}
                       />
                       <button
                         type="button"
                         onClick={() => resetRow(key)}
                         disabled={!isOverridden}
-                        className="p-1 text-ink-mute hover:text-crimson disabled:cursor-default disabled:opacity-30 disabled:hover:text-ink-mute"
+                        className="p-1 text-ink-mute hover:text-crimson disabled:cursor-default disabled:opacity-30 disabled:hover:text-ink-mute justify-self-center"
                         title={isOverridden ? 'Reset to suggested default' : 'Matches default'}
                         aria-label={`Reset ${spec.label} to default`}
                       >
@@ -247,19 +264,26 @@ function NumberCell({
   value: string;
   suggested: number;
   onChange: (v: string) => void;
-  accent: 'wine' | 'brass';
+  accent: 'pink' | 'teal' | 'amber';
   ariaLabel: string;
 }) {
   const parsed = parseDraft(value, suggested);
   const overridden = parsed !== suggested;
-  const ring =
-    accent === 'wine' ? 'focus:border-wine focus:ring-wine/30' : 'focus:border-brass-deep focus:ring-brass-deep/30';
-  const overrideTint =
-    overridden
-      ? accent === 'wine'
-        ? 'border-wine/40 bg-wine/5 text-wine'
-        : 'border-brass-deep/40 bg-brass/5 text-brass-deep'
-      : 'border-rule bg-parchment-soft text-ink';
+
+  let ring = 'focus:border-amber-500 focus:ring-amber-500/30';
+  let overrideTint = 'border-rule bg-parchment-soft text-ink';
+
+  if (accent === 'pink') {
+    ring = 'focus:border-pink-500 focus:ring-pink-500/30';
+    if (overridden) overrideTint = 'border-pink-500/40 bg-pink-500/5 text-pink-500';
+  } else if (accent === 'teal') {
+    ring = 'focus:border-teal-500 focus:ring-teal-500/30';
+    if (overridden) overrideTint = 'border-teal-500/40 bg-teal-500/5 text-teal-500';
+  } else if (accent === 'amber') {
+    ring = 'focus:border-amber-500 focus:ring-amber-500/30';
+    if (overridden) overrideTint = 'border-amber-500/40 bg-amber-500/5 text-amber-500';
+  }
+
   return (
     <div className="flex w-16 flex-col items-center">
       <input

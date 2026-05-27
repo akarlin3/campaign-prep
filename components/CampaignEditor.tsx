@@ -119,6 +119,7 @@ import {
   type PrepTargetOverrides,
 } from '@/lib/prepTargets';
 import PrepTargetsModal from './PrepTargetsModal';
+import ModeSwitcherModal from './ModeSwitcherModal';
 import ModeNav from './ModeNav';
 import {
   type Mode,
@@ -1915,7 +1916,37 @@ export default function CampaignEditor({
     });
     window.scrollTo(0, 0);
   }, [mode, subview]);
-  const [soloMode, setSoloMode] = useState<boolean>(campaign.data?.__soloMode ?? true);
+  const [playMode, setPlayMode] = useState<'solo' | 'duet' | 'standard'>(() => {
+    return campaign.data?.mode ?? (campaign.data?.__soloMode === true ? 'duet' : 'standard');
+  });
+  const soloMode = playMode === 'solo' || playMode === 'duet';
+  const [modeSwitcherOpen, setModeSwitcherOpen] = useState(false);
+
+  useEffect(() => {
+    if (campaign.data && !campaign.data.modeMigratedAt) {
+      const wasSolo = campaign.data.__soloMode === true || campaign.data.soloMode === true || campaign.data.solo === true;
+      const modeVal = wasSolo ? 'duet' : 'standard';
+      
+      const runMigration = async () => {
+        try {
+          const nextData = {
+            ...state,
+            mode: modeVal,
+            modeMigratedAt: Date.now(),
+            legacySoloMode: wasSolo,
+          };
+          await updateCampaign(campaign.id, { data: nextData });
+          setState(nextData);
+          setPlayMode(modeVal);
+          console.log('Client-side campaign play mode migration succeeded');
+        } catch (err) {
+          console.error('Client-side campaign play mode migration failed:', err);
+        }
+      };
+      runMigration();
+    }
+  }, [campaign.id, campaign.data]);
+
   const [progressOpen, setProgressOpen] = useState(false);
   const progressMenuRef = useRef<HTMLDivElement>(null);
   
@@ -2126,9 +2157,9 @@ export default function CampaignEditor({
 
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     setSyncState('pending');
-    saveTimeoutRef.current = setTimeout(() => { saveToDB({ name, data: { ...state, __soloMode: soloMode }, done }); }, 1500);
+    saveTimeoutRef.current = setTimeout(() => { saveToDB({ name, data: { ...state, mode: playMode, __soloMode: soloMode }, done }); }, 1500);
     return () => { if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current); };
-  }, [name, state, done, soloMode, saveToDB]);
+  }, [name, state, done, playMode, soloMode, saveToDB]);
 
   // B-06: record "last opened" exactly once per mount. This is distinct from
   // "last played" (which only moves on session start/end), so viewing a
@@ -2411,13 +2442,13 @@ export default function CampaignEditor({
 
     try {
       // Save to the database immediately and wait for it to complete
-      await saveToDB({ name, data: { ...nextState, __soloMode: soloMode }, done });
+      await saveToDB({ name, data: { ...nextState, mode: playMode, __soloMode: soloMode }, done });
     } catch (err) {
       console.error("Failed to save ended session to DB", err);
     }
     
     router.push(`/campaign/${campaign.id}/recap/${sessionId}`);
-  }, [state, get, name, soloMode, done, saveToDB, campaign.id, router]);
+  }, [state, get, name, playMode, soloMode, done, saveToDB, campaign.id, router]);
   const toggleDone = (id: string) => setDone(d => ({ ...d, [id]: !d[id] }));
   const toggleOpen = (id: string) => setOpen(o => ({ ...o, [id]: !o[id] }));
   const togglePhase = (id: string) => setPhaseOpen(p => ({ ...p, [id]: !p[id] }));
@@ -2775,8 +2806,8 @@ export default function CampaignEditor({
       clearTimeout(saveTimeoutRef.current);
       saveTimeoutRef.current = null;
     }
-    saveToDB({ name, data: { ...state, __soloMode: soloMode }, done });
-  }, [saveToDB, name, state, soloMode, done]);
+    saveToDB({ name, data: { ...state, mode: playMode, __soloMode: soloMode }, done });
+  }, [saveToDB, name, state, playMode, soloMode, done]);
 
   // Bottom-pill overlay for risky sync states. The header SyncIndicator is the
   // calm baseline; this pill is the urgent reminder when something is unsaved
@@ -3140,7 +3171,7 @@ export default function CampaignEditor({
       { id: 'act:export', label: 'Export campaign JSON', group: 'Actions', icon: Download, run: () => exportJSON() },
       { id: 'act:import', label: 'Import campaign JSON', group: 'Actions', icon: Upload, run: () => fileInputRef.current?.click() },
       { id: 'act:add-character', label: 'Add character', group: 'Actions', icon: User, run: () => { addCharacter(); const v = viewForSection('pc'); navigateTo({ mode: v.mode, subview: v.subview, sectionId: 'pc' }); } },
-      { id: 'act:solo-toggle', label: soloMode ? 'Switch to Group prep targets' : 'Switch to Solo prep targets', group: 'Actions', icon: Users, run: () => setSoloMode(s => !s) },
+      { id: 'act:solo-toggle', label: 'Change play mode (Solo / Duet / Standard)…', group: 'Actions', icon: Users, run: () => setModeSwitcherOpen(true) },
       { id: 'act:prep-targets', label: 'Customize prep target counts…', group: 'Actions', icon: SlidersHorizontal, run: () => setPrepTargetsOpen(true) },
     );
 
@@ -3508,7 +3539,8 @@ export default function CampaignEditor({
         }}
         onFinish={(patch) => {
           if (patch.name) setName(patch.name);
-          if (patch.soloMode !== undefined) setSoloMode(patch.soloMode);
+          if (patch.mode) setPlayMode(patch.mode);
+          else if (patch.soloMode !== undefined) setPlayMode(patch.soloMode ? 'duet' : 'standard');
           setState(s => applySession0Patch(s, patch));
           setSession0Open(false);
           setMode('plan');
@@ -3586,34 +3618,24 @@ export default function CampaignEditor({
                   Convert to Shared World
                 </button>
               )}
-              <div
-                role="group"
-                aria-label="Prep target mode"
-                title="Switch prep item targets between solo and group scale"
-                className="inline-flex rounded border border-rule overflow-hidden text-xs font-display uppercase tracking-wider flex-shrink-0"
+              <button
+                type="button"
+                onClick={() => setModeSwitcherOpen(true)}
+                className={`font-semibold px-2 py-0.5 rounded border text-[10px] tracking-wider uppercase font-display flex items-center gap-1 transition-all hover:opacity-85 ${
+                  playMode === 'solo'
+                    ? 'bg-pink-950/20 text-pink-400 border-pink-500/30'
+                    : playMode === 'duet'
+                    ? 'bg-teal-950/20 text-teal-400 border-teal-500/30'
+                    : 'bg-amber-950/20 text-amber-400 border-amber-500/30'
+                }`}
+                title="Click to change campaign play mode"
               >
-                <button
-                  type="button"
-                  onClick={() => setSoloMode(true)}
-                  aria-pressed={soloMode}
-                  className={`px-3 py-1 flex items-center gap-1.5 transition-colors ${
-                    soloMode ? 'bg-wine/15 text-wine' : 'text-ink-soft hover:bg-parchment-deep'
-                  }`}
-                >
-                  <User size={12} /> Solo
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSoloMode(false)}
-                  aria-pressed={!soloMode}
-                  className={`px-3 py-1 flex items-center gap-1.5 border-l border-rule transition-colors ${
-                    !soloMode ? 'bg-brass-deep/15 text-brass-deep' : 'text-ink-soft hover:bg-parchment-deep'
-                  }`}
-                >
-                  <Users size={12} /> Group
-                </button>
-              </div>
-              {!soloMode && (
+                {playMode === 'solo' && <Sparkles size={10} />}
+                {playMode === 'duet' && <User size={10} />}
+                {playMode === 'standard' && <Users size={10} />}
+                {playMode} Mode
+              </button>
+              {playMode !== 'solo' && (
                 <PlayersManager campaign={campaign} />
               )}
             </div>
@@ -5259,6 +5281,19 @@ export default function CampaignEditor({
         initialOverrides={prepTargetOverrides}
         onClose={() => setPrepTargetsOpen(false)}
         onSave={(next) => setVal(OVERRIDES_STATE_KEY, next)}
+      />
+      <ModeSwitcherModal
+        open={modeSwitcherOpen}
+        currentMode={playMode}
+        onClose={() => setModeSwitcherOpen(false)}
+        onSave={(newMode) => {
+          setPlayMode(newMode);
+          setState((s) => ({
+            ...s,
+            mode: newMode,
+            __soloMode: newMode === 'solo' || newMode === 'duet',
+          }));
+        }}
       />
 
       <button

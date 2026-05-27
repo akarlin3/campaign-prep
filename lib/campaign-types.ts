@@ -72,6 +72,9 @@ export interface CampaignData {
   factions?: FactionEntry[];
   sessionLog?: SessionLogEntry[];
   players?: PlayerCharacter[];
+  mode?: 'solo' | 'duet' | 'standard';
+  modeMigratedAt?: number;
+  legacySoloMode?: boolean;
   [key: string]: unknown;
 }
 

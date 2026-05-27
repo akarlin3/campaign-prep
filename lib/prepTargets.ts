@@ -12,8 +12,11 @@ export type PrepTargetKey =
   | 'strongStart' | 'scenes' | 'secrets' | 'locations' | 'npcs' | 'monsters' | 'items'
   | 'clocks';
 
+export type CampaignPlayMode = 'solo' | 'duet' | 'standard';
+
 export type PrepTargetSpec = {
   standard: number;
+  duet: number;
   solo: number;
   label: string;
   source: string;
@@ -21,36 +24,36 @@ export type PrepTargetSpec = {
 
 export const TARGETS: Record<PrepTargetKey, PrepTargetSpec> = {
   // CCD ch. 1 — Givens
-  gWorld:    { standard: 10, solo: 5,  label: 'World Facts',         source: 'CCD ch. 1' },
-  gFNL:      { standard: 5,  solo: 3,  label: 'Required Entities',   source: 'CCD ch. 1' },
+  gWorld:    { standard: 10, duet: 8, solo: 6,  label: 'World Facts',         source: 'CCD ch. 1' },
+  gFNL:      { standard: 5,  duet: 3, solo: 3,  label: 'Required Entities',   source: 'CCD ch. 1' },
   // Safety tools are personal — 0 by default, users can raise if they want
   // a hard checklist before starting.
-  lines:     { standard: 0,  solo: 0,  label: 'Content Lines',       source: 'Safety tools' },
+  lines:     { standard: 0,  duet: 0, solo: 0,  label: 'Content Lines',       source: 'Safety tools' },
 
   // CCD ch. 2 — Session −1
-  facts:     { standard: 15, solo: 8,  label: 'Setting Facts',       source: 'CCD ch. 2' },
-  factions:  { standard: 4,  solo: 3,  label: 'Factions',            source: 'CCD ch. 2 (3-4 min)' },
-  conflicts: { standard: 3,  solo: 2,  label: 'Active Conflicts',    source: 'CCD ch. 2' },
+  facts:     { standard: 8,  duet: 6, solo: 4,  label: 'Setting Facts',       source: 'CCD ch. 2' },
+  factions:  { standard: 4,  duet: 3, solo: 3,  label: 'Factions',            source: 'CCD ch. 2 (3-4 min)' },
+  conflicts: { standard: 3,  duet: 2, solo: 2,  label: 'Active Conflicts',    source: 'CCD ch. 2' },
 
   // Proactive Roleplaying ch. 1
-  pcGoals:   { standard: 3,  solo: 3,  label: 'PC Goals',            source: 'PR ch. 1 (3 concurrent)' },
+  pcGoals:   { standard: 3,  duet: 3, solo: 3,  label: 'PC Goals',            source: 'PR ch. 1 (3 concurrent)' },
 
   // Lazy DM ch. 4-8 — per-session
-  strongStart: { standard: 1,  solo: 1,  label: 'Strong Start',         source: 'Lazy DM ch. 5' },
-  scenes:    { standard: 5,  solo: 4,  label: 'Potential Scenes',    source: 'Lazy DM ch. 4 (1-2/hr)' },
-  secrets:   { standard: 10, solo: 8,  label: 'Secrets & Clues',     source: 'Lazy DM ch. 6 (shoot for 10)' },
-  locations: { standard: 4,  solo: 3,  label: 'Fantastic Locations', source: 'Lazy DM ch. 7 (1-2/hr)' },
-  npcs:      { standard: 4,  solo: 3,  label: 'Important NPCs',      source: 'Lazy DM ch. 8' },
-  monsters:  { standard: 4,  solo: 3,  label: 'Relevant Monsters',   source: 'Lazy DM ch. 9' },
-  items:     { standard: 2,  solo: 2,  label: 'Magic Item Rewards',  source: 'Lazy DM ch. 10' },
+  strongStart: { standard: 1,  duet: 1, solo: 1,  label: 'Strong Start',         source: 'Lazy DM ch. 5' },
+  scenes:    { standard: 6,  duet: 5, solo: 3,  label: 'Potential Scenes',    source: 'Lazy DM ch. 4 (1-2/hr)' },
+  secrets:   { standard: 10, duet: 7, solo: 4,  label: 'Secrets & Clues',     source: 'Lazy DM ch. 6 (shoot for 10)' },
+  locations: { standard: 5,  duet: 4, solo: 3,  label: 'Fantastic Locations', source: 'Lazy DM ch. 7 (1-2/hr)' },
+  npcs:      { standard: 8,  duet: 6, solo: 4,  label: 'Important NPCs',      source: 'Lazy DM ch. 8' },
+  monsters:  { standard: 6,  duet: 5, solo: 3,  label: 'Relevant Monsters',   source: 'Lazy DM ch. 9' },
+  items:     { standard: 4,  duet: 3, solo: 2,  label: 'Magic Item Rewards',  source: 'Lazy DM ch. 10' },
 
   // CCD ch. 6 — Faction tracking
-  clocks:    { standard: 4,  solo: 3,  label: 'Active Faction Clocks', source: 'CCD ch. 6' },
+  clocks:    { standard: 4,  duet: 3, solo: 3,  label: 'Active Faction Clocks', source: 'CCD ch. 6' },
 };
 
 export const ALL_TARGET_KEYS: PrepTargetKey[] = Object.keys(TARGETS) as PrepTargetKey[];
 
-export type PrepTargetOverride = { standard?: number; solo?: number };
+export type PrepTargetOverride = { standard?: number; duet?: number; solo?: number };
 export type PrepTargetOverrides = Partial<Record<PrepTargetKey, PrepTargetOverride>>;
 
 export const OVERRIDES_STATE_KEY = '__prepTargetOverrides';
@@ -68,7 +71,7 @@ function clampCount(n: unknown): number | undefined {
 // default — used by tests and by the modal's "Reset to default" preview.
 export function resolveTarget(
   key: PrepTargetKey,
-  mode: 'solo' | 'standard',
+  mode: CampaignPlayMode,
   overrides: PrepTargetOverrides | undefined,
 ): number {
   const spec = TARGETS[key];
@@ -80,10 +83,13 @@ export function resolveTarget(
 
 export function getTarget(
   key: PrepTargetKey,
-  soloMode: boolean,
+  mode: CampaignPlayMode | boolean,
   overrides?: PrepTargetOverrides,
 ): number {
-  return resolveTarget(key, soloMode ? 'solo' : 'standard', overrides);
+  const modeVal: CampaignPlayMode = typeof mode === 'boolean'
+    ? (mode ? 'duet' : 'standard')
+    : mode;
+  return resolveTarget(key, modeVal, overrides);
 }
 
 // Section/anchor id each target renders under, for the "Next Up" pill and
