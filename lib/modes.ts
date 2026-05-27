@@ -41,6 +41,7 @@ export const MODES: Record<Mode, ModeDef> = {
       { id: 'pitch',  label: 'Premise',    description: 'Hook, givens, and six truths',                         audience: 'solo' },
       { id: 'worldbuild',  label: 'Worldbuild',      description: 'Session −1 collaborative worldbuilding with players',  audience: 'together' },
       { id: 'pcs',    label: 'Characters', description: 'Session 0 character creation with players',            audience: 'together' },
+      { id: 'party',  label: 'Party',      description: 'First-class PC sheets — HP, abilities, skills, attacks, spells', audience: 'together' },
     ],
   },
   prep: {
