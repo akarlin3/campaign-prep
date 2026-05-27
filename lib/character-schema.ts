@@ -63,6 +63,10 @@ export type Character = {
   spells: string;
   notes: string;
   pointBuy?: PointBuy;
+  ownership?: {
+    ownerType: 'dm' | 'player';
+    playerSlotId?: string;
+  };
 };
 
 export function makeCharacterId(): string {
@@ -220,5 +224,9 @@ export function normalizeCharacter(input: unknown): Character {
     spells: asStr(o.spells),
     notes: asStr(o.notes),
     ...(o.pointBuy ? { pointBuy: normalizePointBuy(o.pointBuy) } : {}),
+    ownership: o.ownership ? {
+      ownerType: (o.ownership as any).ownerType === 'player' ? 'player' : 'dm',
+      playerSlotId: (o.ownership as any).playerSlotId ? asStr((o.ownership as any).playerSlotId) : undefined,
+    } : undefined,
   };
 }
