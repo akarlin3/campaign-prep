@@ -1612,6 +1612,9 @@ export function MusicPlayer({
   playlistIndexProp?: number;
   onChangePlaylistIndex?: (index: number) => void;
 }) {
+  const { playlistId, videoId } = parseYoutubeUrl(playlistUrl);
+  const hasContent = !!playlistId || !!videoId;
+
   const [inputUrl, setInputUrl] = useState(playlistUrl);
   const [error, setError] = useState('');
 
@@ -1626,7 +1629,15 @@ export function MusicPlayer({
   const volumeRef = useRef(volume);
   const isMutedRef = useRef(isMuted);
 
-  // Keep refs in sync with latest state
+  // Prop/callback refs to avoid effect recreation and race conditions
+  const onChangePlayingRef = useRef(onChangePlaying);
+  const onChangePlaylistIndexRef = useRef(onChangePlaylistIndex);
+  const playlistIdRef = useRef(playlistId);
+  const videoIdRef = useRef(videoId);
+  const isPlayingPropRef = useRef(isPlayingProp);
+  const playlistIndexPropRef = useRef(playlistIndexProp);
+
+  // Keep refs in sync with latest state/props on every render
   useEffect(() => {
     volumeRef.current = volume;
   }, [volume]);
@@ -1634,6 +1645,21 @@ export function MusicPlayer({
   useEffect(() => {
     isMutedRef.current = isMuted;
   }, [isMuted]);
+
+  useEffect(() => {
+    onChangePlayingRef.current = onChangePlaying;
+    onChangePlaylistIndexRef.current = onChangePlaylistIndex;
+    playlistIdRef.current = playlistId;
+    videoIdRef.current = videoId;
+    isPlayingPropRef.current = isPlayingProp;
+    playlistIndexPropRef.current = playlistIndexProp;
+  });
+
+  // Track the actual current state of the YouTube Player to perform minimal/correct changes
+  const lastPlaylistIdRef = useRef<string | null>(null);
+  const lastVideoIdRef = useRef<string | null>(null);
+  const lastPlaylistIndexRef = useRef<number | null>(null);
+  const lastPlayingRef = useRef<boolean | null>(null);
 
   // Load persisted volume & mute state from localStorage on client-side mount
   useEffect(() => {
@@ -1695,48 +1721,15 @@ export function MusicPlayer({
     }
   }, [isPlayingProp]);
 
-  // Command underlying YT Player when isPlayingProp changes
-  useEffect(() => {
-    if (!ytPlayer || !isApiReady) return;
-    try {
-      // @ts-ignore
-      const states = window.YT.PlayerState;
-      const currentPlayerState = ytPlayer.getPlayerState();
-      if (isPlayingProp && currentPlayerState !== states.PLAYING) {
-        ytPlayer.playVideo();
-      } else if (!isPlayingProp && currentPlayerState === states.PLAYING) {
-        ytPlayer.pauseVideo();
-      }
-    } catch (e) {
-      console.warn('Failed to sync YT player with prop state', e);
-    }
-  }, [isPlayingProp, ytPlayer, isApiReady]);
-
-  // Command underlying YT Player when playlistIndexProp changes
-  useEffect(() => {
-    if (!ytPlayer || !isApiReady) return;
-    try {
-      const currentIndex = ytPlayer.getPlaylistIndex();
-      if (typeof playlistIndexProp === 'number' && playlistIndexProp !== currentIndex && playlistIndexProp >= 0) {
-        if (isPlayingProp) {
-          ytPlayer.playVideoAt(playlistIndexProp);
-        } else {
-          ytPlayer.cueVideoAt(playlistIndexProp);
-        }
-      }
-    } catch (e) {
-      console.warn('Failed to sync YT player playlist index with prop state', e);
-    }
-  }, [playlistIndexProp, ytPlayer, isApiReady, isPlayingProp]);
-
   const uniqueId = useId();
   const iframeId = `yt-audio-player-iframe-${uniqueId.replace(/:/g, '')}`;
 
-  const { playlistId, videoId } = parseYoutubeUrl(playlistUrl);
-
-  // Dynamic YT Iframe Player API Loader & Binder (Stable mount / single init)
+  // Dynamic YT Iframe Player API Loader & Binder (Stable mount / single init based on content existence)
   useEffect(() => {
-    if (ytPlayer || (!playlistId && !videoId)) return;
+    if (!hasContent) {
+      return;
+    }
+    if (ytPlayer) return;
 
     let player: any = null;
     let timer: NodeJS.Timeout;
@@ -1752,7 +1745,7 @@ export function MusicPlayer({
           width: '1',
           playerVars: {
             enablejsapi: 1,
-            autoplay: isPlayingProp ? 1 : 0,
+            autoplay: isPlayingPropRef.current ? 1 : 0,
           },
           events: {
             onReady: () => {
@@ -1765,20 +1758,32 @@ export function MusicPlayer({
                 } else {
                   player.unMute();
                 }
-                if (playlistId) {
-                  if (isPlayingProp) {
-                    player.loadPlaylist(playlistId, playlistIndexProp || 0);
+
+                const currentPlaylistId = playlistIdRef.current;
+                const currentVideoId = videoIdRef.current;
+                const currentIsPlayingProp = isPlayingPropRef.current;
+                const currentPlaylistIndexProp = playlistIndexPropRef.current;
+
+                if (currentPlaylistId) {
+                  if (currentIsPlayingProp) {
+                    player.loadPlaylist(currentPlaylistId, currentPlaylistIndexProp || 0);
                   } else {
-                    player.cuePlaylist(playlistId, playlistIndexProp || 0);
+                    player.cuePlaylist(currentPlaylistId, currentPlaylistIndexProp || 0);
                   }
                   player.setShuffle(true);
-                } else if (videoId) {
-                  if (isPlayingProp) {
-                    player.loadVideoById(videoId);
+                } else if (currentVideoId) {
+                  if (currentIsPlayingProp) {
+                    player.loadVideoById(currentVideoId);
                   } else {
-                    player.cueVideoById(videoId);
+                    player.cueVideoById(currentVideoId);
                   }
                 }
+
+                // Initialize tracking refs
+                lastPlaylistIdRef.current = currentPlaylistId;
+                lastVideoIdRef.current = currentVideoId;
+                lastPlaylistIndexRef.current = currentPlaylistIndexProp || 0;
+                lastPlayingRef.current = !!currentIsPlayingProp;
               } catch (err) {
                 console.warn('Could not read initial player settings', err);
               }
@@ -1789,14 +1794,15 @@ export function MusicPlayer({
               if (event.data === states.PLAYING) {
                 setPlayerState('playing');
                 setIsPlaying(true);
-                onChangePlaying?.(true);
+                onChangePlayingRef.current?.(true);
                 try {
-                  if (playlistId) {
+                  if (playlistIdRef.current) {
                     event.target.setShuffle(true);
                   }
                   const idx = event.target.getPlaylistIndex();
                   if (typeof idx === 'number' && idx >= 0) {
-                    onChangePlaylistIndex?.(idx);
+                    onChangePlaylistIndexRef.current?.(idx);
+                    lastPlaylistIndexRef.current = idx;
                   }
                 } catch (err) {
                   console.warn('Could not read playlist index on state change', err);
@@ -1804,13 +1810,13 @@ export function MusicPlayer({
               } else if (event.data === states.PAUSED) {
                 setPlayerState('paused');
                 setIsPlaying(false);
-                onChangePlaying?.(false);
+                onChangePlayingRef.current?.(false);
               } else if (event.data === states.BUFFERING) {
                 setPlayerState('buffering');
               } else if (event.data === states.ENDED) {
                 setPlayerState('ended');
                 setIsPlaying(false);
-                onChangePlaying?.(false);
+                onChangePlayingRef.current?.(false);
               } else if (event.data === states.UNSTARTED) {
                 setPlayerState('unstarted');
               }
@@ -1858,12 +1864,14 @@ export function MusicPlayer({
       setIsApiReady(false);
       setPlayerState('unknown');
     };
-  }, [playlistId, videoId, ytPlayer]);
+  }, [hasContent, ytPlayer]);
 
+  // Synchronize underlying YT Player with prop updates in-place
   useEffect(() => {
     if (!ytPlayer || !isApiReady) return;
+
     try {
-      // Re-apply latest volume & mute state when song changes to prevent YT resetting it
+      // 1. Ensure volume and mute are set
       ytPlayer.setVolume(volumeRef.current);
       if (isMutedRef.current) {
         ytPlayer.mute();
@@ -1871,24 +1879,71 @@ export function MusicPlayer({
         ytPlayer.unMute();
       }
 
-      if (playlistId) {
-        if (isPlayingProp) {
-          ytPlayer.loadPlaylist(playlistId, playlistIndexProp || 0);
-        } else {
-          ytPlayer.cuePlaylist(playlistId, playlistIndexProp || 0);
+      // 2. Check if the playlist or video itself changed
+      const playlistIdChanged = playlistId !== lastPlaylistIdRef.current;
+      const videoIdChanged = videoId !== lastVideoIdRef.current;
+
+      if (playlistIdChanged || videoIdChanged) {
+        // Track has changed, perform full load/cue
+        if (playlistId) {
+          if (isPlayingProp) {
+            ytPlayer.loadPlaylist(playlistId, playlistIndexProp || 0);
+          } else {
+            ytPlayer.cuePlaylist(playlistId, playlistIndexProp || 0);
+          }
+          ytPlayer.setShuffle(true);
+        } else if (videoId) {
+          if (isPlayingProp) {
+            ytPlayer.loadVideoById(videoId);
+          } else {
+            ytPlayer.cueVideoById(videoId);
+          }
         }
-        ytPlayer.setShuffle(true);
-      } else if (videoId) {
-        if (isPlayingProp) {
-          ytPlayer.loadVideoById(videoId);
-        } else {
-          ytPlayer.cueVideoById(videoId);
+        
+        lastPlaylistIdRef.current = playlistId;
+        lastVideoIdRef.current = videoId;
+        lastPlaylistIndexRef.current = playlistIndexProp ?? 0;
+        lastPlayingRef.current = isPlayingProp ?? false;
+        return; // Since load/cue resets play/pause/index, return early
+      }
+
+      // 3. If track/playlist didn't change, check if index changed (for playlists)
+      if (playlistId && typeof playlistIndexProp === 'number' && playlistIndexProp >= 0) {
+        const indexChanged = playlistIndexProp !== lastPlaylistIndexRef.current;
+        if (indexChanged) {
+          if (isPlayingProp) {
+            ytPlayer.playVideoAt(playlistIndexProp);
+          } else {
+            // Recue at index when paused
+            ytPlayer.cuePlaylist({
+              listType: 'playlist',
+              list: playlistId,
+              index: playlistIndexProp
+            });
+          }
+          lastPlaylistIndexRef.current = playlistIndexProp;
+          lastPlayingRef.current = isPlayingProp ?? false;
+          return;
         }
       }
+
+      // 4. Check if play/pause state changed
+      if (isPlayingProp !== lastPlayingRef.current) {
+        // @ts-ignore
+        const states = window.YT.PlayerState;
+        const currentPlayerState = ytPlayer.getPlayerState();
+
+        if (isPlayingProp && currentPlayerState !== states.PLAYING) {
+          ytPlayer.playVideo();
+        } else if (!isPlayingProp && currentPlayerState === states.PLAYING) {
+          ytPlayer.pauseVideo();
+        }
+        lastPlayingRef.current = isPlayingProp ?? false;
+      }
     } catch (e) {
-      console.warn('Failed to load/cue new video/playlist in-place', e);
+      console.warn('Failed to sync YT player with prop state in-place', e);
     }
-  }, [playlistId, videoId, ytPlayer, isApiReady, isPlayingProp, playlistIndexProp]);
+  }, [playlistId, videoId, playlistIndexProp, isPlayingProp, ytPlayer, isApiReady]);
 
   const handleConnect = (e: React.FormEvent) => {
     e.preventDefault();
