@@ -8,7 +8,7 @@
 // LEGACY_TAB_MAP migrates state from older tab-only layouts where a single
 // `__tab` field stored one of ~16 flat tab IDs.
 
-export type Mode = 'plan' | 'prep' | 'organize' | 'run' | 'library';
+export type Mode = 'plan' | 'prep' | 'organize' | 'run' | 'library' | 'oracle';
 
 // Some Plan subviews are done WITH the players at the table (Session −1
 // collaborative worldbuilding, Session 0 character creation); others are
@@ -72,7 +72,8 @@ export const MODES: Record<Mode, ModeDef> = {
       { id: 'session', label: 'Session',  description: 'Active session — prep cards, scratchpad, initiative' },
       { id: 'scene',   label: 'Scene Mode', description: 'Run a location turn-by-turn with AI-voiced NPCs (Pro)' },
       { id: 'assistant', label: 'Assistant', description: 'Persistent AI agent that reads your whole campaign and proposes content you approve (Pro)' },
-      { id: 'lookup',  label: 'Lookup',   description: 'Quick reference: NPCs, locations, secrets, factions' },
+      { id: 'maps',    label: 'Maps',     description: 'Maps with markers, layers, pointcrawls, and AI generation' },
+      { id: 'lookup',  label: 'Lookup',   description: 'Quick reference: NPCs, locations, secrets, factions' },,
       { id: 'logged',  label: 'Logged',   description: 'Every logged library item at the time' },
       { id: 'dice',    label: 'Dice',     description: 'Dice roller' },
       { id: 'spells',  label: 'Spells',   description: 'Spell reference' },
@@ -93,13 +94,22 @@ export const MODES: Record<Mode, ModeDef> = {
       { id: 'hazards',    label: 'Hazards',    description: 'Physics-grounded environmental damage & structural calculator' },
       { id: 'logistics',  label: 'Logistics',  description: 'Strict encumbrance, containers, and currency tracking' },
       { id: 'web',        label: 'NPC Web',    description: 'Visual relationship graph of NPCs and the party' },
+      { id: 'wiki',       label: 'Wiki',       description: 'Cross-linked entity graph — every NPC, faction, location, secret and how they connect' },
       { id: 'livingworld', label: 'Living World', description: 'Tick the world forward between sessions — faction clocks, downtime, NPC agendas, and a "While You Were Away" briefing' },
       { id: 'factions',   label: 'Faction Sim', description: 'Grand-strategy faction simulation — territories, influence, and tick-based moves' },
     ],
   },
+  oracle: {
+    label: 'Oracle',
+    description: 'Wells Oracle — ask the world a question and complicate scenes',
+    emphasis: 'muted',
+    subviews: [
+      { id: 'wells', label: 'Wells Oracle', description: 'Ask the oracle questions and complicate scenes' }
+    ],
+  },
 };
 
-export const MODE_ORDER: readonly Mode[] = ['plan', 'prep', 'organize', 'run', 'library'];
+export const MODE_ORDER: readonly Mode[] = ['plan', 'prep', 'organize', 'run', 'library', 'oracle'];
 
 // Old single-tab IDs that may live in stored state (or in legacy code paths)
 // — map them to the new (mode, subview) pair so users land somewhere sensible.

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Sparkles,
   Send,
@@ -13,7 +13,12 @@ import {
   AlertTriangle,
   MapPin,
   Users,
+  Volume2,
+  VolumeX,
+  SkipForward,
 } from 'lucide-react';
+import { useVoiceOptional } from '@/components/voice/VoiceProvider';
+import { SpeakButton } from '@/components/voice/SpeakButton';
 import { getFirebaseAuth } from '@/lib/firebase/client';
 import {
   capScenes,
@@ -26,6 +31,10 @@ import { buildSceneTurnRequest } from '@/lib/scene/context';
 import { resolveMentions } from '@/lib/scene/mentions';
 import { rollLabel, resolveCheck } from '@/lib/scene/roll';
 import { sceneToMarkdown } from '@/lib/scene/export';
+import { modifierForSuggestion } from '@/lib/scene/roll-with-modifiers';
+import { normalizePcs } from '@/lib/pc/factory';
+import { formatMod } from '@/lib/pc/derived';
+import type { PlayerCharacter } from '@/lib/pc/types';
 
 type LooseRecord = Record<string, unknown>;
 
@@ -61,6 +70,7 @@ export default function SceneModePanel({
 }: Props) {
   const npcs = useMemo(() => asArray(data.npcs), [data.npcs]);
   const locations = useMemo(() => asArray(data.locations), [data.locations]);
+  const party = useMemo(() => normalizePcs(data.pcs), [data.pcs]);
 
   const npcName = (id: string) => str(npcs.find((n) => str(n.id) === id)?.name) || 'Unknown NPC';
   const locationName = (id: string) =>
@@ -341,6 +351,7 @@ export default function SceneModePanel({
     return (
       <SceneRunner
         scene={activeScene}
+        party={party}
         npcName={npcName}
         locationName={locationName}
         pcAction={pcAction}
@@ -557,6 +568,7 @@ export default function SceneModePanel({
 
 function SceneRunner({
   scene,
+  party,
   npcName,
   locationName,
   pcAction,
@@ -573,6 +585,7 @@ function SceneRunner({
   onBack,
 }: {
   scene: SceneEntry;
+  party: PlayerCharacter[];
   npcName: (id: string) => string;
   locationName: (id: string) => string;
   pcAction: string;
@@ -588,6 +601,31 @@ function SceneRunner({
   onExport: () => void;
   onBack: () => void;
 }) {
+  const voice = useVoiceOptional();
+  const [autoFired, setAutoFired] = useState(false);
+  // Track the newest turn we've already auto-played so reopening a scene never
+  // re-speaks its history — only turns that arrive after mount auto-fire.
+  const lastSpokenTurnId = useRef<string | null | undefined>(undefined);
+  const turnCount = scene.turns.length;
+
+  useEffect(() => {
+    const newest = scene.turns[scene.turns.length - 1];
+    if (lastSpokenTurnId.current === undefined) {
+      lastSpokenTurnId.current = newest?.id ?? null;
+      return;
+    }
+    if (!newest || lastSpokenTurnId.current === newest.id) return;
+    lastSpokenTurnId.current = newest.id;
+    if (!voice?.enabled || voice.muted) return;
+    const lines = newest.response.dialogue
+      .filter((d) => d.line.trim())
+      .map((d) => ({ npcId: d.npcId, line: d.line }));
+    if (lines.length === 0) return;
+    setAutoFired(true);
+    void voice.speakSequence(lines);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [turnCount]);
+
   return (
     <div className="space-y-3 text-sm" data-scene-status={scene.status}>
       <div className="flex items-center gap-2">
@@ -601,6 +639,35 @@ function SceneRunner({
         <span className="min-w-0 flex-1 truncate font-display text-sm text-ink">
           {locationName(scene.locationId)}
         </span>
+        {voice?.enabled && (
+          <>
+            {voice.playing && (
+              <button
+                type="button"
+                onClick={voice.skip}
+                className="flex items-center gap-1 font-display text-[10px] uppercase tracking-wider text-ink-mute hover:text-crimson"
+                title="Skip This Line"
+              >
+                <SkipForward size={10} /> Skip
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => voice.setMuted(!voice.muted)}
+              aria-pressed={voice.muted}
+              className={`flex items-center gap-1 rounded border px-2 py-0.5 font-display text-[10px] uppercase tracking-wider ${
+                voice.muted
+                  ? 'border-crimson/50 text-crimson'
+                  : 'border-rule text-ink-mute hover:text-brass-deep'
+              }`}
+              title={voice.muted ? 'Voices Muted' : 'Mute Voices'}
+            >
+              {voice.muted ? <VolumeX size={10} /> : <Volume2 size={10} />}
+              {voice.muted ? 'Muted' : 'Voices'}
+            </button>
+          </>
+        )}
+        {autoFired && <span data-voice-autoplay-fired hidden />}
         <button
           type="button"
           onClick={onExport}
@@ -628,6 +695,7 @@ function SceneRunner({
             turn={turn}
             index={i}
             sceneId={scene.id}
+            party={party}
             npcName={npcName}
             onApplyRoll={onApplyRoll}
             onSetOutcome={onSetOutcome}
@@ -696,6 +764,7 @@ function TurnCard({
   turn,
   index,
   sceneId,
+  party,
   npcName,
   onApplyRoll,
   onSetOutcome,
@@ -703,13 +772,24 @@ function TurnCard({
   turn: SceneTurn;
   index: number;
   sceneId: string;
+  party: PlayerCharacter[];
   npcName: (id: string) => string;
   onApplyRoll: (sceneId: string, turnId: string, modifier: number, dc: number) => void;
   onSetOutcome: (sceneId: string, turnId: string, outcome: string) => void;
 }) {
   const [modifier, setModifier] = useState(0);
   const [rollOpen, setRollOpen] = useState(false);
+  const [pickPc, setPickPc] = useState(false);
   const roll = turn.response.suggestedRoll;
+
+  // Roll the suggestion against a specific PC: resolve the ability mod +
+  // proficiency bonus (when proficient in the suggested skill) and apply.
+  const rollWithPc = (pc: PlayerCharacter) => {
+    if (!roll) return;
+    onApplyRoll(sceneId, turn.id, modifierForSuggestion(pc, roll), roll.dc);
+    setRollOpen(false);
+    setPickPc(false);
+  };
 
   return (
     <div className="space-y-2" data-turn-index={index} data-status="complete">
@@ -726,7 +806,8 @@ function TurnCard({
             <span className="font-display text-xs uppercase tracking-wider text-crimson">
               {npcName(d.npcId)}:
             </span>{' '}
-            <span className="italic">&ldquo;{d.line}&rdquo;</span>
+            <span className="italic">&ldquo;{d.line}&rdquo;</span>{' '}
+            <SpeakButton npcId={d.npcId} line={d.line} size={12} />
           </div>
         ))}
         <p className="font-serif text-sm leading-relaxed text-ink-soft">{turn.response.sensory}</p>
@@ -754,24 +835,53 @@ function TurnCard({
                 </span>
               </div>
             ) : rollOpen ? (
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="font-serif text-xs text-ink-soft">1d20 +</span>
-                <input
-                  type="number"
-                  value={modifier}
-                  onChange={(e) => setModifier(Number(e.target.value) || 0)}
-                  className="w-14 rounded border-b border-rule bg-transparent px-1 py-0.5 text-center font-serif text-ink focus:border-crimson focus:outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    onApplyRoll(sceneId, turn.id, modifier, roll.dc);
-                    setRollOpen(false);
-                  }}
-                  className="rounded border border-crimson bg-crimson px-2 py-0.5 font-display text-[10px] uppercase tracking-wider text-parchment hover:bg-crimson-deep"
-                >
-                  Roll
-                </button>
+              <div className="space-y-1.5">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="font-serif text-xs text-ink-soft">1d20 +</span>
+                  <input
+                    type="number"
+                    value={modifier}
+                    onChange={(e) => setModifier(Number(e.target.value) || 0)}
+                    className="w-14 rounded border-b border-rule bg-transparent px-1 py-0.5 text-center font-serif text-ink focus:border-crimson focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onApplyRoll(sceneId, turn.id, modifier, roll.dc);
+                      setRollOpen(false);
+                    }}
+                    className="rounded border border-crimson bg-crimson px-2 py-0.5 font-display text-[10px] uppercase tracking-wider text-parchment hover:bg-crimson-deep"
+                  >
+                    Roll
+                  </button>
+                  {party.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (party.length === 1) rollWithPc(party[0]);
+                        else setPickPc((v) => !v);
+                      }}
+                      className="rounded border border-brass-deep/50 px-2 py-0.5 font-display text-[10px] uppercase tracking-wider text-brass-deep hover:bg-brass hover:text-parchment"
+                      title="Roll using a PC's ability/skill modifier"
+                    >
+                      Roll With Modifiers
+                    </button>
+                  )}
+                </div>
+                {pickPc && party.length > 1 && (
+                  <div className="flex flex-wrap gap-1">
+                    {party.map((pc) => (
+                      <button
+                        key={pc.id}
+                        type="button"
+                        onClick={() => rollWithPc(pc)}
+                        className="rounded border border-rule px-2 py-0.5 font-serif text-[11px] text-ink-soft hover:bg-parchment-deep"
+                      >
+                        {pc.name || 'Unnamed'} ({formatMod(modifierForSuggestion(pc, roll))})
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             ) : (
               <button
