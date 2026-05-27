@@ -1578,7 +1578,6 @@ export function MusicPlayer({
 
   // Dynamic YT Iframe Player API Loader & Binder
   useEffect(() => {
-    if (!readOnly) return;
     if (!playlistId && !videoId) return;
 
     let player: any = null;
@@ -1741,222 +1740,186 @@ export function MusicPlayer({
       }
     }
 
-    // --- Audio-Only Player (Player Mode) ---
-    if (readOnly) {
-      return (
-        <div className="space-y-4">
-          <style>{`
-            @keyframes yt-soundwave {
-              0%, 100% { height: 4px; }
-              50% { height: 24px; }
-            }
-            .yt-wave-bar {
-              width: 3px;
-              border-radius: 9999px;
-              background-color: #b1201e;
-              height: 4px;
-            }
-            .yt-wave-bar.animating {
-              animation: yt-soundwave 1.2s ease-in-out infinite;
-            }
-          `}</style>
+    // --- Unified Audio-Only Premium Player ---
+    return (
+      <div className="space-y-4">
+        <style>{`
+          @keyframes yt-soundwave {
+            0%, 100% { height: 4px; }
+            50% { height: 24px; }
+          }
+          .yt-wave-bar {
+            width: 3px;
+            border-radius: 9999px;
+            background-color: #b1201e;
+            height: 4px;
+          }
+          .yt-wave-bar.animating {
+            animation: yt-soundwave 1.2s ease-in-out infinite;
+          }
+        `}</style>
 
-          <div className="flex flex-col sm:flex-row items-center gap-4 bg-parchment/65 backdrop-blur-md rounded-lg border border-rule/70 p-4 shadow-inner relative overflow-hidden">
-            {/* Spinning Vinyl Record Visual */}
-            <div className="relative flex items-center justify-center w-24 h-24 sm:w-28 sm:h-28 flex-shrink-0">
-              <div 
-                className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-neutral-900 border-2 border-neutral-700 shadow-lg relative flex items-center justify-center overflow-hidden transition-transform duration-300 ${
-                  isPlaying ? 'animate-[spin_8s_linear_infinite]' : ''
-                }`}
-                style={{
-                  backgroundImage: 'radial-gradient(circle, #333 10%, #111 30%, #222 40%, #111 60%, #333 70%, #111 80%, #000 100%)',
-                  animationPlayState: isPlaying ? 'running' : 'paused'
-                }}
-              >
-                {/* Concentric Grooves */}
-                <div className="absolute inset-2 rounded-full border border-neutral-800 opacity-60" />
-                <div className="absolute inset-4 rounded-full border border-neutral-800 opacity-40" />
-                <div className="absolute inset-6 rounded-full border border-neutral-800 opacity-30" />
-                <div className="absolute inset-8 rounded-full border border-neutral-800 opacity-20" />
-                
-                {/* Vinyl Label */}
-                <div className="w-8 h-8 rounded-full bg-brass/30 border border-brass-deep/45 flex items-center justify-center shadow-inner relative">
-                  <div className="w-2.5 h-2.5 rounded-full bg-parchment-soft border border-brass/50 flex items-center justify-center">
-                    <div className="w-1 h-1 rounded-full bg-neutral-950" />
-                  </div>
+        <div className="flex flex-col sm:flex-row items-center gap-4 bg-parchment/65 backdrop-blur-md rounded-lg border border-rule/70 p-4 shadow-inner relative overflow-hidden">
+          {/* Spinning Vinyl Record Visual */}
+          <div className="relative flex items-center justify-center w-24 h-24 sm:w-28 sm:h-28 flex-shrink-0">
+            <div 
+              className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-neutral-900 border-2 border-neutral-700 shadow-lg relative flex items-center justify-center overflow-hidden transition-transform duration-300 ${
+                isPlaying ? 'animate-[spin_8s_linear_infinite]' : ''
+              }`}
+              style={{
+                backgroundImage: 'radial-gradient(circle, #333 10%, #111 30%, #222 40%, #111 60%, #333 70%, #111 80%, #000 100%)',
+                animationPlayState: isPlaying ? 'running' : 'paused'
+              }}
+            >
+              {/* Concentric Grooves */}
+              <div className="absolute inset-2 rounded-full border border-neutral-800 opacity-60" />
+              <div className="absolute inset-4 rounded-full border border-neutral-800 opacity-40" />
+              <div className="absolute inset-6 rounded-full border border-neutral-800 opacity-30" />
+              <div className="absolute inset-8 rounded-full border border-neutral-800 opacity-20" />
+              
+              {/* Vinyl Label */}
+              <div className="w-8 h-8 rounded-full bg-brass/30 border border-brass-deep/45 flex items-center justify-center shadow-inner relative">
+                <div className="w-2.5 h-2.5 rounded-full bg-parchment-soft border border-brass/50 flex items-center justify-center">
+                  <div className="w-1 h-1 rounded-full bg-neutral-950" />
                 </div>
+              </div>
+            </div>
+            
+            {/* Audio tone arm / needle overlay */}
+            <div className={`absolute top-1 right-2 w-7 h-10 origin-[20%_10%] transition-transform duration-500 pointer-events-none ${
+              isPlaying ? 'rotate-[12deg]' : 'rotate-0'
+            }`}>
+              <svg viewBox="0 0 30 40" fill="none" className="w-full h-full text-brass-deep drop-shadow-sm">
+                <path d="M 5 5 Q 15 5 15 15 L 20 30 L 25 32" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                <circle cx="5" cy="5" r="3.5" fill="currentColor" />
+                <rect x="22" y="28" width="5" height="6" rx="1.5" fill="#444" />
+              </svg>
+            </div>
+          </div>
+
+          {/* Custom Control Layout */}
+          <div className="flex-1 w-full space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="font-display text-sm font-semibold tracking-wide text-ink truncate">
+                  Campaign Atmosphere
+                </h3>
+                <p className="font-serif text-[11px] text-ink-soft italic truncate">
+                  Live Broadcast from GM
+                </p>
               </div>
               
-              {/* Audio tone arm / needle overlay */}
-              <div className={`absolute top-1 right-2 w-7 h-10 origin-[20%_10%] transition-transform duration-500 pointer-events-none ${
-                isPlaying ? 'rotate-[12deg]' : 'rotate-0'
-              }`}>
-                <svg viewBox="0 0 30 40" fill="none" className="w-full h-full text-brass-deep drop-shadow-sm">
-                  <path d="M 5 5 Q 15 5 15 15 L 20 30 L 25 32" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-                  <circle cx="5" cy="5" r="3.5" fill="currentColor" />
-                  <rect x="22" y="28" width="5" height="6" rx="1.5" fill="#444" />
-                </svg>
+              {/* Pulse Glow Light */}
+              <div className="flex items-center gap-1.5 flex-shrink-0 bg-parchment border border-rule/50 rounded-full px-2 py-0.5 shadow-sm">
+                <span className="relative flex h-2 w-2">
+                  <span className={`animate-ping absolute inline-flex h-full w-full rounded-full bg-crimson opacity-75 ${isPlaying ? 'running' : 'paused'}`}></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-crimson"></span>
+                </span>
+                <span className="font-display text-[9px] uppercase tracking-wider text-ink-mute font-semibold">
+                  {playerState === 'buffering' ? 'Buffering' : isPlaying ? 'Live' : 'Paused'}
+                </span>
               </div>
             </div>
 
-            {/* Custom Control Layout */}
-            <div className="flex-1 w-full space-y-3">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h3 className="font-display text-sm font-semibold tracking-wide text-ink truncate">
-                    Campaign Atmosphere
-                  </h3>
-                  <p className="font-serif text-[11px] text-ink-soft italic truncate">
-                    Live Broadcast from GM
-                  </p>
-                </div>
-                
-                {/* Pulse Glow Light */}
-                <div className="flex items-center gap-1.5 flex-shrink-0 bg-parchment border border-rule/50 rounded-full px-2 py-0.5 shadow-sm">
-                  <span className="relative flex h-2 w-2">
-                    <span className={`animate-ping absolute inline-flex h-full w-full rounded-full bg-crimson opacity-75 ${isPlaying ? 'running' : 'paused'}`}></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-crimson"></span>
-                  </span>
-                  <span className="font-display text-[9px] uppercase tracking-wider text-ink-mute font-semibold">
-                    {playerState === 'buffering' ? 'Buffering' : isPlaying ? 'Live' : 'Paused'}
-                  </span>
-                </div>
-              </div>
-
-              {/* sound wave visualizer */}
-              <div className="flex items-end gap-1 h-7 px-1 pt-1 bg-parchment-soft/40 border border-rule/30 rounded shadow-inner">
-                {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].map((i) => {
-                  const delay = `${0.08 * i}s`;
-                  const duration = `${0.6 + Math.random() * 0.7}s`;
-                  return (
-                    <div 
-                      key={i}
-                      className={`yt-wave-bar ${isPlaying ? 'animating' : ''}`}
-                      style={{
-                        animationDelay: isPlaying ? delay : '0s',
-                        animationDuration: isPlaying ? duration : '0s'
-                      }}
-                    />
-                  );
-                })}
-              </div>
-
-              {/* Main controls */}
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  {/* Play/Pause Button */}
-                  <button
-                    onClick={togglePlay}
-                    disabled={!isApiReady}
-                    className="flex items-center justify-center w-9 h-9 rounded-full bg-crimson text-parchment hover:bg-wine hover:scale-105 active:scale-95 transition-all shadow-md disabled:opacity-50"
-                    aria-label={isPlaying ? 'Pause music' : 'Play music'}
-                  >
-                    {!isApiReady ? (
-                      <Loader2 size={16} className="animate-spin" />
-                    ) : isPlaying ? (
-                      <Pause size={16} fill="currentColor" />
-                    ) : (
-                      <Play size={16} className="ml-0.5" fill="currentColor" />
-                    )}
-                  </button>
-
-                  {/* Play on YouTube Music External Link */}
-                  <a
-                    href={externalUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 px-2 py-1 rounded border border-rule bg-parchment hover:bg-parchment-deep font-display text-[10px] uppercase tracking-wider text-brass-deep transition-colors"
-                  >
-                    <ExternalLink size={10} /> YouTube Music
-                  </a>
-                </div>
-
-                {/* Volume Controls */}
-                <div className="flex items-center gap-2 max-w-[130px] flex-1">
-                  <button
-                    onClick={toggleMute}
-                    disabled={!isApiReady}
-                    className="text-ink-mute hover:text-crimson transition-colors p-1"
-                    aria-label={isMuted ? 'Unmute' : 'Mute'}
-                  >
-                    {isMuted || volume === 0 ? <VolumeX size={14} /> : <Volume2 size={14} />}
-                  </button>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={isMuted ? 0 : volume}
-                    onChange={handleVolumeChange}
-                    disabled={!isApiReady}
-                    className="w-full accent-crimson h-1 bg-rule/50 rounded-lg appearance-none cursor-pointer disabled:opacity-50"
+            {/* sound wave visualizer */}
+            <div className="flex items-end gap-1 h-7 px-1 pt-1 bg-parchment-soft/40 border border-rule/30 rounded shadow-inner">
+              {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].map((i) => {
+                const delay = `${0.08 * i}s`;
+                const duration = `${0.6 + Math.random() * 0.7}s`;
+                return (
+                  <div 
+                    key={i}
+                    className={`yt-wave-bar ${isPlaying ? 'animating' : ''}`}
+                    style={{
+                      animationDelay: isPlaying ? delay : '0s',
+                      animationDuration: isPlaying ? duration : '0s'
+                    }}
                   />
-                </div>
+                );
+              })}
+            </div>
+
+            {/* Main controls */}
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 flex-wrap">
+                {/* Play/Pause Button */}
+                <button
+                  type="button"
+                  onClick={togglePlay}
+                  disabled={!isApiReady}
+                  className="flex items-center justify-center w-9 h-9 rounded-full bg-crimson text-parchment hover:bg-wine hover:scale-105 active:scale-95 transition-all shadow-md disabled:opacity-50"
+                  aria-label={isPlaying ? 'Pause music' : 'Play music'}
+                >
+                  {!isApiReady ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : isPlaying ? (
+                    <Pause size={16} fill="currentColor" />
+                  ) : (
+                    <Play size={16} className="ml-0.5" fill="currentColor" />
+                  )}
+                </button>
+
+                {/* Play on YouTube Music External Link */}
+                <a
+                  href={externalUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 px-2 py-1 rounded border border-rule bg-parchment hover:bg-parchment-deep font-display text-[10px] uppercase tracking-wider text-brass-deep transition-colors"
+                >
+                  <ExternalLink size={10} /> YouTube Music
+                </a>
+
+                {/* Disconnect Playlist (GM Only) */}
+                {!readOnly && (
+                  <button
+                    type="button"
+                    onClick={handleDisconnect}
+                    className="font-display text-[10px] uppercase tracking-wider text-crimson hover:text-wine border border-crimson/30 hover:border-wine/50 rounded px-2 py-1 transition-colors"
+                  >
+                    Disconnect
+                  </button>
+                )}
+              </div>
+
+              {/* Volume Controls */}
+              <div className="flex items-center gap-2 max-w-[130px] flex-1">
+                <button
+                  type="button"
+                  onClick={toggleMute}
+                  disabled={!isApiReady}
+                  className="text-ink-mute hover:text-crimson transition-colors p-1"
+                  aria-label={isMuted ? 'Unmute' : 'Mute'}
+                >
+                  {isMuted || volume === 0 ? <VolumeX size={14} /> : <Volume2 size={14} />}
+                </button>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={isMuted ? 0 : volume}
+                  onChange={handleVolumeChange}
+                  disabled={!isApiReady}
+                  className="w-full accent-crimson h-1 bg-rule/50 rounded-lg appearance-none cursor-pointer disabled:opacity-50"
+                />
               </div>
             </div>
           </div>
-
-          {/* Bulletproof hidden off-screen iframe */}
-          <div className="absolute overflow-hidden" style={{ width: '1px', height: '1px', opacity: 0.01, left: '-9999px', top: '-9999px' }}>
-            <iframe
-              id={iframeId}
-              src={embedUrl}
-              title="YouTube Music Player"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              className="border-0 w-full h-full"
-            />
-          </div>
-
-          <p className="px-1 font-serif text-[10px] italic leading-normal text-ink-mute">
-            <strong>Note:</strong> Some official tracks restrict external embedding. If you click Play and hear no sound, click the button above to play the full playlist directly in a new tab.
-          </p>
         </div>
-      );
-    }
 
-    // --- GM Video Player (Run Session Mode) ---
-    return (
-      <div className="space-y-3">
-        <div className="relative aspect-video w-full overflow-hidden rounded border border-rule bg-ink shadow-sm">
+        {/* Bulletproof hidden off-screen iframe */}
+        <div className="absolute overflow-hidden" style={{ width: '1px', height: '1px', opacity: 0.01, left: '-9999px', top: '-9999px' }}>
           <iframe
+            id={iframeId}
             src={embedUrl}
             title="YouTube Music Player"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
-            className="absolute inset-0 h-full w-full border-0"
+            className="border-0 w-full h-full"
           />
         </div>
-        <div className="flex flex-col gap-2">
-          <a
-            href={externalUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center gap-1.5 w-full rounded border border-brass-deep bg-brass/10 hover:bg-brass hover:text-parchment py-1.5 font-display text-[11px] uppercase tracking-wider text-brass-deep transition-colors"
-          >
-            <ExternalLink size={12} /> Play on YouTube Music
-          </a>
-          <div className="flex items-center justify-between gap-2 px-1">
-            <div className="flex items-center gap-1.5 font-serif text-[11px] text-ink-mute">
-              <div className="flex gap-0.5 items-end h-2.5 w-3.5">
-                <span className="w-[2px] bg-crimson rounded-full animate-bounce h-2" style={{ animationDelay: '0.1s', animationDuration: '0.6s' }} />
-                <span className="w-[2px] bg-crimson rounded-full animate-bounce h-3" style={{ animationDelay: '0.3s', animationDuration: '0.8s' }} />
-                <span className="w-[2px] bg-crimson rounded-full animate-bounce h-1.5" style={{ animationDelay: '0.2s', animationDuration: '0.5s' }} />
-                <span className="w-[2px] bg-crimson rounded-full animate-bounce h-2.5" style={{ animationDelay: '0.4s', animationDuration: '0.7s' }} />
-              </div>
-              {playlistId ? 'Playlist active' : 'Video active'}
-            </div>
-            {!readOnly && (
-              <button
-                onClick={handleDisconnect}
-                className="font-display text-[10px] uppercase tracking-wider text-crimson hover:text-crimson-soft hover:underline"
-              >
-                Disconnect
-              </button>
-            )}
-          </div>
-        </div>
-        <p className="px-1 font-serif text-[10px] italic leading-normal text-ink-mute mt-0.5">
-          <strong>Note:</strong> Some official tracks restrict external embedding. If the embedded player displays "Video unavailable", click the button above to play the full list directly in a new tab.
+
+        <p className="px-1 font-serif text-[10px] italic leading-normal text-ink-mute">
+          <strong>Note:</strong> Some official tracks restrict external embedding. If you click Play and hear no sound, click the button above to play the full playlist directly in a new tab.
         </p>
       </div>
     );
