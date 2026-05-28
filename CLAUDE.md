@@ -68,6 +68,29 @@ non-pro UI no longer surfaces the checkout link.
 - Required env vars (server-side only): `STRIPE_SECRET_KEY`,
   `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID`, `FIREBASE_SERVICE_ACCOUNT_JSON`.
 
+## Offline-first CRDT sync (campaign data)
+
+Campaign `data` no longer flows through whole-document Firestore writes.
+It is owned by a **Yjs Y.Doc per campaign** (`lib/crdt/`), persisted
+locally via `y-indexeddb` and transported through two append-only
+Firestore subcollections:
+
+- `campaigns/{id}/crdtUpdates/{auto}` — binary Yjs updates
+- `campaigns/{id}/crdtSnapshots/{auto}` — compacted state + state vector
+
+`useCampaignAndWorld` exposes `applyCampaignData(json)` which routes
+through the CRDT layer; `CampaignEditor` uses it in `saveToDB` so the
+existing debounced auto-save behavior is preserved while gaining
+multi-device offline merge. Metadata (`name`, `done`, `worldId`,
+`playerIds`) still rides on the campaign root doc unchanged.
+
+When adding features that mutate campaign content, keep using the
+existing `setState`/auto-save loop in `CampaignEditor.tsx` — content
+writes are already CRDT-aware. Do **not** call
+`updateCampaign(..., { data })` directly outside that path. The Player
+Mode projection pipeline already regenerates from the merged Y.Doc JSON
+view; no changes needed there. See `docs/offline-sync.md`.
+
 ## Automatic Task Completion and Git Workflow
 
 When a coding assistant or agent completes a task, it MUST automatically stage, commit, and push the changes to the remote repository:
