@@ -16,7 +16,7 @@ export default defineConfig({
       'lib/generators/__tests__/*.test.ts',
       'lib/__tests__/*.test.ts',
       'lib/world/__tests__/*.test.ts',
-      'lib/playerMode/__tests__/rules.test.ts',
+      ...(process.env.FIRESTORE_EMULATOR_HOST ? [] : ['lib/playerMode/__tests__/rules.test.ts']),
       'e2e/**',
     ], // EXCLUDE node native tests, emulator-dependent rules tests, and Playwright e2e from vitest
   },
