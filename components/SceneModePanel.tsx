@@ -1,22 +1,16 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useContext } from 'react';
 import {
-  Sparkles,
-  Send,
-  X,
   Play,
-  Square,
   MessageSquare,
-  Dice5,
   Download,
-  AlertTriangle,
   MapPin,
   Users,
   Trash2,
 } from 'lucide-react';
 import { useConfirm } from './ConfirmDialog';
-import { getFirebaseAuth } from '@/lib/firebase/client';
 import {
   capScenes,
   makeSceneId,
@@ -24,18 +18,15 @@ import {
   type SceneTurn,
   type SceneTurnResponse,
 } from '@/lib/scene/types';
-import { buildSceneTurnRequest } from '@/lib/scene/context';
 import { resolveMentions } from '@/lib/scene/mentions';
-import { rollLabel, resolveCheck } from '@/lib/scene/roll';
+import { resolveCheck } from '@/lib/scene/roll';
 import { sceneToMarkdown } from '@/lib/scene/export';
-import { modifierForSuggestion } from '@/lib/scene/roll-with-modifiers';
 import { normalizePcs } from '@/lib/pc/factory';
-import { formatMod } from '@/lib/pc/derived';
-import type { PlayerCharacter } from '@/lib/pc/types';
 import { CampaignPlayModeContext } from './CampaignPlayModeContext';
-import { useContext } from 'react';
-
-type LooseRecord = Record<string, unknown>;
+import { asArray, str, getIdToken } from './sceneMode/helpers';
+import { summarizeTurns as apiSummarizeTurns, checkVoice } from './sceneMode/api';
+import { useSceneTurn } from './sceneMode/useSceneTurn';
+import SceneRunner from './sceneMode/SceneRunner';
 
 type Props = {
   data: Record<string, unknown>;
@@ -46,19 +37,6 @@ type Props = {
   // Parent appends a session-log entry built from the ended scene.
   onSceneEnded: (scene: SceneEntry) => void;
 };
-
-function asArray(v: unknown): LooseRecord[] {
-  return Array.isArray(v) ? (v as LooseRecord[]) : [];
-}
-function str(v: unknown): string {
-  return typeof v === 'string' ? v : '';
-}
-
-async function getIdToken(): Promise<string> {
-  const user = getFirebaseAuth().currentUser;
-  if (!user) throw new Error('Not signed in');
-  return user.getIdToken();
-}
 
 export default function SceneModePanel({
   data,
@@ -87,18 +65,65 @@ export default function SceneModePanel({
   const [draftPartyState, setDraftPartyState] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
 
-  // Turn runner
-  const [pcAction, setPcAction] = useState('');
-  const [streaming, setStreaming] = useState(false);
-  const [streamText, setStreamText] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
-
   const activeScene = scenes.find((s) => s.id === activeId) ?? null;
 
   const patchScene = (id: string, patch: (s: SceneEntry) => SceneEntry) => {
     onScenesChange(scenes.map((s) => (s.id === id ? patch(s) : s)));
   };
+
+  // ---- Mentions + voice check ---------------------------------------------
+
+  const revealMentions = (response: SceneTurnResponse) => {
+    const mentionNpcs = npcs
+      .map((n) => ({ id: str(n.id), name: str(n.name) }))
+      .filter((n) => n.id && n.name);
+    const text = [response.sensory, ...response.dialogue.map((d) => d.line)].join('\n');
+    const { resolvedIds } = resolveMentions(text, mentionNpcs);
+    // NPCs who actually spoke are revealed too — they're clearly "on screen".
+    const speakers = response.dialogue.map((d) => d.npcId);
+    const all = [...new Set([...resolvedIds, ...speakers])].filter(Boolean);
+    if (all.length > 0) onReveal(all);
+  };
+
+  const runVoiceCheck = async (sceneId: string, turn: SceneTurn) => {
+    try {
+      const idToken = await getIdToken();
+      const warnings: { npcId: string; reason: string }[] = [];
+      for (const line of turn.response.dialogue) {
+        const npc = npcs.find((n) => str(n.id) === line.npcId);
+        if (!npc) continue;
+        const traits = str(npc.traits) || str(npc.archetype);
+        const voice = str(npc.voice);
+        if (!traits && !voice) continue;
+        const verdict = await checkVoice(idToken, { traits, voice, line: line.line });
+        if (typeof verdict === 'string' && verdict.startsWith('WARN:')) {
+          warnings.push({ npcId: line.npcId, reason: verdict.slice(5).trim() });
+        }
+      }
+      if (warnings.length > 0) {
+        patchScene(sceneId, (s) => ({
+          ...s,
+          turns: s.turns.map((t) => (t.id === turn.id ? { ...t, voiceWarnings: warnings } : t)),
+        }));
+      }
+    } catch {
+      // Voice check is advisory; ignore failures.
+    }
+  };
+
+  // ---- Turn runner (state + streaming) ------------------------------------
+
+  const turnRunner = useSceneTurn({
+    activeScene,
+    locations,
+    npcs,
+    onTurnRecorded: (sceneId, turn) =>
+      patchScene(sceneId, (s) => ({ ...s, turns: [...s.turns, turn] })),
+    onTurnComplete: (sceneId, turn, response) => {
+      revealMentions(response);
+      void runVoiceCheck(sceneId, turn);
+    },
+  });
 
   // ---- Start / Resume / End ------------------------------------------------
 
@@ -126,15 +151,7 @@ export default function SceneModePanel({
     try {
       if (scene.turns.length > 0) {
         const idToken = await getIdToken();
-        const res = await fetch('/api/scene/summarize-turns', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
-          body: JSON.stringify({ turns: scene.turns }),
-        });
-        if (res.ok) {
-          const json = (await res.json()) as { summary?: string };
-          summary = (json.summary ?? '').trim();
-        }
+        summary = (await apiSummarizeTurns(idToken, scene.turns)).trim();
       }
     } catch {
       // Non-fatal: end the scene even if the summary call fails.
@@ -148,175 +165,9 @@ export default function SceneModePanel({
     };
     patchScene(scene.id, () => ended);
     if (activeId === scene.id) setActiveId(null);
-    
+
     if (playMode === 'solo') {
       onSceneEnded(ended);
-    }
-  };
-
-  // ---- Send a turn ---------------------------------------------------------
-
-  const sendTurn = async () => {
-    const action = pcAction.trim();
-    if (!action || streaming || !activeScene) return;
-    setError(null);
-    setStreamText('');
-    setStreaming(true);
-
-    const controller = new AbortController();
-    abortRef.current = controller;
-    const scene = activeScene;
-
-    try {
-      const idToken = await getIdToken();
-      const location = locations.find((l) => str(l.id) === scene.locationId) ?? {};
-      const presentNpcs = npcs.filter((n) => scene.presentNpcIds.includes(str(n.id)));
-
-      const requestBody = await buildSceneTurnRequest({
-        location,
-        npcs: presentNpcs,
-        scene: { partyState: scene.partyState, turns: scene.turns },
-        newAction: action,
-        summarizeTurns: async (turns) => {
-          const r = await fetch('/api/scene/summarize-turns', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
-            body: JSON.stringify({ turns }),
-          });
-          if (!r.ok) return '';
-          const j = (await r.json()) as { summary?: string };
-          return j.summary ?? '';
-        },
-      });
-
-      const res = await fetch('/api/scene/turn', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
-        body: JSON.stringify(requestBody),
-        signal: controller.signal,
-      });
-
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => ({ error: 'Unknown error' }));
-        setError(errBody.error || `HTTP ${res.status}`);
-        setStreaming(false);
-        return;
-      }
-
-      const reader = res.body?.getReader();
-      if (!reader) {
-        setError('No response stream available.');
-        setStreaming(false);
-        return;
-      }
-
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let accumulated = '';
-      let finalResponse: SceneTurnResponse | null = null;
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const events = buffer.split('\n\n');
-        buffer = events.pop() ?? '';
-        for (const evt of events) {
-          if (!evt.trim()) continue;
-          let eventName = 'message';
-          let dataLine = '';
-          for (const line of evt.split('\n')) {
-            if (line.startsWith('event: ')) eventName = line.slice(7).trim();
-            else if (line.startsWith('data: ')) dataLine = line.slice(6).trim();
-          }
-          if (!dataLine) continue;
-          try {
-            const parsed = JSON.parse(dataLine);
-            if (eventName === 'chunk' && typeof parsed.text === 'string') {
-              accumulated += parsed.text;
-              setStreamText(accumulated);
-            } else if (eventName === 'turn' && parsed.response) {
-              finalResponse = parsed.response as SceneTurnResponse;
-            } else if (eventName === 'error') {
-              setError(parsed.error || 'Stream error.');
-            }
-          } catch {
-            // ignore partial-event parse failures
-          }
-        }
-      }
-
-      if (finalResponse) {
-        const turn: SceneTurn = {
-          id: makeSceneId(),
-          pcAction: action,
-          response: finalResponse,
-          createdAt: Date.now(),
-        };
-        patchScene(scene.id, (s) => ({ ...s, turns: [...s.turns, turn] }));
-        setPcAction('');
-        setStreamText('');
-
-        // @-mention reveals + voice check run after the turn is recorded.
-        revealMentions(finalResponse);
-        void runVoiceCheck(scene.id, turn);
-      }
-    } catch (err) {
-      if (err instanceof Error && err.name !== 'AbortError') setError(err.message);
-    } finally {
-      setStreaming(false);
-      abortRef.current = null;
-    }
-  };
-
-  const cancel = () => {
-    abortRef.current?.abort();
-    setStreaming(false);
-  };
-
-  // ---- Mentions + voice check ---------------------------------------------
-
-  const revealMentions = (response: SceneTurnResponse) => {
-    const mentionNpcs = npcs
-      .map((n) => ({ id: str(n.id), name: str(n.name) }))
-      .filter((n) => n.id && n.name);
-    const text = [response.sensory, ...response.dialogue.map((d) => d.line)].join('\n');
-    const { resolvedIds } = resolveMentions(text, mentionNpcs);
-    // NPCs who actually spoke are revealed too — they're clearly "on screen".
-    const speakers = response.dialogue.map((d) => d.npcId);
-    const all = [...new Set([...resolvedIds, ...speakers])].filter(Boolean);
-    if (all.length > 0) onReveal(all);
-  };
-
-  const runVoiceCheck = async (sceneId: string, turn: SceneTurn) => {
-    try {
-      const idToken = await getIdToken();
-      const warnings: { npcId: string; reason: string }[] = [];
-      for (const line of turn.response.dialogue) {
-        const npc = npcs.find((n) => str(n.id) === line.npcId);
-        if (!npc) continue;
-        const traits = str(npc.traits) || str(npc.archetype);
-        const voice = str(npc.voice);
-        if (!traits && !voice) continue;
-        const r = await fetch('/api/scene/voice-check', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
-          body: JSON.stringify({ traits, voice, line: line.line }),
-        });
-        if (!r.ok) continue;
-        const { verdict } = (await r.json()) as { verdict?: string };
-        if (typeof verdict === 'string' && verdict.startsWith('WARN:')) {
-          warnings.push({ npcId: line.npcId, reason: verdict.slice(5).trim() });
-        }
-      }
-      if (warnings.length > 0) {
-        patchScene(sceneId, (s) => ({
-          ...s,
-          turns: s.turns.map((t) => (t.id === turn.id ? { ...t, voiceWarnings: warnings } : t)),
-        }));
-      }
-    } catch {
-      // Voice check is advisory; ignore failures.
     }
   };
 
@@ -377,13 +228,13 @@ export default function SceneModePanel({
         party={party}
         npcName={npcName}
         locationName={locationName}
-        pcAction={pcAction}
-        setPcAction={setPcAction}
-        streaming={streaming}
-        streamText={streamText}
-        error={error}
-        onSend={sendTurn}
-        onCancel={cancel}
+        pcAction={turnRunner.pcAction}
+        setPcAction={turnRunner.setPcAction}
+        streaming={turnRunner.streaming}
+        streamText={turnRunner.streamText}
+        error={turnRunner.error}
+        onSend={turnRunner.sendTurn}
+        onCancel={turnRunner.cancel}
         onApplyRoll={applyRoll}
         onSetOutcome={setOutcome}
         onEnd={() => endScene(activeScene)}
@@ -607,296 +458,6 @@ export default function SceneModePanel({
           ))}
         </div>
       )}
-    </div>
-  );
-}
-
-// ---- Scene runner (active turn-by-turn view) -------------------------------
-
-function SceneRunner({
-  scene,
-  party,
-  npcName,
-  locationName,
-  pcAction,
-  setPcAction,
-  streaming,
-  streamText,
-  error,
-  onSend,
-  onCancel,
-  onApplyRoll,
-  onSetOutcome,
-  onEnd,
-  onExport,
-  onBack,
-}: {
-  scene: SceneEntry;
-  party: PlayerCharacter[];
-  npcName: (id: string) => string;
-  locationName: (id: string) => string;
-  pcAction: string;
-  setPcAction: (v: string) => void;
-  streaming: boolean;
-  streamText: string;
-  error: string | null;
-  onSend: () => void;
-  onCancel: () => void;
-  onApplyRoll: (sceneId: string, turnId: string, modifier: number, dc: number) => void;
-  onSetOutcome: (sceneId: string, turnId: string, outcome: string) => void;
-  onEnd: () => void;
-  onExport: () => void;
-  onBack: () => void;
-}) {
-  return (
-    <div className="space-y-3 text-sm" data-scene-status={scene.status}>
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={onBack}
-          className="font-display text-xs uppercase tracking-wider text-ink-mute hover:text-ink"
-        >
-          ← Scenes
-        </button>
-        <span className="min-w-0 flex-1 truncate font-display text-sm text-ink">
-          {locationName(scene.locationId)}
-        </span>
-        <button
-          type="button"
-          onClick={onExport}
-          className="flex items-center gap-1 font-display text-[10px] uppercase tracking-wider text-ink-mute hover:text-brass-deep"
-        >
-          <Download size={10} /> Export
-        </button>
-        <button
-          type="button"
-          onClick={onEnd}
-          className="flex items-center gap-1 rounded border border-crimson/50 px-2.5 py-1 font-display text-[10px] uppercase tracking-wider text-crimson hover:bg-crimson hover:text-parchment"
-        >
-          <Square size={10} /> End Scene
-        </button>
-      </div>
-
-      <div className="font-serif text-xs italic text-ink-mute">
-        Present: {scene.presentNpcIds.map(npcName).join(', ')}
-      </div>
-
-      <div className="space-y-3">
-        {scene.turns.map((turn, i) => (
-          <TurnCard
-            key={turn.id}
-            turn={turn}
-            index={i}
-            sceneId={scene.id}
-            party={party}
-            npcName={npcName}
-            onApplyRoll={onApplyRoll}
-            onSetOutcome={onSetOutcome}
-          />
-        ))}
-
-        {streaming && (
-          <div className="rounded border border-rule bg-parchment p-3 shadow-card">
-            <span className="flex items-center gap-1.5 font-display text-xs uppercase tracking-wider text-brass-deep">
-              <Sparkles size={12} className="text-crimson" /> Narrating…
-            </span>
-            {streamText && (
-              <pre className="mt-1.5 whitespace-pre-wrap font-serif text-xs leading-relaxed text-ink-mute">
-                {streamText}
-              </pre>
-            )}
-          </div>
-        )}
-
-        {error && (
-          <div className="rounded border border-crimson/40 bg-crimson/5 p-2.5 font-serif text-xs text-crimson">
-            {error}
-          </div>
-        )}
-      </div>
-
-      {/* Player input — amber/brass treatment per UI convention. */}
-      <div className="space-y-1.5 rounded border border-brass-deep/40 bg-brass/10 p-2.5">
-        <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">
-          What does your PC do?
-        </span>
-        <textarea
-          name="pcAction"
-          value={pcAction}
-          onChange={(e) => setPcAction(e.target.value)}
-          rows={2}
-          placeholder="Describe your action…"
-          className="w-full resize-y rounded border border-rule bg-parchment px-2 py-1.5 font-serif text-sm text-ink placeholder:italic placeholder:text-ink-faint focus:border-crimson focus:outline-none"
-        />
-        <button
-          type="button"
-          onClick={streaming ? onCancel : onSend}
-          disabled={!streaming && !pcAction.trim()}
-          className={`flex items-center gap-1.5 rounded border px-3 py-1.5 font-display text-xs uppercase tracking-wider transition-colors ${
-            streaming
-              ? 'border-crimson bg-crimson/10 text-crimson hover:bg-crimson hover:text-parchment'
-              : 'border-crimson bg-crimson text-parchment hover:bg-crimson-deep disabled:cursor-not-allowed disabled:opacity-40'
-          }`}
-        >
-          {streaming ? (
-            <>
-              <X size={12} /> Cancel
-            </>
-          ) : (
-            <>
-              <Send size={12} /> Send
-            </>
-          )}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function TurnCard({
-  turn,
-  index,
-  sceneId,
-  party,
-  npcName,
-  onApplyRoll,
-  onSetOutcome,
-}: {
-  turn: SceneTurn;
-  index: number;
-  sceneId: string;
-  party: PlayerCharacter[];
-  npcName: (id: string) => string;
-  onApplyRoll: (sceneId: string, turnId: string, modifier: number, dc: number) => void;
-  onSetOutcome: (sceneId: string, turnId: string, outcome: string) => void;
-}) {
-  const [modifier, setModifier] = useState(0);
-  const [rollOpen, setRollOpen] = useState(false);
-  const [pickPc, setPickPc] = useState(false);
-  const roll = turn.response.suggestedRoll;
-
-  // Roll the suggestion against a specific PC: resolve the ability mod +
-  // proficiency bonus (when proficient in the suggested skill) and apply.
-  const rollWithPc = (pc: PlayerCharacter) => {
-    if (!roll) return;
-    onApplyRoll(sceneId, turn.id, modifierForSuggestion(pc, roll), roll.dc);
-    setRollOpen(false);
-    setPickPc(false);
-  };
-
-  return (
-    <div className="space-y-2" data-turn-index={index} data-status="complete">
-      <div className="rounded border border-brass-deep/30 bg-brass/10 px-2.5 py-1.5 font-serif text-sm text-ink">
-        <span className="font-display text-[10px] uppercase tracking-wider text-brass-deep">
-          PC
-        </span>
-        <div>{turn.pcAction}</div>
-      </div>
-
-      <div className="space-y-2 rounded border border-rule bg-parchment p-3 shadow-card">
-        {turn.response.dialogue.map((d, di) => (
-          <div key={di} className="font-serif text-sm leading-relaxed text-ink">
-            <span className="font-display text-xs uppercase tracking-wider text-crimson">
-              {npcName(d.npcId)}:
-            </span>{' '}
-            <span className="italic">&ldquo;{d.line}&rdquo;</span>
-          </div>
-        ))}
-        <p className="font-serif text-sm leading-relaxed text-ink-soft">{turn.response.sensory}</p>
-
-        {turn.voiceWarnings?.map((w, wi) => (
-          <div
-            key={wi}
-            className="flex items-start gap-1.5 rounded border border-brass-deep/50 bg-brass/15 px-2 py-1 font-serif text-xs text-brass-deep"
-          >
-            <AlertTriangle size={12} className="mt-0.5 shrink-0" />
-            <span>
-              <b>{npcName(w.npcId)}</b> — {w.reason}
-            </span>
-          </div>
-        ))}
-
-        {roll && (
-          <div className="space-y-1.5 border-t border-rule pt-2">
-            {turn.rolled ? (
-              <div className="font-serif text-xs text-ink-soft">
-                <Dice5 size={12} className="mr-1 inline text-brass-deep" />
-                {turn.rolled.expr} = <b>{turn.rolled.result}</b> vs DC {roll.dc} —{' '}
-                <span className={turn.rolled.success ? 'text-moss' : 'text-crimson'}>
-                  {turn.rolled.success === null ? '—' : turn.rolled.success ? 'Success' : 'Failure'}
-                </span>
-              </div>
-            ) : rollOpen ? (
-              <div className="space-y-1.5">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="font-serif text-xs text-ink-soft">1d20 +</span>
-                  <input
-                    type="number"
-                    value={modifier}
-                    onChange={(e) => setModifier(Number(e.target.value) || 0)}
-                    className="w-14 rounded border-b border-rule bg-transparent px-1 py-0.5 text-center font-serif text-ink focus:border-crimson focus:outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onApplyRoll(sceneId, turn.id, modifier, roll.dc);
-                      setRollOpen(false);
-                    }}
-                    className="rounded border border-crimson bg-crimson px-2 py-0.5 font-display text-[10px] uppercase tracking-wider text-parchment hover:bg-crimson-deep"
-                  >
-                    Roll
-                  </button>
-                  {party.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (party.length === 1) rollWithPc(party[0]);
-                        else setPickPc((v) => !v);
-                      }}
-                      className="rounded border border-brass-deep/50 px-2 py-0.5 font-display text-[10px] uppercase tracking-wider text-brass-deep hover:bg-brass hover:text-parchment"
-                      title="Roll using a PC's ability/skill modifier"
-                    >
-                      Roll With Modifiers
-                    </button>
-                  )}
-                </div>
-                {pickPc && party.length > 1 && (
-                  <div className="flex flex-wrap gap-1">
-                    {party.map((pc) => (
-                      <button
-                        key={pc.id}
-                        type="button"
-                        onClick={() => rollWithPc(pc)}
-                        className="rounded border border-rule px-2 py-0.5 font-serif text-[11px] text-ink-soft hover:bg-parchment-deep"
-                      >
-                        {pc.name || 'Unnamed'} ({formatMod(modifierForSuggestion(pc, roll))})
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setRollOpen(true)}
-                className="flex items-center gap-1.5 rounded border border-brass-deep/50 px-2.5 py-1 font-display text-[10px] uppercase tracking-wider text-brass-deep hover:bg-brass hover:text-parchment"
-                title={roll.reason}
-              >
-                <Dice5 size={11} /> {rollLabel(roll)}
-              </button>
-            )}
-            <p className="font-serif text-[11px] italic text-ink-mute">{roll.reason}</p>
-          </div>
-        )}
-
-        <input
-          type="text"
-          defaultValue={turn.outcome ?? ''}
-          onBlur={(e) => onSetOutcome(sceneId, turn.id, e.target.value)}
-          placeholder="What actually happened? (optional)"
-          className="w-full rounded border border-rule bg-parchment-soft px-2 py-1 font-serif text-xs text-ink placeholder:italic placeholder:text-ink-faint focus:border-crimson focus:outline-none"
-        />
-      </div>
     </div>
   );
 }
