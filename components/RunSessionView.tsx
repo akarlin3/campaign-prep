@@ -1814,9 +1814,6 @@ export function MusicPlayer({
                 setIsPlaying(true);
                 onChangePlayingRef.current?.(true);
                 try {
-                  if (playlistIdRef.current) {
-                    event.target.setShuffle(true);
-                  }
                   const idx = event.target.getPlaylistIndex();
                   if (typeof idx === 'number' && idx >= 0) {
                     onChangePlaylistIndexRef.current?.(idx);
@@ -1837,8 +1834,26 @@ export function MusicPlayer({
                 setPlayerState('buffering');
               } else if (event.data === states.ENDED) {
                 setPlayerState('ended');
-                setIsPlaying(false);
-                onChangePlayingRef.current?.(false);
+                if (playlistIdRef.current) {
+                  const targetPlayer = event.target;
+                  setTimeout(() => {
+                    try {
+                      const curr = targetPlayer.getPlayerState();
+                      // @ts-ignore
+                      const currStates = window.YT.PlayerState;
+                      if (curr !== currStates.PLAYING && curr !== currStates.BUFFERING) {
+                        setIsPlaying(false);
+                        onChangePlayingRef.current?.(false);
+                      }
+                    } catch (err) {
+                      setIsPlaying(false);
+                      onChangePlayingRef.current?.(false);
+                    }
+                  }, 2000);
+                } else {
+                  setIsPlaying(false);
+                  onChangePlayingRef.current?.(false);
+                }
               } else if (event.data === states.UNSTARTED) {
                 setPlayerState('unstarted');
               }
@@ -1942,19 +1957,34 @@ export function MusicPlayer({
       if (playlistId && typeof playlistIndexProp === 'number' && playlistIndexProp >= 0) {
         const indexChanged = playlistIndexProp !== lastPlaylistIndexRef.current;
         if (indexChanged) {
-          if (isPlayingProp) {
-            ytPlayer.playVideoAt(playlistIndexProp);
-          } else {
-            // Recue at index when paused
-            ytPlayer.cuePlaylist({
-              listType: 'playlist',
-              list: playlistId,
-              index: playlistIndexProp
-            });
+          // If we are in read-only (player) mode and already playing, ignore automatic/shuffled index changes
+          // to prevent playback disruption, infinite loops, and browser autoplay blocks.
+          let isActuallyPlaying = false;
+          try {
+            // @ts-ignore
+            const states = window.YT?.PlayerState;
+            isActuallyPlaying = states && ytPlayer.getPlayerState() === states.PLAYING;
+          } catch (err) {
+            // Safe fallback
           }
-          lastPlaylistIndexRef.current = playlistIndexProp;
-          lastPlayingRef.current = isPlayingProp ?? false;
-          return;
+
+          if (readOnly && isActuallyPlaying) {
+            lastPlaylistIndexRef.current = playlistIndexProp;
+          } else {
+            if (isPlayingProp) {
+              ytPlayer.playVideoAt(playlistIndexProp);
+            } else {
+              // Recue at index when paused
+              ytPlayer.cuePlaylist({
+                listType: 'playlist',
+                list: playlistId,
+                index: playlistIndexProp
+              });
+            }
+            lastPlaylistIndexRef.current = playlistIndexProp;
+            lastPlayingRef.current = isPlayingProp ?? false;
+            return;
+          }
         }
       }
 
