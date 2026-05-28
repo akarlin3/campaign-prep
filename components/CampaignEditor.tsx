@@ -818,6 +818,7 @@ function renownRank(value: number, custom?: string[]): string {
 function RunSessionInline({
   get, setVal, setState, characters, campaignContext,
   nextUp, jumpToNextUp, trackEvent, navigateTo, onEndSession, usedPrep,
+  sessionPlaylistAnchor, setSessionPlaylistAnchor,
 }: {
   get: (k: string, fb: any) => any;
   setVal: (k: string, v: any) => void;
@@ -830,6 +831,8 @@ function RunSessionInline({
   navigateTo: (target: { mode: Mode; subview?: string; sessionId?: string; anchor?: string }) => void;
   onEndSession: () => void;
   usedPrep: any;
+  sessionPlaylistAnchor: { positionSec: number; anchorWallTimeMs: number; playlistIndex: number } | null;
+  setSessionPlaylistAnchor: (next: { positionSec: number; anchorWallTimeMs: number; playlistIndex: number } | null) => void;
 }) {
   const activeId = (get('__activeSessionId', '') as string) || '';
   const isActive = !!activeId;
@@ -847,6 +850,8 @@ function RunSessionInline({
     get={get} setVal={setVal} characters={characters} campaignContext={campaignContext}
     startedAt={startedAt} trackEvent={trackEvent} onEndSession={onEndSession}
     usedPrep={usedPrep}
+    sessionPlaylistAnchor={sessionPlaylistAnchor}
+    setSessionPlaylistAnchor={setSessionPlaylistAnchor}
   />;
 }
 
@@ -1011,6 +1016,7 @@ function PrepStat({ label, value, sub }: { label: string; value: number | string
 
 function RunSessionInlineActive({
   get, setVal, characters, campaignContext, startedAt, trackEvent, onEndSession, usedPrep,
+  sessionPlaylistAnchor, setSessionPlaylistAnchor,
 }: {
   get: (k: string, fb: any) => any;
   setVal: (k: string, v: any) => void;
@@ -1020,6 +1026,8 @@ function RunSessionInlineActive({
   trackEvent: (kind: ChangeEventKind, summary: string, before?: unknown, after?: unknown) => void;
   onEndSession: () => void;
   usedPrep: any;
+  sessionPlaylistAnchor: { positionSec: number; anchorWallTimeMs: number; playlistIndex: number } | null;
+  setSessionPlaylistAnchor: (next: { positionSec: number; anchorWallTimeMs: number; playlistIndex: number } | null) => void;
 }) {
   const sessionV2 = (get('sessionLogV2', []) as SessionLogEntry[]) || [];
   const sessionNumber = nextSessionNumber(sessionV2);
@@ -1573,7 +1581,7 @@ function RunSessionInlineActive({
               onChangePlaylist={(next) => {
                 setVal('__sessionPlaylist', next);
                 setVal('__sessionPlaylistIndex', 0);
-                setVal('__sessionPlaylistAnchor', null);
+                setSessionPlaylistAnchor(null);
               }}
               isPlayingProp={!!get('__sessionPlaylistPlaying', false)}
               onChangePlaying={(next) => setVal('__sessionPlaylistPlaying', next)}
@@ -1581,7 +1589,7 @@ function RunSessionInlineActive({
               onChangePlaylists={(next) => setVal('__sessionPlaylists', next)}
               playlistIndexProp={(get('__sessionPlaylistIndex', 0) as number)}
               onChangePlaylistIndex={(next) => setVal('__sessionPlaylistIndex', next)}
-              onPublishSyncAnchor={(anchor) => setVal('__sessionPlaylistAnchor', anchor)}
+              onPublishSyncAnchor={setSessionPlaylistAnchor}
             />
           </PanelShell>
 
@@ -2428,6 +2436,16 @@ export default function CampaignEditor({
   const get = useCallback((k: string, fb: any) => state[k] !== undefined ? state[k] : fb, [state]);
   const setVal = (k: string, v: any) => setState(s => ({ ...s, [k]: v }));
 
+  // Session music sync anchor — kept in transient React state, not the CRDT
+  // log. The GM publishes a fresh {position, wall-time, index} every ~15s
+  // during playback so players can seek to match; persisting that through
+  // Yjs would create one append-only log entry every cycle for no benefit
+  // (the anchor only matters during the live session, and players already
+  // receive it through the playerShares projection).
+  const [sessionPlaylistAnchor, setSessionPlaylistAnchor] = useState<
+    { positionSec: number; anchorWallTimeMs: number; playlistIndex: number } | null
+  >(null);
+
   // tourUid for checking tutorial tour views. For the campaign owner, this is
   // their own auth uid; falls back to the campaign owner's userId.
   const tourUid = useMemo(
@@ -2478,9 +2496,9 @@ export default function CampaignEditor({
       playlist: get('__sessionPlaylist', ''),
       playing: !!get('__sessionPlaylistPlaying', false),
       index: get('__sessionPlaylistIndex', 0),
-      anchor: (get('__sessionPlaylistAnchor', null) as { anchorWallTimeMs?: number } | null)?.anchorWallTimeMs ?? 0,
+      anchor: sessionPlaylistAnchor?.anchorWallTimeMs ?? 0,
     }),
-    [get],
+    [get, sessionPlaylistAnchor],
   );
 
   useEffect(() => {
@@ -2515,9 +2533,7 @@ export default function CampaignEditor({
             __sessionPlaylist: get('__sessionPlaylist', '') as string,
             __sessionPlaylistPlaying: !!get('__sessionPlaylistPlaying', false),
             __sessionPlaylistIndex: get('__sessionPlaylistIndex', 0) as number,
-            __sessionPlaylistAnchor: (get('__sessionPlaylistAnchor', null) as
-              | { positionSec: number; anchorWallTimeMs: number; playlistIndex: number }
-              | null) ?? undefined,
+            __sessionPlaylistAnchor: sessionPlaylistAnchor ?? undefined,
           };
           await publishProjections(campaign.id, name || 'Campaign', dataToPublish);
         } catch (e) {
@@ -2527,7 +2543,7 @@ export default function CampaignEditor({
     }, delay);
 
     return () => clearTimeout(timer);
-  }, [contentSignature, musicSignature, campaign.id, name, playerLog, playerConfig, get]);
+  }, [contentSignature, musicSignature, campaign.id, name, playerLog, playerConfig, get, sessionPlaylistAnchor]);
   const usedPrep = useMemo(() => {
     const sessionLogsV2 = (get('sessionLogV2', [])) || [];
     const linkedNpcIds = new Set<string>();
@@ -3829,6 +3845,8 @@ export default function CampaignEditor({
           campaignContext={generatorCampaignContext}
           campaignId={campaign.id}
           campaignName={name}
+          sessionPlaylistAnchor={sessionPlaylistAnchor}
+          setSessionPlaylistAnchor={setSessionPlaylistAnchor}
         />
         <SyncPill />
       </>
@@ -5203,6 +5221,8 @@ export default function CampaignEditor({
             navigateTo={navigateTo}
             onEndSession={handleEndSession}
             usedPrep={usedPrep}
+            sessionPlaylistAnchor={sessionPlaylistAnchor}
+            setSessionPlaylistAnchor={setSessionPlaylistAnchor}
           />
         )}
 
