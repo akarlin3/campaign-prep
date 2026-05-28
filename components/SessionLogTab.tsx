@@ -12,27 +12,7 @@ import { CHANGE_EVENT_LABELS } from '@/lib/sessionEvents';
 import type { Character } from '@/lib/character-schema';
 import type { CampaignItem } from '@/lib/playerMode/types';
 import { normalizeItem } from '@/lib/playerMode/types';
-
-const getLocalDateString = (ms: number) => {
-  const d = new Date(ms);
-  const YYYY = d.getFullYear();
-  const MM = String(d.getMonth() + 1).padStart(2, '0');
-  const DD = String(d.getDate()).padStart(2, '0');
-  return `${YYYY}-${MM}-${DD}`;
-};
-
-const getLocalTimeString = (ms: number) => {
-  const d = new Date(ms);
-  const HH = String(d.getHours()).padStart(2, '0');
-  const MM = String(d.getMinutes()).padStart(2, '0');
-  return `${HH}:${MM}`;
-};
-
-const parseLocalStart = (dateStr: string, timeStr: string) => {
-  const [year, month, day] = dateStr.split('-').map(Number);
-  const [hour, minute] = timeStr.split(':').map(Number);
-  return new Date(year, month - 1, day, hour, minute).getTime();
-};
+import { getLocalDateString, getLocalTimeString, parseLocalStart } from '@/lib/date-utils';
 
 type NPC = {
   id?: string;

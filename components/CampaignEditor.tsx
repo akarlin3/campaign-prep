@@ -77,7 +77,13 @@ import { WhileYouWereAway } from './world/WhileYouWereAway';
 import { emptyLogistics, type LogisticsState } from './LogisticsTab';
 import { emptyGraph, type RelationshipGraphState } from './NPCRelationshipWeb';
 import { emptyWorld, type FactionWorld } from '@/lib/factionEngine';
-import type { SessionLogEntry } from '@/lib/sessionLog';
+import { type SessionLogEntry, todayISO } from '@/lib/sessionLog';
+import {
+  type SessionLog,
+  makeLogId,
+  migrateCharactersAndPcs,
+  migrateSessionLogs,
+} from '@/lib/campaign/migrations';
 import { nextSessionNumber, recalculatePartyState, cleanPrepLists, parseMonsterName } from '@/lib/sessionLog';
 import { applyNarrationReveal } from '@/lib/playerMode/sessionLog';
 import type { PrepWizardRun } from '@/lib/prepWizard';
@@ -230,19 +236,6 @@ const FactionCard = ({ data, onChange, onRemove }: any) => {
 };
 
 
-type SessionLog = { id: string; title: string; date: string; body: string };
-
-function makeLogId() {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-}
-
-function todayISO() {
-  return new Date().toISOString().slice(0, 10);
-}
-
 function mapPcToLegacyCharacter(pc: PlayerCharacter): Character {
   const base = emptyCharacter();
   const classStr = pc.classes.map(c => `${c.name} ${c.level}${c.subclass ? ` (${c.subclass})` : ''}`).join(' / ');
@@ -290,119 +283,6 @@ function mapPcToLegacyCharacter(pc: PlayerCharacter): Character {
       playerSlotId: pc.ownership.playerSlotId,
     } : undefined,
   };
-}
-
-function migrateCharactersAndPcs(data: Record<string, any>): Record<string, any> {
-  const migrated = migrateCharacters(data);
-  if (Array.isArray(migrated.characters) && migrated.characters.length > 0) {
-    const existingPcs = Array.isArray(migrated.pcs) ? migrated.pcs : [];
-    const mapped = migrated.characters.map((c: any) => {
-      const pc = mapParsedToPc(c);
-      if (c.ownership) {
-        pc.ownership = {
-          ownerType: c.ownership.ownerType,
-          playerSlotId: c.ownership.playerSlotId,
-        };
-      }
-      return pc;
-    });
-    const nextPcs = [...existingPcs];
-    for (const newPc of mapped) {
-      if (!nextPcs.some(p => p.id === newPc.id || (p.name && p.name.trim() && p.name === newPc.name))) {
-        nextPcs.push(newPc);
-      }
-    }
-    migrated.pcs = nextPcs;
-    migrated.characters = [];
-  }
-  return migrated;
-}
-
-// One-way migration: pcName/pcClass/pcBg/pcWant/pcFear/pcLove/pcFactions → characters[0].
-// Legacy keys are dropped after migration; data is preserved inside the new character.
-function migrateCharacters(data: Record<string, any>): Record<string, any> {
-  if (Array.isArray(data.characters)) {
-    return { ...data, characters: (data.characters as unknown[]).map(normalizeCharacter) };
-  }
-  const { pcName, pcClass, pcBg, pcWant, pcFear, pcLove, pcFactions, ...rest } = data;
-  const hasLegacy =
-    pcName || pcClass || pcBg || pcWant || pcFear || pcLove ||
-    (Array.isArray(pcFactions) && pcFactions.length > 0);
-  if (!hasLegacy) return { ...rest, characters: [] };
-
-  const seed = emptyCharacter();
-  const factionTies = Array.isArray(pcFactions)
-    ? (pcFactions as unknown[]).filter((s) => typeof s === 'string' && s).join(', ')
-    : '';
-  const migrated: Character = {
-    ...seed,
-    name: pcName || '',
-    classLevel: pcClass || '',
-    backstory: pcBg || '',
-    ideals: pcWant || '',
-    flaws: pcFear || '',
-    bonds: pcLove || '',
-    notes: factionTies ? `Faction Ties: ${factionTies}` : '',
-  };
-  return { ...rest, characters: [migrated] };
-}
-
-function migrateSessionLogs(data: Record<string, any>): { initialState: Record<string, any>; initialOpenId: string | null } {
-  const { logCurrent, ...rest } = data;
-
-  let legacyLogs: any[] = [];
-  if (Array.isArray(data.sessionLogs)) {
-    legacyLogs = data.sessionLogs;
-  }
-  let v2Logs: any[] = [];
-  if (Array.isArray(data.sessionLogV2)) {
-    v2Logs = data.sessionLogV2;
-  }
-
-  const existing = typeof logCurrent === 'string' ? logCurrent.trim() : '';
-  if (existing) {
-    const id = makeLogId();
-    const migrated: SessionLog = { id, title: 'Session 1', date: todayISO(), body: logCurrent };
-    legacyLogs = [migrated, ...legacyLogs];
-  }
-
-  if (legacyLogs.length > 0) {
-    const nextV2 = [...v2Logs];
-    const sortedLegacy = [...legacyLogs].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
-    
-    sortedLegacy.forEach((legacy) => {
-      const exists = v2Logs.some(v2 => v2.id === legacy.id);
-      if (!exists) {
-        const parsedDate = legacy.date ? Date.parse(legacy.date) : Date.now();
-        const time = isNaN(parsedDate) ? Date.now() : parsedDate;
-        const entry: SessionLogEntry = {
-          id: legacy.id || `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-          number: nextV2.length + 1,
-          date: legacy.date || todayISO(),
-          startedAt: time,
-          endedAt: time,
-          title: legacy.title || `Session ${nextV2.length + 1}`,
-          recap: legacy.body || '',
-          events: [],
-          secretsRevealed: [],
-          scenesUsed: [],
-          goalUpdates: [],
-        };
-        nextV2.push(entry);
-      }
-    });
-
-    return {
-      initialState: {
-        ...rest,
-        sessionLogV2: nextV2,
-        sessionLogs: [],
-      },
-      initialOpenId: null
-    };
-  }
-
-  return { initialState: { ...rest, sessionLogV2: v2Logs }, initialOpenId: null };
 }
 
 const SessionLogCard = ({ data, open, onToggleOpen, onChange, onRemove }: {
