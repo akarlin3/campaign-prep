@@ -319,7 +319,7 @@ function PlayerPcSheetCard({ pc, token, slotId }: { pc: any; token: string; slot
                   <button
                     key={n}
                     onClick={() => handleDeathSave('successes', n)}
-                    className={`h-4.5 w-4.5 rounded-full border transition-all ${
+                    className={`h-5 w-5 rounded-full border transition-all ${
                       (pc.deathSaves?.successes ?? 0) >= n
                         ? 'border-emerald-600 bg-emerald-500 shadow-sm'
                         : 'border-rule hover:bg-parchment'
@@ -336,7 +336,7 @@ function PlayerPcSheetCard({ pc, token, slotId }: { pc: any; token: string; slot
                   <button
                     key={n}
                     onClick={() => handleDeathSave('failures', n)}
-                    className={`h-4.5 w-4.5 rounded-full border transition-all ${
+                    className={`h-5 w-5 rounded-full border transition-all ${
                       (pc.deathSaves?.failures ?? 0) >= n
                         ? 'border-crimson bg-crimson shadow-sm'
                         : 'border-rule hover:bg-parchment'
