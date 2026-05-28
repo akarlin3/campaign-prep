@@ -31,6 +31,8 @@ type PinRef = { kind: PinKind; key: string };
 type Get = (k: string, fb: any) => any;
 type SetVal = (k: string, v: any) => void;
 
+type SessionSyncAnchor = { positionSec: number; anchorWallTimeMs: number; playlistIndex: number };
+
 type Props = {
   get: Get;
   setVal: SetVal;
@@ -41,6 +43,11 @@ type Props = {
   campaignContext?: CampaignContext;
   campaignId?: string;
   campaignName?: string;
+  // Music sync anchor: ephemeral, kept in CampaignEditor React state so the
+  // ~15s update cadence doesn't append to the CRDT log every cycle. Players
+  // still receive it through publishProjections.
+  sessionPlaylistAnchor?: SessionSyncAnchor | null;
+  setSessionPlaylistAnchor?: (next: SessionSyncAnchor | null) => void;
 };
 
 const SECTION_KEYS = [
@@ -62,6 +69,7 @@ const SECTION_META: Record<SectionKey, { label: string; icon: any }> = {
 
 export default function RunSessionView({
   get, setVal, characters, onEndSession, onExitWithoutEnding, onOpenLibrary, campaignContext, campaignId, campaignName,
+  sessionPlaylistAnchor, setSessionPlaylistAnchor,
 }: Props) {
   const [section, setSection] = useState<Record<SectionKey, boolean>>({
     scenes: true, secrets: true, npcs: true, locations: true,
@@ -104,9 +112,9 @@ export default function RunSessionView({
       // anchorWallTimeMs is the only field that changes when the GM republishes
       // a fresh sync point — including it ensures the debounced publisher fires
       // on every new anchor.
-      anchor: (get('__sessionPlaylistAnchor', null) as { anchorWallTimeMs?: number } | null)?.anchorWallTimeMs ?? 0,
+      anchor: sessionPlaylistAnchor?.anchorWallTimeMs ?? 0,
     }),
-    [get],
+    [get, sessionPlaylistAnchor],
   );
 
   useEffect(() => {
@@ -141,9 +149,7 @@ export default function RunSessionView({
             __sessionPlaylist: get('__sessionPlaylist', '') as string,
             __sessionPlaylistPlaying: !!get('__sessionPlaylistPlaying', false),
             __sessionPlaylistIndex: get('__sessionPlaylistIndex', 0) as number,
-            __sessionPlaylistAnchor: (get('__sessionPlaylistAnchor', null) as
-              | { positionSec: number; anchorWallTimeMs: number; playlistIndex: number }
-              | null) ?? undefined,
+            __sessionPlaylistAnchor: sessionPlaylistAnchor ?? undefined,
           };
           await publishProjections(campaignId, campaignName || 'Campaign', dataToPublish);
           setPublishState('done');
@@ -387,7 +393,7 @@ export default function RunSessionView({
           onChangePlaylist={(next) => {
             setVal('__sessionPlaylist', next);
             setVal('__sessionPlaylistIndex', 0);
-            setVal('__sessionPlaylistAnchor', null);
+            setSessionPlaylistAnchor?.(null);
           }}
           isPlayingProp={!!get('__sessionPlaylistPlaying', false)}
           onChangePlaying={(next) => setVal('__sessionPlaylistPlaying', next)}
@@ -395,7 +401,7 @@ export default function RunSessionView({
           onChangePlaylists={(next) => setVal('__sessionPlaylists', next)}
           playlistIndexProp={(get('__sessionPlaylistIndex', 0) as number)}
           onChangePlaylistIndex={(next) => setVal('__sessionPlaylistIndex', next)}
-          onPublishSyncAnchor={(anchor) => setVal('__sessionPlaylistAnchor', anchor)}
+          onPublishSyncAnchor={setSessionPlaylistAnchor}
         />
       </PanelShell>
 
