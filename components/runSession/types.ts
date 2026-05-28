@@ -7,9 +7,7 @@ export type PinRef = { kind: PinKind; key: string };
 // Kept as `any` deliberately: the main component relies on the loose return
 // type at hundreds of `get(...)` call sites. Tightening these would ripple
 // through the whole component and change behavior, so they are preserved.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Get = (k: string, fb: any) => any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type SetVal = (k: string, v: any) => void;
 
 export type SessionSyncAnchor = {
