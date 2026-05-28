@@ -34,6 +34,8 @@
     "react-konva": "^19.2.4",
     "stripe": "^22.1.1",
     "use-image": "^1.1.4",
+    "y-indexeddb": "^9.0.12",
+    "yjs": "^13.6.30",
     "zod": "^4.4.3"
   },
   "devDependencies": {

@@ -12,7 +12,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   const { id } = use(params);
   const { user, loading: authLoading, isPro } = useAuth();
   const router = useRouter();
-  const { campaign, rawCampaign, world, loading, error } = useCampaignAndWorld(id);
+  const { campaign, rawCampaign, world, loading, error, crdt, applyCampaignData, crdtReady } = useCampaignAndWorld(id);
 
   useEffect(() => {
     if (!authLoading && !user) router.replace('/login');
@@ -35,7 +35,11 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     }
   }
 
-  if (authLoading || loading) {
+  // Block first render of the editor until the CRDT layer has hydrated from
+  // IndexedDB and reconciled with the Firestore log. This avoids mounting the
+  // editor with the stale legacy `campaign.data` JSON and overwriting newer
+  // CRDT state on the first auto-save.
+  if (authLoading || loading || (campaign && user && campaign.userId === user.uid && !crdtReady)) {
     return (
       <main className="min-h-screen bg-parchment flex flex-col">
         <header className="h-14 border-b border-rule bg-parchment px-4 flex items-center gap-3">
@@ -82,5 +86,5 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     return <PlayerView campaign={campaign} userEmail={user.email ?? ''} />;
   }
 
-  return <CampaignEditor campaign={campaign} rawCampaign={rawCampaign ?? undefined} world={world ?? undefined} userEmail={user.email ?? ''} isPro={isPro} />;
+  return <CampaignEditor campaign={campaign} rawCampaign={rawCampaign ?? undefined} world={world ?? undefined} userEmail={user.email ?? ''} isPro={isPro} crdtApply={applyCampaignData} />;
 }

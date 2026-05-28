@@ -2081,6 +2081,7 @@ export default function CampaignEditor({
   userEmail,
   isPro = false,
   worldOnlyMode = false,
+  crdtApply,
 }: {
   campaign: Campaign;
   rawCampaign?: Campaign;
@@ -2088,6 +2089,10 @@ export default function CampaignEditor({
   userEmail: string;
   isPro?: boolean;
   worldOnlyMode?: boolean;
+  /** When provided, campaign.data writes are routed through the Yjs CRDT
+   * layer rather than directly to the Firestore doc. Provided by
+   * `useCampaignAndWorld` on the main campaign detail page. */
+  crdtApply?: (next: Record<string, any>) => void;
 }) {
   const router = useRouter();
   const confirmModal = useConfirm();
@@ -2184,6 +2189,10 @@ export default function CampaignEditor({
   const characterFileInputRef = useRef<HTMLInputElement>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const initialLoadRef = useRef(true);
+  // Tracks the most recent JSON snapshot we either sent to the CRDT layer or
+  // received from it. Used by the remote-merge effect to detect changes that
+  // didn't originate locally.
+  const lastCrdtSnapshotRef = useRef<string>('');
 
   const undoStackRef = useRef<Snapshot[]>([]);
   const previousSnapRef = useRef<Snapshot | null>(null);
@@ -2303,12 +2312,23 @@ export default function CampaignEditor({
       }
 
       const promises = [];
-      promises.push(updateCampaign(campaign.id, { name: payload.name, data: campaignPatch, done: payload.done }));
-      
+      if (crdtApply) {
+        // Route campaign content through the Y.Doc — it owns local IndexedDB
+        // persistence and the Firestore binary update log. Metadata fields
+        // (name, done, worldId) still ride on the root Firestore doc since
+        // they're orthogonal to multi-device-mergeable content and existing
+        // Firestore rules already gate them.
+        crdtApply(campaignPatch);
+        lastCrdtSnapshotRef.current = JSON.stringify(campaignPatch);
+        promises.push(updateCampaign(campaign.id, { name: payload.name, done: payload.done }));
+      } else {
+        promises.push(updateCampaign(campaign.id, { name: payload.name, data: campaignPatch, done: payload.done }));
+      }
+
       if (campaign.worldId && Object.keys(worldPatch).length > 0) {
         promises.push(updateWorld(campaign.worldId, { data: worldPatch }));
       }
-      
+
       await Promise.all(promises);
 
       setSyncState('synced');
@@ -2318,7 +2338,7 @@ export default function CampaignEditor({
       setSyncState('error');
       setSyncError(err?.message || 'Unknown error');
     }
-  }, [campaign.id, campaign.worldId, world]);
+  }, [campaign.id, campaign.worldId, world, crdtApply]);
 
   const handleConvertToWorld = async () => {
     if (campaign.worldId) return;
@@ -2370,6 +2390,26 @@ export default function CampaignEditor({
     saveTimeoutRef.current = setTimeout(() => { saveToDB({ name, data: { ...state, mode: playMode, __soloMode: soloMode }, done }); }, 1500);
     return () => { if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current); };
   }, [name, state, done, playMode, soloMode, saveToDB]);
+
+  // Remote-merge: when the CRDT layer surfaces a different `campaign.data`
+  // than the snapshot we last sent (because a peer device's edits arrived
+  // and merged), splice the merged content into local state. We skip remote
+  // updates while a local save is pending so we don't clobber in-flight
+  // edits — Yjs has already merged both sides when it reaches this point,
+  // so on the next save cycle the local state lands cleanly on top.
+  useEffect(() => {
+    if (!crdtApply) return;
+    if (!campaign.data) return;
+    if (syncState === 'pending' || syncState === 'saving') return;
+    // Project the incoming snapshot through the same filter the save loop
+    // uses (drop transient mode keys) before comparing to lastCrdtSnapshotRef.
+    const { mode: _m, __soloMode: _s, ...incoming } = campaign.data as Record<string, any>;
+    const incomingStr = JSON.stringify(incoming);
+    if (incomingStr === lastCrdtSnapshotRef.current) return;
+    lastCrdtSnapshotRef.current = incomingStr;
+    skipNextSnapshotRef.current = true; // don't push remote merges onto undo stack
+    setState((prev) => ({ ...prev, ...incoming }));
+  }, [campaign.data, crdtApply, syncState]);
 
   // B-06: record "last opened" exactly once per mount. This is distinct from
   // "last played" (which only moves on session start/end), so viewing a

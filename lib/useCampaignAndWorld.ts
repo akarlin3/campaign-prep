@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { subscribeToCampaign, type Campaign } from '@/lib/firebase/campaigns';
 import { subscribeToWorld, type World } from '@/lib/firebase/worlds';
 import { WORLD_KEYS } from '@/lib/worldData';
+import { useCrdtCampaign } from '@/lib/crdt/use-crdt-campaign';
+import type { CrdtSync } from '@/lib/crdt/sync';
 
 export function useCampaignAndWorld(campaignId: string) {
   const [campaign, setCampaign] = useState<Campaign | null>(null);
@@ -11,7 +13,9 @@ export function useCampaignAndWorld(campaignId: string) {
   const [campaignLoading, setCampaignLoading] = useState(true);
   const [worldLoading, setWorldLoading] = useState(true);
 
-  // 1. Subscribe to Campaign
+  // 1. Subscribe to Campaign metadata (name, userId, playerIds, etc.). The
+  // `data` field on this snapshot is now treated as a legacy seed only — the
+  // live, merged campaign content comes from the CRDT layer below.
   useEffect(() => {
     setCampaignLoading(true);
     return subscribeToCampaign(
@@ -27,10 +31,16 @@ export function useCampaignAndWorld(campaignId: string) {
     );
   }, [campaignId]);
 
-  // 2. Subscribe to World if campaign.worldId is present
+  // 1b. CRDT layer: hydrate from IndexedDB instantly, reconcile with the
+  // Firestore update log, and re-render whenever the merged state changes.
+  // First-time seed pulls from `campaign.data` if both local + remote logs
+  // are empty (legacy migration). The CRDT JSON view supersedes
+  // `campaign.data` whenever it's ready.
+  const crdt = useCrdtCampaign(campaignId, campaign);
+
+  // 2. Subscribe to World if campaign.worldId is present.
   useEffect(() => {
     if (!campaign) {
-      // Don't change world loading state until we know if there is a campaign
       return;
     }
     if (!campaign.worldId) {
@@ -50,27 +60,28 @@ export function useCampaignAndWorld(campaignId: string) {
         setWorldLoading(false);
       }
     );
-  }, [campaign]); // depend on campaign state object to handle changes and subscriptions correctly
+  }, [campaign]);
 
   const loading = campaignLoading || worldLoading;
   const error = campaignError || worldError;
 
-  let mergedCampaign = campaign;
-  if (campaign && world) {
-    const mergedData = { ...campaign.data };
-    
-    // Strict inheritance: World lore overrides campaign data
-    for (const key of WORLD_KEYS) {
-      if (world.data[key] !== undefined) {
-        mergedData[key] = world.data[key];
+  // Compose the merged Campaign object exposed to React consumers. The data
+  // field is sourced from the CRDT view once it's available; otherwise we
+  // fall back to the Firestore JSON so first paint is never blank.
+  const mergedCampaign = useMemo<Campaign | null>(() => {
+    if (!campaign) return null;
+    const baseData = crdt.data ?? campaign.data ?? {};
+    const mergedData: Record<string, any> = { ...baseData };
+    if (world) {
+      // Strict inheritance: World lore overrides campaign data.
+      for (const key of WORLD_KEYS) {
+        if (world.data[key] !== undefined) {
+          mergedData[key] = world.data[key];
+        }
       }
     }
-    
-    mergedCampaign = {
-      ...campaign,
-      data: mergedData,
-    };
-  }
+    return { ...campaign, data: mergedData };
+  }, [campaign, world, crdt.data]);
 
   return {
     campaign: mergedCampaign,
@@ -78,5 +89,11 @@ export function useCampaignAndWorld(campaignId: string) {
     world,
     loading,
     error,
+    /** CRDT sync handle — null until first render. */
+    crdt: crdt.sync as CrdtSync | null,
+    /** Apply a JSON snapshot of campaign.data into the Y.Doc. */
+    applyCampaignData: crdt.applyJson,
+    /** True once local IndexedDB hydration + initial remote pull are done. */
+    crdtReady: crdt.ready,
   };
 }

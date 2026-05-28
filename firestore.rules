@@ -67,6 +67,40 @@ service cloud.firestore {
       match /pcWritebacks/{playerSlotId} {
         allow read, write: if ownsCampaign(campaignId);
       }
+
+      // CRDT update log: opaque binary Yjs updates appended by the campaign
+      // owner from any device. Append-only (no in-place updates / deletes
+      // except by the snapshot-GC path, which the same owner runs). Players
+      // never read these — the only player-facing surface remains the
+      // public-read playerShares projection docs.
+      match /crdtUpdates/{updateId} {
+        allow read: if request.auth != null
+          && get(/databases/$(database)/documents/campaigns/$(campaignId)).data.userId == request.auth.uid;
+        allow create: if request.auth != null
+          && get(/databases/$(database)/documents/campaigns/$(campaignId)).data.userId == request.auth.uid
+          && request.resource.data.clientId is string
+          && request.resource.data.clock is number
+          && request.resource.data.update is bytes;
+        allow delete: if request.auth != null
+          && get(/databases/$(database)/documents/campaigns/$(campaignId)).data.userId == request.auth.uid;
+        allow update: if false;
+      }
+
+      // CRDT snapshots: compacted full-state binary writes for fast cold
+      // start. The same owner that writes a new snapshot also GCs the
+      // updates and older snapshots subsumed by it.
+      match /crdtSnapshots/{snapshotId} {
+        allow read: if request.auth != null
+          && get(/databases/$(database)/documents/campaigns/$(campaignId)).data.userId == request.auth.uid;
+        allow create: if request.auth != null
+          && get(/databases/$(database)/documents/campaigns/$(campaignId)).data.userId == request.auth.uid
+          && request.resource.data.state is bytes
+          && request.resource.data.stateVector is bytes
+          && request.resource.data.throughClock is number;
+        allow delete: if request.auth != null
+          && get(/databases/$(database)/documents/campaigns/$(campaignId)).data.userId == request.auth.uid;
+        allow update: if false;
+      }
     }
 
     // Subscription state — written server-side only (Firebase Admin SDK from Stripe webhook).
