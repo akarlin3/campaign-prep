@@ -118,6 +118,12 @@ function PlayerPcSheetCard({ pc, token, slotId }: { pc: any; token: string; slot
   const [localHp, setLocalHp] = useState<number>(pc.hp?.current ?? 0);
   const [localTempHp, setLocalTempHp] = useState<number>(pc.hp?.temp ?? 0);
   const [localNotes, setLocalNotes] = useState<string>(pc.notes ?? '');
+  const [localExhaustion, setLocalExhaustion] = useState<number>(pc.exhaustion ?? 0);
+  const [localDeathSaves, setLocalDeathSaves] = useState<{ successes: number; failures: number }>({
+    successes: pc.deathSaves?.successes ?? 0,
+    failures: pc.deathSaves?.failures ?? 0,
+  });
+  const [localConditions, setLocalConditions] = useState<string[]>(pc.conditions ?? []);
 
   useEffect(() => {
     setLocalHp(pc.hp?.current ?? 0);
@@ -130,6 +136,21 @@ function PlayerPcSheetCard({ pc, token, slotId }: { pc: any; token: string; slot
   useEffect(() => {
     setLocalNotes(pc.notes ?? '');
   }, [pc.notes]);
+
+  useEffect(() => {
+    setLocalExhaustion(pc.exhaustion ?? 0);
+  }, [pc.exhaustion]);
+
+  useEffect(() => {
+    setLocalDeathSaves({
+      successes: pc.deathSaves?.successes ?? 0,
+      failures: pc.deathSaves?.failures ?? 0,
+    });
+  }, [pc.deathSaves]);
+
+  useEffect(() => {
+    setLocalConditions(pc.conditions ?? []);
+  }, [pc.conditions]);
 
   const sendUpdate = async (field: string, value: any) => {
     try {
@@ -178,21 +199,24 @@ function PlayerPcSheetCard({ pc, token, slotId }: { pc: any; token: string; slot
   };
 
   const toggleCondition = (cond: string) => {
-    const current = pc.conditions || [];
-    const next = current.includes(cond)
-      ? current.filter((c: string) => c !== cond)
-      : [...current, cond];
+    const next = localConditions.includes(cond)
+      ? localConditions.filter((c: string) => c !== cond)
+      : [...localConditions, cond];
+    setLocalConditions(next);
     sendUpdate('conditions', next);
   };
 
   const handleExhaustionChange = (n: number) => {
+    setLocalExhaustion(n);
     sendUpdate('exhaustion', n);
   };
 
   const handleDeathSave = (type: 'successes' | 'failures', count: number) => {
-    const current = pc.deathSaves?.[type] ?? 0;
+    const current = localDeathSaves[type];
     const next = current === count ? count - 1 : count;
-    sendUpdate(`deathSaves.${type}`, Math.max(0, Math.min(3, next)));
+    const nextClamped = Math.max(0, Math.min(3, next));
+    setLocalDeathSaves((prev) => ({ ...prev, [type]: nextClamped }));
+    sendUpdate(`deathSaves.${type}`, nextClamped);
   };
 
   const handleAddListItem = (field: 'goals' | 'bonds' | 'ideals' | 'flaws', text: string) => {
@@ -292,7 +316,7 @@ function PlayerPcSheetCard({ pc, token, slotId }: { pc: any; token: string; slot
                 key={n}
                 onClick={() => handleExhaustionChange(n)}
                 className={`h-6 flex-1 rounded border font-display text-[10px] transition-colors ${
-                  (pc.exhaustion ?? 0) === n
+                  localExhaustion === n
                     ? 'border-crimson bg-crimson text-white font-semibold'
                     : 'border-rule text-ink-soft hover:bg-parchment'
                 }`}
@@ -302,7 +326,7 @@ function PlayerPcSheetCard({ pc, token, slotId }: { pc: any; token: string; slot
             ))}
           </div>
           <p className="font-serif text-[10px] text-ink-faint leading-normal text-center italic pt-0.5">
-            {(pc.exhaustion ?? 0) >= 6 ? '☠ Dead at level 6' : `Level ${pc.exhaustion ?? 0} effects active`}
+            {localExhaustion >= 6 ? '☠ Dead at level 6' : `Level ${localExhaustion} effects active`}
           </p>
         </div>
 
@@ -320,7 +344,7 @@ function PlayerPcSheetCard({ pc, token, slotId }: { pc: any; token: string; slot
                     key={n}
                     onClick={() => handleDeathSave('successes', n)}
                     className={`h-5 w-5 rounded-full border transition-all ${
-                      (pc.deathSaves?.successes ?? 0) >= n
+                      localDeathSaves.successes >= n
                         ? 'border-emerald-600 bg-emerald-500 shadow-sm'
                         : 'border-rule hover:bg-parchment'
                     }`}
@@ -337,7 +361,7 @@ function PlayerPcSheetCard({ pc, token, slotId }: { pc: any; token: string; slot
                     key={n}
                     onClick={() => handleDeathSave('failures', n)}
                     className={`h-5 w-5 rounded-full border transition-all ${
-                      (pc.deathSaves?.failures ?? 0) >= n
+                      localDeathSaves.failures >= n
                         ? 'border-crimson bg-crimson shadow-sm'
                         : 'border-rule hover:bg-parchment'
                     }`}
@@ -357,7 +381,7 @@ function PlayerPcSheetCard({ pc, token, slotId }: { pc: any; token: string; slot
         </div>
         <div className="flex flex-wrap gap-1.5">
           {['Blinded', 'Charmed', 'Deafened', 'Frightened', 'Grappled', 'Incapacitated', 'Invisible', 'Paralyzed', 'Petrified', 'Poisoned', 'Prone', 'Restrained', 'Stunned', 'Unconscious'].map((cond) => {
-            const isActive = (pc.conditions || []).includes(cond);
+            const isActive = localConditions.includes(cond);
             return (
               <button
                 key={cond}
