@@ -1963,8 +1963,15 @@ export function MusicPlayer({
       if (playlistId && typeof playlistIndexProp === 'number' && playlistIndexProp >= 0) {
         const indexChanged = playlistIndexProp !== lastPlaylistIndexRef.current;
         if (indexChanged) {
-          // If we are in read-only (player) mode and already playing, ignore automatic/shuffled index changes
-          // to prevent playback disruption, infinite loops, and browser autoplay blocks.
+          // Ignore automatic/shuffled index changes while the player is already
+          // playing — for BOTH the GM and players. The incoming index prop is an
+          // echo of the GM player's own `getPlaylistIndex()` (published from the
+          // PLAYING onStateChange handler), and YouTube's shuffle reports indices
+          // in shuffled order while `playVideoAt` expects original order, so
+          // re-seeking here just restarts/jumps the current track every few
+          // seconds in a feedback loop (the GM's "music pauses after a few
+          // seconds" bug). Explicit GM skips go through nextVideo()/previousVideo()
+          // directly, never this path, so playback control is unaffected.
           let isActuallyPlaying = false;
           try {
             // @ts-ignore
@@ -1974,7 +1981,7 @@ export function MusicPlayer({
             // Safe fallback
           }
 
-          if (readOnly && isActuallyPlaying) {
+          if (isActuallyPlaying) {
             lastPlaylistIndexRef.current = playlistIndexProp;
           } else {
             if (isPlayingProp) {
