@@ -1,9 +1,9 @@
 'use client';
 
-import { use, useEffect, useMemo, useState } from 'react';
+import { use, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/firebase/auth-context';
-import { subscribeToCampaign, type Campaign } from '@/lib/firebase/campaigns';
+import { useCampaignAndWorld } from '@/lib/useCampaignAndWorld';
 import RecapView from '@/components/RecapView';
 import type { SessionLogEntry } from '@/lib/sessionLog';
 
@@ -13,28 +13,12 @@ export default function RecapPage({ params }: { params: Promise<Params> }) {
   const { id, sessionId } = use(params);
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [campaign, setCampaign] = useState<Campaign | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  
+  const { campaign, loading, error, crdtReady } = useCampaignAndWorld(id);
 
   useEffect(() => {
     if (!authLoading && !user) router.replace('/login');
   }, [user, authLoading, router]);
-
-  useEffect(() => {
-    if (!user) return;
-    const unsub = subscribeToCampaign(
-      id,
-      (c) => {
-        if (!c) { setError('Campaign not found'); setLoading(false); return; }
-        if (c.userId !== user.uid) { setError('Access denied'); setLoading(false); return; }
-        setCampaign(c);
-        setLoading(false);
-      },
-      (err) => { setError(err.message); setLoading(false); },
-    );
-    return unsub;
-  }, [id, user]);
 
   const entry = useMemo<SessionLogEntry | null>(() => {
     if (!campaign) return null;
@@ -42,14 +26,17 @@ export default function RecapPage({ params }: { params: Promise<Params> }) {
     return entries.find(e => e.id === sessionId) || null;
   }, [campaign, sessionId]);
 
-  if (authLoading || loading) {
+  const isCurrentlyLoading = authLoading || loading || (campaign && user && campaign.userId === user.uid && !crdtReady);
+
+  if (isCurrentlyLoading) {
     return <main className="flex min-h-screen items-center justify-center text-xs text-ink-mute">Loading…</main>;
   }
+
   if (error) {
     return (
       <main className="flex min-h-screen items-center justify-center p-5">
         <div className="space-y-3 text-center">
-          <p className="text-sm text-crimson">{error}</p>
+          <p className="text-sm text-crimson">{error.message}</p>
           <button onClick={() => router.replace(`/campaign/${id}`)} className="rounded border border-rule px-3 py-1 text-xs text-ink-soft hover:bg-parchment-deep">
             Back to campaign
           </button>
@@ -57,7 +44,22 @@ export default function RecapPage({ params }: { params: Promise<Params> }) {
       </main>
     );
   }
+
   if (!campaign || !user) return null;
+
+  if (campaign.userId !== user.uid) {
+    return (
+      <main className="flex min-h-screen items-center justify-center p-5">
+        <div className="space-y-3 text-center">
+          <p className="text-sm text-crimson">Access denied</p>
+          <button onClick={() => router.replace(`/campaign/${id}`)} className="rounded border border-rule px-3 py-1 text-xs text-ink-soft hover:bg-parchment-deep">
+            Back to campaign
+          </button>
+        </div>
+      </main>
+    );
+  }
+
   if (!entry) {
     return (
       <main className="flex min-h-screen items-center justify-center p-5">
@@ -73,3 +75,4 @@ export default function RecapPage({ params }: { params: Promise<Params> }) {
 
   return <RecapView campaign={campaign} entry={entry} />;
 }
+
