@@ -44,7 +44,7 @@ export function buildSaveToDB(opts: SyncAndSaveOptions) {
           promises.push(crdtPromise);
         }
         lastCrdtSnapshotRef.current = JSON.stringify(campaignPatch);
-        promises.push(updateCampaign(campaign.id, { name: payload.name, done: payload.done }));
+        promises.push(updateCampaign(campaign.id, { name: payload.name, data: campaignPatch, done: payload.done }));
       } else {
         promises.push(updateCampaign(campaign.id, { name: payload.name, data: campaignPatch, done: payload.done }));
       }
