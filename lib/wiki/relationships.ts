@@ -3,9 +3,13 @@
 // layer (components/wiki). All functions are immutable — they return new arrays.
 
 import { ruleFor } from './catalog';
-import type { EntityType, Relationship, RelationshipKind } from './types';
+import type { EdgeVisibility, EntityType, Relationship, RelationshipKind } from './types';
 
 export type EntityRef = { type: EntityType; id: string };
+
+function clamp01(n: number): number {
+  return Math.min(1, Math.max(0, n));
+}
 
 function makeId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -59,18 +63,78 @@ export function addRelationship(
   return [...all, rel];
 }
 
-export function removeRelationship(all: ReadonlyArray<Relationship>, id: string): Relationship[] {
-  return all.filter((r) => r.id !== id);
+// ── Graph-editing edge helpers (CP5) ─────────────────────────────────────────
+// The node graph is a write surface: drag-to-connect creates an edge with an
+// explicit weight/visibility; the edge editor adjusts kind/weight/visibility in
+// place. Both are pure array transforms here so the UI layer (components/wiki)
+// can route them through the same setState/CRDT auto-save path as every other
+// relationship mutation — no second writer.
+
+export type EdgeInit = {
+  /** Normalized 0..1 strength. Clamped. Omit to fall back to the kind default. */
+  weight?: number;
+  /** Player-mode redaction. Defaults to 'private' (fail-closed) when omitted. */
+  visibility?: EdgeVisibility;
+  customVisibleTo?: string[];
+  notes?: string;
+};
+
+/** Create a graph edge (Relationship) with optional weight/visibility set at
+ * creation time. Built on createRelationship so the id/createdAt logic stays in
+ * one place; `updatedAt` is seeded to `createdAt`. */
+export function createEdge(
+  from: EntityRef,
+  to: EntityRef,
+  kind: RelationshipKind,
+  init: EdgeInit = {},
+): Relationship {
+  const base = createRelationship(from, to, kind, init.notes);
+  const rel: Relationship = { ...base, updatedAt: base.createdAt };
+  if (typeof init.weight === 'number' && Number.isFinite(init.weight)) {
+    rel.weight = clamp01(init.weight);
+  }
+  if (init.visibility) rel.visibility = init.visibility;
+  if (init.visibility === 'custom' && Array.isArray(init.customVisibleTo)) {
+    rel.customVisibleTo = init.customVisibleTo;
+  }
+  return rel;
 }
 
-// Patch the editable fields of one relationship (kind/weight/visibility/notes…)
-// and stamp `updatedAt`. Immutable; unknown ids are a no-op.
+export type EdgePatch = Partial<
+  Pick<Relationship, 'kind' | 'weight' | 'visibility' | 'customVisibleTo' | 'notes'>
+>;
+
+/** Edit one edge in place, returning a NEW array. Weight is clamped to 0..1;
+ * switching visibility away from 'custom' drops the stale roster list; an empty
+ * notes string clears the field. Always stamps `updatedAt`. */
 export function updateRelationship(
   all: ReadonlyArray<Relationship>,
   id: string,
-  patch: Partial<Omit<Relationship, 'id' | 'createdAt'>>,
+  patch: EdgePatch,
 ): Relationship[] {
-  return all.map((r) => (r.id === id ? { ...r, ...patch, updatedAt: Date.now() } : r));
+  return all.map((r) => {
+    if (r.id !== id) return r;
+    const next: Relationship = { ...r, updatedAt: Date.now() };
+    if (patch.kind !== undefined) next.kind = patch.kind;
+    if (patch.weight !== undefined && Number.isFinite(patch.weight)) {
+      next.weight = clamp01(patch.weight as number);
+    }
+    if (patch.visibility !== undefined) {
+      next.visibility = patch.visibility;
+      if (patch.visibility !== 'custom') delete next.customVisibleTo;
+    }
+    if (patch.customVisibleTo !== undefined) next.customVisibleTo = patch.customVisibleTo;
+    if (patch.notes !== undefined) {
+      const t = patch.notes.trim();
+      if (t) next.notes = t;
+      else delete next.notes;
+    }
+    return next;
+  });
+}
+
+export function removeRelationship(all: ReadonlyArray<Relationship>, id: string): Relationship[] {
+  return all.filter((r) => r.id !== id);
 }
 
 // Confirm a suggested OR proposed relationship — clears both review flags so it
